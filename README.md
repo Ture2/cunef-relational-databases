@@ -1,53 +1,156 @@
-# Database normalization: interactive practice
+# Databases practice
 
-A static site (HTML, CSS and JavaScript, no dependencies and no server) for practicing normalization from 2NF to 5NF.
+A static site (HTML, CSS and JavaScript, no dependencies, no build step and no server) for practising the databases course. Students choose a course at the top of the page:
 
-- **Normalize**: the student decomposes a table by assigning attributes to new tables and marking their primary keys. Each exercise is solved **step by step**, one normal form at a time (2NF, 3NF, BCNF, 4NF, 5NF), and each step starts from the tables the student left in the previous one. The preview shows each table's data live, tells the student whether joining the tables produces rows that never existed, and the checker explains what fails.
-- **Diagnose**: a quiz of tables in random order ("which normal form does it reach?") with an explanation for each answer. **Basic** level (1NF to 3NF, 10 tables) and **Advanced** level (BCNF to 5NF, 6 tables).
+- **Relational databases**, in three sections in teaching order:
+  1. **ER concepts**: concept cards (entities, attributes, keys, relationships, correspondence, look-across cardinality, weak entities, relationship constraints, hierarchies, categories, aggregation, the time dimension, modelling steps), each with a small Chen diagram. They are followed by a **Test yourself** quiz of 33 multiple-choice, true/false and fill-in questions, which can be filtered by topic.
+  2. **ER → Logical**: the student reads an ER model (diagram plus a text version) and builds the relational tables. For each table they give its name and columns, mark the primary key, pick a foreign key's target, and mark NOT NULL on the foreign keys. The checker explains every mistake in terms of the course's transformation rules. There are 21 exercises: 9 at level 1 (one rule at a time) and 12 at level 2 (complete models from the lab sessions).
+  3. **Normalization**: the existing normalization practice from 2NF to 5NF, in two modes, Normalize and Diagnose (described below).
+- **Non-relational databases**: for now an overview of the four NoSQL families. The route (`#/nosql`) is ready for practice once the course material exists.
 
-## Help for each transformation
+The content comes from the G241 course material (Topic 2 and 3 translations, Quiz 2, the lab sessions and the ER model contract).
 
-At each step the student has three levels of help:
+## Files
 
-1. **What this normal form asks for**: a card with the rule and a "How to take this step" drop-down with the questions to ask in that specific transformation (for example, from 3NF to 4NF: look for independent facts about the same determinant and store each in its own table). It lives in `NF_INFO`, inside `exercises.js`.
-2. **Exercise hints**, three per step, from vaguest to most concrete.
-3. **Checker messages**, specific to each normal form: partial dependency (2NF), transitive dependency (3NF), determinant that is not a key (BCNF), multivalued dependency `X ↠ Y | Z` (4NF) and join dependency (5NF), with an "invented" example row when the decomposition loses information.
+```
+index.html              page shell: course switch, section tabs, #view
+styles.css              all styles
+js/core.js              shared helpers (escaping, storage, focus, check lists)
+js/er-diagram.js        ER diagrams as inline SVG (Chen notation)
+js/er.js                ER concepts and quiz
+js/logical-engine.js    ER → logical rules and checker (no DOM; also runs in Node)
+js/logical.js           ER → logical exercise page
+js/normalization.js     normalization engine and pages
+js/nosql.js             non-relational overview
+js/main.js              router and start-up
+data/er-concepts.js     ER_CONCEPTS
+data/er-quiz.js         ER_QUIZ, ER_QUIZ_TOPICS
+data/logical.js         LOGICAL_EXERCISES
+data/normalization.js   NF_INFO, EXERCISES, ADV_OPTIONS, QUESTIONS
+```
 
-"Show solution" also has a "Load into my design" button so the student can move on to the next step when stuck.
+Direct links, handy for sharing in class:
 
-## SQL for the design
+- `#/relational/er` and `#/relational/er/quiz/weak` (quiz filtered to one topic)
+- `#/relational/logical/17` (exercise 17)
+- `#/relational/normalization/3`, `#/relational/normalization/diagnose` and `#/relational/normalization/diagnose/advanced`
+- `#/nosql`
 
-When a step is passed, a **"SQL for this design"** drop-down appears with the `CREATE TABLE` statements for the student's tables: primary keys, foreign keys (a table references another when it contains that table's primary key) and referenced tables first. Types (`INTEGER`, `DECIMAL`, `DATE`, `VARCHAR`) are inferred from the sample rows, so the script itself says they must be reviewed. It includes a "Copy SQL" button. It is standard SQL; it was verified by loading it into SQLite with foreign keys enabled and inserting the sample rows.
-
-## Saved progress
-
-The browser stores (in `localStorage`, on that device only):
-
-- solved exercises and the best score of each quiz (key `normalization-en-v1`);
-- the **intermediate state** of each exercise: current step, tables, open hints and completed steps (key `normalization-en-work-v1`). When the page is reopened the student continues where they left off.
-
-Safeguards:
-
-- **Per-exercise version.** Every saved state carries a signature of the exercise's attributes, dependencies, row count and steps. If you edit `exercises.js` and any of them changes, the old state is discarded instead of breaking the page.
-- **Nothing is taken on trust.** Steps saved as "done" are checked again on load; a tampered or corrupt state is ignored.
-- **"Clear my progress" button** (next to the exercise counter), with confirmation. Useful on shared classroom computers.
-- If the browser blocks `localStorage` (private browsing, institutional policies), the tool works the same but saves nothing.
-
-Storage is per browser and device, and all pages under `user.github.io` share an origin: the keys carry the `normalization-en-` prefix.
+Old links (`#/normalize/3`, `#/diagnose`, `#/diagnose/advanced`) are redirected to the new ones.
 
 ## Publish on GitHub Pages
 
-1. Create a repository and upload `index.html`, `styles.css`, `app.js` and `exercises.js` to its root.
+1. Upload `index.html`, `styles.css` and the `js/` and `data/` folders to the root of the repository.
 2. In **Settings → Pages**, choose **Deploy from a branch**, branch `main` and folder `/ (root)`.
 3. In a minute it will be at `https://<user>.github.io/<repository>/`.
 
 To try it locally, just open `index.html` in the browser.
 
-Direct links, handy for sharing in class: `.../#/normalize/3` (exercise 3), `.../#/diagnose` and `.../#/diagnose/advanced`.
+## Saved progress
 
-## Adding or editing exercises
+Everything is stored in `localStorage`, on that device only, and never sent anywhere. If storage is blocked, the site works the same but saves nothing.
 
-All the content is in `exercises.js`; there is no need to touch `app.js`. Copy an object from `EXERCISES` and change:
+| Key | Content |
+|---|---|
+| `er-quiz-v1` | Best ER quiz score for each topic |
+| `er-logical-v1` | Solved ER → logical exercises |
+| `er-logical-work-v1` | The tables of each ER → logical exercise. They are discarded when the exercise's ER model changes |
+| `normalization-en-v1`, `normalization-en-work-v1` | Normalization progress and work (unchanged from the previous version, so earlier progress is kept) |
+
+## ER concepts and quiz
+
+**Concept cards** (`ER_CONCEPTS`): `{ id, title, topic, summary, body: [...], points?, example?, mistake?, diagram?, caption? }`. `topic` is a key of `ER_QUIZ_TOPICS`; the card links to the quiz filtered by that topic.
+
+**Quiz questions** (`ER_QUIZ`):
+
+- `{ type: 'mc', topic, q, choices, answer, why }`, where `answer` is the 0-based index of the correct choice;
+- `{ type: 'tf', topic, q, answer: true | false, why }`;
+- `{ type: 'fib', topic, q, accept: [...], why }`. `q` contains a `____` blank, and the student's answer is compared against `accept`, ignoring case, accents and punctuation.
+
+Any question can carry a `diagram`. Text fields can use `**bold**` and `` `code` ``.
+
+**Diagram spec** (used by cards and questions, drawn by `ErDiagram.chenSvg`):
+
+```js
+{ w: 560, h: 240,
+  nodes: [{ id, cx, cy, type: 'entity' | 'relationship' | 'attribute' | 'isa', label,
+            weak?, identifying?, kind?: 'key' | 'partial' | 'multivalued' | 'derived' }],
+  edges: [{ from, to, card?: '(1,1)', total?, dashed? }] }
+```
+
+`cx` and `cy` are node centres, normalized from 0 to 1. The `card` label is drawn next to the `from` end and follows the course's look-across convention.
+
+## ER → Logical exercises
+
+Each element of `LOGICAL_EXERCISES` describes only the ER model. `js/logical-engine.js` derives the expected tables from it by applying the course rules:
+
+1. Every entity becomes a table.
+2. Every attribute becomes a column. Composite attributes are split into their parts; derived attributes are left out.
+3. The identifier becomes the primary key.
+4. An M:N relationship becomes a table whose PK combines both keys.
+5. In 1:N, the key of the 1 side goes to the N side.
+6. In 1:1, the key of either side passes to the other.
+7. In (0,1)/(1,1), the key passes to the optional side.
+
+It also handles:
+
+- weak entities: PK = the owner's key + the partial key;
+- multivalued attributes: a table of their own;
+- unary relationships: a self FK, or a junction table for M:N;
+- ternary relationships;
+- hierarchies, with any of the three strategies;
+- NOT NULL, taken from the `min` at the opposite end.
+
+```js
+{ id, level: 1 | 2, title, short, source, statement, focus: ['1:N', ...],
+  entities: [{ id, at: [col, row], weak?, attrs: [{ name, kind?: 'key' | 'partial' | 'multivalued' | 'derived' | 'composite', parts? }] }],
+  relationships: [{ id, at?, identifying?, attrs?, ends: [{ entity, card: '(0,N)', role? }] }],
+  hierarchies?: [{ id, super, subs: [...], disjoint, total, discriminator?, at? }],
+  prefer?: { oneToOne: { Rel: 'EntityWithTheFK' }, hierarchy: { Id: 'super+subs' | 'single' | 'subs' } },
+  hints: [...], note?,
+  expect: [{ name, cols: [{ n, pk?, fk?: 'Table.col', nn? }] }] }   // the course's reference solution
+```
+
+- **Cardinalities are look-across:** the `card` of an end is the number of occurrences of that end's entity for one occurrence of the other entity.
+- **Diagram layout:** `at` places things on a grid. Entities usually go on even cells and relationship diamonds between them; a relationship's position defaults to the midpoint of its entities.
+- **Accepted solutions:** when the course accepts several solutions, the checker accepts all of them and adds a note naming the course's preferred one. This covers the side of a 1:1 foreign key, the three hierarchy strategies, and the key of a ternary that has a (1,1) end.
+- **Table matching:** tables are matched by name and content, so junction tables can be named freely. Foreign keys are matched by the table and column they reference, not by their name.
+- **Self-test:** when the page opens, the console warns if the derived solution disagrees with `expect`. Check it after adding or editing an exercise.
+
+What the checker reports, each with the rule and the ER element behind it:
+
+- missing or extra tables, including a table for a 1:N relationship that should have been a foreign key;
+- missing columns, including composite attributes that were not split;
+- derived attributes that were kept (as a note) and multivalued attributes kept as a column;
+- wrong primary keys, for example a weak entity without the owner's key;
+- missing foreign keys, or foreign keys on the wrong side;
+- foreign keys that do not point to a primary key;
+- the wrong NULL / NOT NULL on a foreign key.
+
+## Normalization
+
+The student decomposes a table by assigning attributes to new tables and marking their primary keys.
+
+- **Normalize**: each exercise is solved **step by step**, one normal form at a time (2NF, 3NF, BCNF, 4NF, 5NF), and each step starts from the tables the student left in the previous one. The preview shows each table's data live, tells the student whether joining the tables produces rows that never existed, and the checker explains what fails.
+- **Diagnose**: a quiz of tables in random order ("which normal form does it reach?") with an explanation for each answer. It has a **Basic** level (1NF to 3NF, 10 tables) and an **Advanced** level (BCNF to 5NF, 6 tables).
+
+### Help for each transformation
+
+At each step the student has three levels of help:
+
+1. **What this normal form asks for**: a card with the rule and a "How to take this step" drop-down with the questions to ask in that specific transformation (for example, from 3NF to 4NF: look for independent facts about the same determinant and store each in its own table). It lives in `NF_INFO`, inside `data/normalization.js`.
+2. **Exercise hints**, three per step, from vaguest to most concrete.
+3. **Checker messages**, specific to each normal form: partial dependency (2NF), transitive dependency (3NF), determinant that is not a key (BCNF), multivalued dependency `X ↠ Y | Z` (4NF) and join dependency (5NF), with an "invented" example row when the decomposition loses information.
+
+"Show solution" also has a "Load into my design" button so the student can move on to the next step when stuck.
+
+### SQL for the design
+
+When a step is passed, a **"SQL for this design"** drop-down appears with the `CREATE TABLE` statements for the student's tables: primary keys, foreign keys (a table references another when it contains that table's primary key) and referenced tables first. Types (`INTEGER`, `DECIMAL`, `DATE`, `VARCHAR`) are inferred from the sample rows, so the script itself says they must be reviewed. It includes a "Copy SQL" button. It is standard SQL; it was verified by loading it into SQLite with foreign keys enabled and inserting the sample rows.
+
+### Adding or editing exercises
+
+All the content is in `data/normalization.js`; there is no need to touch `js/normalization.js`. Copy an object from `EXERCISES` and change:
 
 | Field    | Meaning                                                                                          |
 |----------|--------------------------------------------------------------------------------------------------|
@@ -86,7 +189,7 @@ When the page opens, the browser console (F12) warns if:
 - a step requires no change (and is not marked `vacuous`);
 - a question's answer does not match what the engine computes.
 
-## What it checks
+### What it checks
 
 The checker does not compare against the solution: it validates any decomposition, so it accepts correct alternatives. For every attempt it checks:
 
@@ -98,7 +201,7 @@ The checker does not compare against the solution: it validates any decompositio
 
 If the attempt is correct but there are redundant tables (contained in another, or mergeable without breaking the normal form), it flags it as "correct, though it could be better".
 
-### Engine limits (important)
+#### Engine limits (important)
 
 - **Multivalued and join dependencies are declared, not discovered.** Sample data cannot prove them: a rule that holds in the current rows may be a coincidence. That is why the statement must say the rule always holds, and 5NF is only correct under that condition.
 - The 4NF and 5NF checks work on the declared dependencies and their projections onto each table. They do not compute every embedded dependency that could be implied, so a new exercise should be tested with the console open and with some incorrect decompositions.

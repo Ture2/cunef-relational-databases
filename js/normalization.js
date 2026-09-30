@@ -1,13 +1,17 @@
 'use strict';
 
 /* ==========================================================================
-   Normalization practice. No dependencies, no server.
-   Data lives in exercises.js. This file has three parts:
+   Normalization practice (Relational databases › Normalization).
+   Data lives in data/normalization.js. This file has three parts:
      1. Dependency engine (functional, multivalued and join) and checker
      2. "Normalize" mode (attribute/table matrix, step by step)
      3. "Diagnose" mode (normal-form quiz)
+   Routing lives in js/main.js, which calls Normalization.render(route).
    ========================================================================== */
 
+const Normalization = (() => {
+
+const BASE = '#/relational/normalization';
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -530,8 +534,9 @@ function selfTest() {
    ========================================================================== */
 
 const view = $('#view');
+const pane = () => $('#norm-pane') || view;   // renderExercise/renderQuiz redraw only this part
 const work = {};                       // state of each exercise during the session
-let route = parseHash();
+let route = { mode: 'normalize', ex: 0, adv: false };
 
 const newTable = () => ({ name: '', cells: {} });      // cells: attribute -> 1 (included) | 2 (key)
 const cloneTable = (t) => ({ name: t.name, cells: { ...t.cells } });
@@ -646,7 +651,7 @@ function exerciseNav() {
   const items = EXERCISES.map((e, i) => {
     const frac = e.steps.length > 1 && !progress.solved[e.id] && doneCount(e) > 0 ? `<span class="frac">${doneCount(e)}/${e.steps.length}</span>` : '';
     return `
-      <li><a href="#/normalize/${i + 1}"${i === route.ex ? ' aria-current="page"' : ''}>
+      <li><a href="${BASE}/${i + 1}"${i === route.ex ? ' aria-current="page"' : ''}>
         <span class="n">${i + 1}</span><span>${esc(e.short)}</span>${frac}${progress.solved[e.id] ? `<span class="done" title="Solved">${ICON.ok}<span class="sr-only"> (solved)</span></span>` : ''}
       </a></li>`;
   }).join('');
@@ -887,7 +892,7 @@ function feedbackHtml(ex, w) {
   } else if (r.ok && last) {
     const idx = route.ex;
     after = `${ex.steps.length > 1 ? `<p class="done-msg">You have completed the exercise: from 1NF to ${st.nf}.</p>` : ''}
-      ${idx < EXERCISES.length - 1 ? `<p class="actions"><a class="btn" href="#/normalize/${idx + 2}">Next exercise</a></p>` : ''}`;
+      ${idx < EXERCISES.length - 1 ? `<p class="actions"><a class="btn" href="${BASE}/${idx + 2}">Next exercise</a></p>` : ''}`;
   }
   return `<section class="feedback ${tone}" aria-labelledby="fb-title">
       <h3 id="fb-title" tabindex="-1">${title}</h3>
@@ -926,7 +931,7 @@ function renderExercise() {
   const goal = ex.steps.length > 1
     ? `Goal: reach <strong>${finalNf}</strong> in ${ex.steps.length} steps`
     : `Goal: reach <strong>${finalNf}</strong>`;
-  view.innerHTML = `
+  pane().innerHTML = `
     ${exerciseNav()}
     <article class="exercise" aria-labelledby="ex-title">
       <header class="ex-head">
@@ -1178,8 +1183,8 @@ function quizTableHtml(qn) {
 
 function quizLevelsHtml() {
   return `<nav class="levels" aria-label="Quiz level">
-      <a href="#/diagnose"${!quiz.adv ? ' aria-current="page"' : ''}>Basic <span>1NF to 3NF</span></a>
-      <a href="#/diagnose/advanced"${quiz.adv ? ' aria-current="page"' : ''}>Advanced <span>BCNF to 5NF</span></a>
+      <a href="${BASE}/diagnose"${!quiz.adv ? ' aria-current="page"' : ''}>Basic <span>1NF to 3NF</span></a>
+      <a href="${BASE}/diagnose/advanced"${quiz.adv ? ' aria-current="page"' : ''}>Advanced <span>BCNF to 5NF</span></a>
     </nav>`;
 }
 
@@ -1209,7 +1214,7 @@ function renderQuiz() {
        <p class="actions"><button type="button" class="btn" data-action="next" data-fid="next">${last ? 'See result' : 'Next table'}</button></p>`
     : '';
 
-  view.innerHTML = `
+  pane().innerHTML = `
     ${quizLevelsHtml()}
     <article class="quiz" aria-labelledby="q-title">
       <p class="q-progress">Table ${quiz.i + 1} of ${quiz.order.length}. Correct: ${quiz.score}.</p>
@@ -1228,7 +1233,7 @@ function renderQuizEnd() {
   const total = quiz.order.length;
   const missed = quiz.missed.map((k) => QUESTIONS[k]);
   const best = quiz.adv ? progress.quizBestAdv : progress.quizBest;
-  view.innerHTML = `
+  pane().innerHTML = `
     ${quizLevelsHtml()}
     <article class="quiz" aria-labelledby="q-title">
       <h2 id="q-title" tabindex="-1">You got ${quiz.score} of ${total} right</h2>
@@ -1238,7 +1243,7 @@ function renderQuizEnd() {
         : '<p class="story">You did not miss any. Move on to normalizing tables.</p>'}
       <p class="actions">
         <button type="button" class="btn" data-action="restart" data-fid="restart">Repeat in a different order</button>
-        <a class="btn ghost" href="#/normalize">Go to Normalize</a>
+        <a class="btn ghost" href="${BASE}">Go to Normalize</a>
       </p>
     </article>`;
   $('#q-title')?.focus({ preventScroll: true });
@@ -1277,51 +1282,61 @@ function handleQuizAction(el) {
 }
 
 /* ==========================================================================
-   Navigation and start-up
+   Section shell: the rules, the Normalize/Diagnose switch and the hooks for js/main.js
    ========================================================================== */
 
-function parseHash() {
-  const m = location.hash.match(/^#\/(normalize|diagnose)(?:\/(\d+|advanced))?$/);
-  if (!m) return { mode: 'normalize', ex: 0, adv: false };
-  if (m[1] === 'diagnose') return { mode: 'diagnose', ex: 0, adv: m[2] === 'advanced' };
-  const ex = m[2] && /^\d+$/.test(m[2]) ? Math.min(Math.max(parseInt(m[2], 10) - 1, 0), EXERCISES.length - 1) : 0;
-  return { mode: 'normalize', ex, adv: false };
+const RULES_HTML = `
+    <details class="rules">
+      <summary>The rules in one sentence</summary>
+      <dl>
+        <div><dt>1NF</dt><dd><strong>One cell, one value.</strong> No lists or repeating groups in a cell or a row.</dd></div>
+        <div><dt>2NF</dt><dd><strong>The whole key.</strong> Every attribute depends on the entire key, not on part of it. It only matters with composite keys.</dd></div>
+        <div><dt>3NF</dt><dd><strong>Nothing but the key.</strong> No attribute depends on another attribute that is not a key.</dd></div>
+        <div><dt>BCNF</dt><dd><strong>Every determinant is a key.</strong> If something determines other attributes, it must identify each row.</dd></div>
+        <div><dt>4NF</dt><dd><strong>One fact per table.</strong> Two independent pieces of data about the same thing do not share a table.</dd></div>
+        <div><dt>5NF</dt><dd><strong>Nothing that can be rebuilt from its parts.</strong> If a table comes from joining smaller ones, store it as those parts.</dd></div>
+      </dl>
+    </details>`;
+
+function subNavHtml() {
+  const on = (m) => (route.mode === m ? ' aria-current="page"' : '');
+  return `<nav class="subnav" aria-label="Normalization mode">
+      <a href="${BASE}"${on('normalize')}>Normalize</a>
+      <a href="${BASE}/diagnose"${on('diagnose')}>Diagnose</a>
+    </nav>`;
 }
 
-function render() {
-  document.querySelectorAll('.modes a').forEach((a) => {
-    if (a.dataset.mode === route.mode) a.setAttribute('aria-current', 'page');
-    else a.removeAttribute('aria-current');
-  });
-  if (route.mode === 'diagnose') {
-    document.title = `Diagnose${route.adv ? ' (advanced)' : ''} · Database normalization`;
-    renderQuiz();
-  } else {
-    document.title = `Exercise ${route.ex + 1}: ${EXERCISES[route.ex].title} · Database normalization`;
-    renderExercise();
-  }
+/* Route segments after #/relational/normalization: '', 'N', 'diagnose', 'diagnose/advanced'. */
+function parseRoute(rest) {
+  const m = rest.match(/^(?:(\d+)|diagnose(?:\/(advanced))?)?$/);
+  if (m && rest.startsWith('diagnose')) return { mode: 'diagnose', ex: 0, adv: m[2] === 'advanced' };
+  const n = m && m[1] ? parseInt(m[1], 10) : 1;
+  return { mode: 'normalize', ex: Math.min(Math.max(n - 1, 0), EXERCISES.length - 1), adv: false };
 }
 
-view.addEventListener('click', (e) => {
-  const el = e.target.closest('[data-action]');
-  if (!el || el.disabled) return;
+function render(rest) {
+  route = parseRoute(rest || '');
+  view.innerHTML = `${subNavHtml()}${RULES_HTML}<div id="norm-pane"></div>`;
+  if (route.mode === 'diagnose') renderQuiz(); else renderExercise();
+  return route.mode === 'diagnose'
+    ? `Diagnose${route.adv ? ' (advanced)' : ''} · Normalization`
+    : `Exercise ${route.ex + 1}: ${EXERCISES[route.ex].title} · Normalization`;
+}
+
+function onClick(el) {
   if (route.mode === 'diagnose') handleQuizAction(el); else handleExerciseAction(el);
-});
+}
 
-view.addEventListener('input', (e) => {
+function onInput(e) {
   const input = e.target.closest('input[data-name]');
   if (!input || route.mode !== 'normalize') return;
   const w = getWork(route.ex);
   cur(w).tables[+input.dataset.name].name = input.value;
   $('#previews').innerHTML = previewsHtml(EXERCISES[route.ex], w);
   persist();
-});
+}
 
-window.addEventListener('hashchange', () => {
-  route = parseHash();
-  render();
-  try { window.scrollTo(0, 0); } catch (e) { /* environments without scrolling */ }
-});
-
-render();
 selfTest();
+
+return { render, onClick, onInput };
+})();
