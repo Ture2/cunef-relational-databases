@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Database normalization</title>
+  <meta name="description" content="Interactive normalization practice up to 5NF: decompose tables step by step, check your design instantly and diagnose the normal form of each case.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='2' width='13' height='13' fill='%230E7C86'/%3E%3Crect x='17' y='2' width='13' height='13' fill='%236B46C1'/%3E%3Crect x='2' y='17' width='28' height='13' fill='%23B26A00'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="wrap">
+      <div class="brand">
+        <h1>Database normalization</h1>
+        <p class="lede">Decompose tables step by step, from 2NF to 5NF, and check your design instantly, or diagnose the normal form of each case.</p>
+      </div>
+      <nav class="modes" aria-label="Practice mode">
+        <a href="#/normalize" data-mode="normalize">Normalize</a>
+        <a href="#/diagnose" data-mode="diagnose">Diagnose</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <details class="rules">
+      <summary>The rules in one sentence</summary>
+      <dl>
+        <div>
+          <dt>1NF</dt>
+          <dd><strong>One cell, one value.</strong> No lists or repeating groups in a cell or a row.</dd>
+        </div>
+        <div>
+          <dt>2NF</dt>
+          <dd><strong>The whole key.</strong> Every attribute depends on the entire key, not on part of it. It only matters with composite keys.</dd>
+        </div>
+        <div>
+          <dt>3NF</dt>
+          <dd><strong>Nothing but the key.</strong> No attribute depends on another attribute that is not a key.</dd>
+        </div>
+        <div>
+          <dt>BCNF</dt>
+          <dd><strong>Every determinant is a key.</strong> If something determines other attributes, it must identify each row.</dd>
+        </div>
+        <div>
+          <dt>4NF</dt>
+          <dd><strong>One fact per table.</strong> Two independent pieces of data about the same thing do not share a table.</dd>
+        </div>
+        <div>
+          <dt>5NF</dt>
+          <dd><strong>Nothing that can be rebuilt from its parts.</strong> If a table comes from joining smaller ones, store it as those parts.</dd>
+        </div>
+      </dl>
+    </details>
+
+    <div id="view"></div>
+    <noscript><p class="story">This practice tool needs JavaScript enabled to work.</p></noscript>
+  </main>
+
+  <p id="sr-status" class="sr-only" role="status" aria-live="polite"></p>
+
+  <script src="exercises.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
