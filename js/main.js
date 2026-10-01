@@ -2,11 +2,12 @@
 
 /* ==========================================================================
    Router and start-up. Hash routes:
-     #/relational/er[/quiz[/topic]]           ER concepts and quiz
-     #/relational/logical[/N]                 ER → logical exercises
-     #/relational/normalization[/N | /diagnose[/advanced]]
-     #/nosql                                  Non-relational overview
-   Old links (#/normalize/N, #/diagnose...) are redirected.
+     #/relational/theory[/card | /quiz[/topic]]   Theory cards and quiz
+     #/relational/er[/card | /quiz[/topic]]       ER concepts and quiz
+     #/relational/logical[/rule | /practice[/N]]  ER → logical rules and exercises
+     #/relational/normalization[/card | /practice[/N] | /diagnose[/advanced]]
+     #/nosql                                      Non-relational overview
+   Old links (#/normalize/N, #/diagnose..., …/logical/N, …/normalization/N) are redirected.
    ========================================================================== */
 
 (() => {
@@ -16,8 +17,8 @@
       sections: [
         { id: 'theory', href: '#/relational/theory', label: t('Theory'), module: TheorySection },
         { id: 'er', href: '#/relational/er', label: t('ER concepts'), module: ErSection },
-        { id: 'logical', href: '#/relational/logical', label: t('ER → Logical'), module: LogicalSection },
-        { id: 'normalization', href: '#/relational/normalization', label: t('Normalization'), module: Normalization },
+        { id: 'logical', href: '#/relational/logical', label: t('ER → Logical'), module: LogicalRulesSection },
+        { id: 'normalization', href: '#/relational/normalization', label: t('Normalization'), module: NormalizationSection },
       ],
     },
     nosql: {
@@ -91,9 +92,12 @@
 
   function legacy(hash) {
     let m = hash.match(/^#\/normalize(?:\/(\d+))?$/);
-    if (m) return `#/relational/normalization${m[1] ? `/${m[1]}` : ''}`;
+    if (m) return `#/relational/normalization/practice${m[1] ? `/${m[1]}` : ''}`;
     m = hash.match(/^#\/diagnose(\/advanced)?$/);
     if (m) return `#/relational/normalization/diagnose${m[1] || ''}`;
+    // Exercises used to sit directly below the section; the section root now shows the theory.
+    m = hash.match(/^#\/relational\/(logical|normalization)\/(\d+)$/);
+    if (m) return `#/relational/${m[1]}/practice/${m[2]}`;
     return null;
   }
 
@@ -122,8 +126,8 @@
     const route = parse();
     if (!route) { history.replaceState(null, '', '#/relational/theory'); render(); return; }
     header(route);
-    // The ER concepts section draws a full-height rail on the left edge, so it uses the full width.
-    $('#main').classList.toggle('is-wide', route.course === 'relational' && (route.section === 'er' || route.section === 'theory'));
+    // Every relational section draws a full-height rail on the left edge, so it uses the full width.
+    $('#main').classList.toggle('is-wide', route.course === 'relational');
     const section = COURSES[route.course].sections.find((s) => s.id === route.section);
     current = section.module;
     const title = current.render(route.rest);

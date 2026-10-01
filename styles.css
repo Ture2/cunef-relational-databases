@@ -230,16 +230,6 @@ code { font: 500 .9em var(--mono); }
 .modes a:hover { border-bottom-color: var(--rule); }
 .modes a[aria-current] { border-bottom-color: var(--accent); }
 
-/* Sub-sections (Normalize / Diagnose): the same underline tabs, smaller. */
-.subnav { display: flex; gap: 22px; margin-top: 20px; border-bottom: 1px solid var(--rule); }
-.subnav a {
-  display: flex; align-items: center; min-height: 42px; margin-bottom: -1px;
-  color: var(--ink); text-decoration: none; font-weight: 700; font-size: .92rem;
-  border-bottom: 3px solid transparent;
-}
-.subnav a:hover { border-bottom-color: var(--rule-strong); }
-.subnav a[aria-current] { border-bottom-color: var(--accent); }
-
 /* Segmented choice (quiz level, exercise level). */
 .levels { display: inline-flex; flex-wrap: wrap; margin-top: 24px; border: 1.5px solid var(--ink); border-radius: 2px; background: var(--surface); }
 .levels a {
@@ -278,19 +268,6 @@ code { font: 500 .9em var(--mono); }
 a.arrow-btn:hover { background: var(--hover); }
 span.arrow-btn { border-color: var(--rule); color: var(--rule-strong); background: transparent; }
 .ex-nav .count { margin-top: 8px; }
-
-/* ---- The rules --------------------------------------------------------- */
-
-.rules { margin-top: 24px; background: var(--surface); border: 1px solid var(--rule); }
-.rules summary { padding: 12px 16px; font-weight: 600; cursor: pointer; }
-.rules dl {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  margin: 0; border-top: 1px solid var(--rule);
-}
-.rules dl > div { padding: 14px 16px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
-.rules dt { font: 700 1.3rem/1.2 var(--serif); }
-.rules dd { margin: 4px 0 0; color: var(--muted); }
-.rules dd strong { color: var(--ink); }
 
 .count { margin: 0; color: var(--muted); font-size: .9rem; }
 .count .link { padding: 0; font-size: inherit; font-weight: 500; color: var(--muted); }
@@ -547,22 +524,18 @@ th.pk .id {
 
 .concepts { display: grid; gap: 20px; margin-top: 24px; }
 .concept {
-  display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 8px 28px; align-items: start;
+  display: flow-root;
   padding: 20px 22px; background: var(--surface); border: 1px solid var(--rule);
   scroll-margin-top: 16px;
 }
 .concept:focus { outline: none; }
 .concept h2 { margin: 0 0 6px; font: 700 1.6rem/1.2 var(--serif); text-wrap: balance; }
 .concept h2:focus { outline: none; }
-.concept p { margin: 0 0 10px; max-width: 68ch; }
+.concept p { margin: 0 0 10px; }
 .concept .summary { font-size: 1.04rem; font-weight: 600; }
 .concept .plain { margin-bottom: 10px; }
 .example, .mistake { padding: 8px 12px; background: var(--tint); border-left: 3px solid var(--rule-strong); }
 .mistake { border-left-color: var(--h3); }
-/* No figure: the text uses the whole card. Widgets and the quiz call-out always span both columns. */
-.concept.no-fig { grid-template-columns: minmax(0, 1fr); }
-.concept.no-fig p { max-width: none; }
-.concept > [data-widget], .concept > .concept-quiz { grid-column: 1 / -1; }
 /* "Test yourself" call-out at the end of each card. */
 .concept-quiz {
   display: flex; align-items: center; gap: 14px; margin-top: 18px; padding: 14px 16px;
@@ -579,8 +552,14 @@ th.pk .id {
 .concept-table caption { caption-side: top; text-align: left; padding: 0 0 6px; color: var(--muted); font-size: .85rem; }
 .concept-code { margin: 4px 0 14px; padding: 10px 12px; overflow-x: auto; background: var(--tint); border: 1px solid var(--rule); font: .84rem/1.5 var(--mono); }
 .concept-code code { font: inherit; }
-.concept-text { min-width: 0; }   /* wide tables and code scroll inside the card instead of widening the page */
-.concept-fig { margin: 0; }
+/* The text wraps around the figure, floated right after the summary. concept-text contains the float, so
+   widgets, results and call-outs below it always start under the figure and use the full width. Boxed
+   blocks (example, mistake, tables, code) become their own formatting context: they sit beside the figure
+   instead of running their background underneath it. */
+.concept-text { display: flow-root; min-width: 0; }
+.concept-fig { float: right; width: min(46%, 500px); margin: 2px 0 14px 28px; }
+.concept-text > .example, .concept-text > .mistake, .concept-text > .concept-code, .concept-text > .plain { display: flow-root; }
+.concept-text > .plain { padding-left: 20px; }
 .concept-fig figcaption { margin-top: 8px; color: var(--muted); font-size: .86rem; }
 
 /* ---- ER concepts: navigation rail + one card per page ------------------
@@ -710,11 +689,10 @@ main.is-wide { max-width: none; padding: 0; }
 .er-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 8px 0 0; color: var(--muted); font: .8rem var(--mono); }
 .dash-u { text-decoration: underline dashed; text-underline-offset: 3px; }
 
-.model-text, .rules-logical { max-width: 78ch; margin-top: 14px; background: var(--surface); border: 1px solid var(--rule); }
+.model-text { max-width: 78ch; margin-top: 14px; background: var(--surface); border: 1px solid var(--rule); }
 .model-text summary { padding: 10px 14px; font-weight: 600; cursor: pointer; }
 .model-text-body { padding: 0 16px 12px; border-top: 1px solid var(--rule); }
 .model-text h4 { margin: 12px 0 6px; }
-.extra-rules { padding: 0 16px 14px 36px; }
 .tag-sm {
   display: inline-block; padding: 0 6px; border: 1px solid var(--rule-strong); border-radius: 2px;
   background: var(--tint); font-size: .78rem; font-weight: 700; color: var(--ink); white-space: nowrap;
@@ -813,10 +791,88 @@ main.is-wide { max-width: none; padding: 0; }
 .footer-copy { color: var(--ink); font-weight: 700; }
 .site-footer .wrap { max-width: none; padding-left: 20px; padding-right: 20px; }
 
+/* ---- Practice inside a concept section ---------------------------------
+   ER → Logical and Normalization draw their exercises in the same rail
+   layout as the theory cards. Every part of an exercise becomes a surface
+   card like .concept, so theory and practice read as one system. */
+
+#practice-slot > :first-child, #norm-pane > :first-child { margin-top: 0; }
+#practice-slot .ex-nav { margin-top: 0; }
+#practice-slot .ex-head,
+#practice-slot .block,
+#practice-slot .quiz {
+  margin-top: 20px; padding: 20px 22px;
+  background: var(--surface); border: 1px solid var(--rule);
+}
+#practice-slot .ex-head h2, #practice-slot .quiz h2 { font-size: 1.6rem; text-wrap: balance; }
+#practice-slot .block > h3:first-child { font: 700 1.2rem/1.3 var(--serif); }
+/* The rule this step applies: the card keeps the accent edge of the "Test yourself" call-out. */
+#practice-slot .step-card { border-left: 4px solid var(--accent); background: var(--tint); }
+#practice-slot .feedback {
+  max-width: none; margin-top: 20px; padding: 16px 20px;
+  background: var(--surface); border: 1px solid var(--rule); border-left-width: 4px;
+}
+#practice-slot .feedback.ok { background: var(--ok-bg); border-color: var(--ok); }
+#practice-slot .feedback.bad { background: var(--bad-bg); border-color: var(--bad); }
+#practice-slot .solution { border-top: 3px solid var(--ink); }
+#practice-slot .hints p { background: var(--tint); padding: 8px 12px; }
+#practice-slot .levels + .quiz { margin-top: 20px; }
+
+/* Back to the rule card from an exercise, and from the normalization step card. */
+.rule-back { display: flex; align-items: flex-start; gap: 8px; margin: 14px 0 0; color: var(--muted); font-size: .92rem; }
+.rule-back svg { flex: none; width: 18px; height: 18px; margin-top: 2px; fill: none; stroke: var(--ink); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.rule-back a, .rule-link { color: var(--ink); font-weight: 600; }
+.rule-link { margin-left: 4px; white-space: nowrap; }
+
+/* ---- Rule cards: the tables an ER model produces -------------------------- */
+
+.rule-result {
+  min-width: 0; margin-top: 14px; padding: 16px 18px 18px;
+  background: var(--tint); border: 1px solid var(--rule); border-top: 3px solid var(--accent); border-radius: 2px;
+}
+.rule-result h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font: 700 1.08rem/1.3 var(--sans); }
+.rr-icon { width: 22px; height: 22px; fill: none; stroke: var(--ink); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.rr-default { font-weight: 400; font-size: .8rem; opacity: .8; }
+.rule-result .notation { margin-bottom: 0; }
+.rule-result .how-step { max-width: none; }
+.concept .rule-result p { max-width: none; }
+
+/* ---- Normal-form cards: the steps of the exercises ------------------------ */
+
+.nf-how {
+  margin-top: 14px; padding: 14px 18px 8px;
+  background: var(--tint); border: 1px solid var(--rule); border-top: 3px solid var(--ink); border-radius: 2px;
+}
+.nf-how h3 { margin: 0 0 8px; font: 700 1.05rem/1.3 var(--sans); }
+.nf-how ol { margin: 0; padding-left: 22px; }
+.nf-how li { margin-bottom: 8px; max-width: 75ch; }
+.concept-table + .concept-table { margin-top: 8px; }
+
+/* ---- Video card --------------------------------------------------------- */
+
+.concept-video { margin-top: 6px; }
+.video-frame { aspect-ratio: 16 / 9; max-width: 960px; background: var(--ink); border: 1px solid var(--rule); border-radius: 2px; overflow: hidden; }
+.video-frame video { display: block; width: 100%; height: 100%; object-fit: contain; background: #000; }
+.video-frame video:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
+.video-ch-h { margin: 18px 0 8px; font: 700 1rem/1.3 var(--sans); }
+.video-chapters {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 6px;
+  max-width: 960px; margin: 0; padding: 0; list-style: none;
+}
+.chapter {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 6px 12px;
+  border: 1px solid var(--rule); border-radius: 2px; background: var(--surface); color: var(--ink);
+  font: 600 .9rem/1.25 var(--sans); text-align: left; cursor: pointer;
+}
+.chapter:hover { background: var(--hover); border-color: var(--rule-strong); }
+.ch-time { flex: none; min-width: 3.2em; color: var(--muted); font: 600 .82rem var(--mono); font-variant-numeric: tabular-nums; }
+.concept-video .meta a { color: var(--ink); font-weight: 600; }
+
 /* ---- Narrow screens ---------------------------------------------------- */
 
-@media (max-width: 1000px) {
-  .er-main .concept { grid-template-columns: 1fr; }
+/* A narrow card would shrink a floated figure below legibility: it goes full width under the summary. */
+@media (max-width: 1100px) {
+  .concept-fig { float: none; width: auto; max-width: 560px; margin: 4px 0 14px; }
 }
 
 /* Not enough room for everything on one row: the section tabs move to a second row. */
@@ -850,15 +906,17 @@ main.is-wide { max-width: none; padding: 0; }
   .levels { display: flex; }
   .levels a { flex: 1; }
   .pager a { max-width: none; flex: 1; }
-  .concept { grid-template-columns: 1fr; padding: 16px; }
+  .concept { padding: 16px; }
   .concept-quiz { flex-wrap: wrap; }
   .concept-quiz .btn { width: 100%; justify-content: center; }
+  #practice-slot .ex-head, #practice-slot .block, #practice-slot .quiz { padding: 16px; }
+  #practice-slot .feedback { padding: 14px 16px; }
+  .rule-result, .nf-how { padding-left: 14px; padding-right: 14px; }
   .col-row { grid-template-columns: minmax(0, 1fr) auto auto auto; }
   .col-row .fk-pick { grid-column: 1 / -1; grid-row: 2; }
   .ex-head h2, .quiz h2 { font-size: 1.5rem; }
   .matrix .corner { min-width: 140px; }
   .matrix th.tcol { min-width: 148px; }
-  .rules dl > div { border-right: 0; }
   .stepper ol { row-gap: 8px; }
   .stepper li + li::before { width: 8px; }
   .stepper button { gap: 6px; padding: 6px 9px 6px 6px; }

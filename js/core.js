@@ -22,6 +22,8 @@ const LOGICAL_EXERCISES = langData('LOGICAL_EXERCISES');
 const THEORY_CONCEPTS = langData('THEORY_CONCEPTS');
 const THEORY_QUIZ_TOPICS = langData('THEORY_QUIZ_TOPICS');
 const THEORY_QUIZ = langData('THEORY_QUIZ');
+const LOGICAL_RULES = langData('LOGICAL_RULES');
+const NORM_THEORY = langData('NORM_THEORY');
 
 /* Storage key for work that depends on the language (tables built with translated names). */
 const langKey = (key) => (LANG === 'en' ? key : `${key}-${LANG}`);

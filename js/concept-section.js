@@ -1,19 +1,26 @@
 'use strict';
 
 /* ==========================================================================
-   Concept section engine, shared by Theory and ER concepts: a navigation rail
-   with hubs (the active hub lists its pages, the others open a flyout; the rail
-   collapses to icons), one concept card per page with Previous / Next, and a
-   quiz (multiple choice, true/false, fill in the blank) with the best score per
-   topic. Routes, below cfg.base: '' or <conceptId> (a card), quiz[/<topic>].
+   Concept section engine, shared by Theory, ER concepts, ER → Logical and
+   Normalization: a navigation rail with hubs (the active hub lists its pages,
+   the others open a flyout; the rail collapses to icons), one concept card per
+   page with Previous / Next, an optional quiz (multiple choice, true/false,
+   fill in the blank) with the best score per topic, and an optional practice
+   module drawn inside the same layout.
+   Routes, below cfg.base: '' or <conceptId> (a card), quiz[/<topic>], and
+   whatever cfg.practice.match(rest) accepts.
 
    Card fields: id, title, summary, body[], points[], table { caption, head, rows },
-   code, example, mistake, caption, plus whatever cfg.figure / cfg.extra read.
+   tables [table, …], code, example, mistake, caption, practice { href, label?, sub? },
+   plus whatever cfg.figure / cfg.extra read.
    cfg: { base, title(), badge, groups: [{ key, label, icon, ids? }] (without ids, a
           hub takes the cards whose `hub` is its key), concepts,
-          quiz, topics, quizKey, figure(item) → svg | '', extra(card) → html,
+          quiz?, topics?, quizKey?, figure(item) → svg | '', extra(card) → html,
           perfectText(), nextLink: { href, label() }, onClick(el), onChange(e),
-          onInput(e) }
+          onInput(e),
+          practice?: { label, icon, match(rest), links(rest | null) → [{ href, label, current, extra? }],
+                       render(rest) → title (draws into #practice-slot),
+                       onClick(el, e), onInput(e), onChange(e), onSubmit(form) } }
    ========================================================================== */
 
 /* Rail icons (24×24, stroked). ER hubs use Chen shapes; Theory hubs use plain pictograms. */
@@ -31,6 +38,14 @@ const RAIL_ICON = {
   storage: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.5"/><path d="M17 16h.01"/>',
   index: '<rect x="9" y="3" width="6" height="4"/><rect x="3" y="15" width="6" height="4"/><rect x="15" y="15" width="6" height="4"/><path d="M12 7v4M6 15v-4h12v4"/>',
   lifecycle: '<path d="M20 12a8 8 0 0 1-14.3 4.9"/><path d="M4 12A8 8 0 0 1 18.3 7.1"/><path d="M18.5 3v4.2h-4.2"/><path d="M5.5 21v-4.2h4.2"/>',
+  practice: '<path d="M4 20h4L19 9l-4-4L4 16Z"/><path d="M13.5 6.5l4 4"/><path d="M14 20h6"/>',
+  table: '<rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M3 9h18M3 14.5h18M9 9v11"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  special: '<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>',
+  split: '<rect x="3" y="4" width="8" height="16" rx="1"/><rect x="14" y="4" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="6" rx="1"/>',
+  arrow: '<path d="M4 8h12"/><path d="M13 5l3 3-3 3"/><path d="M20 16H8"/><path d="M11 13l-3 3 3 3"/>',
+  forms: '<path d="M4 20h4v-4H4Z"/><path d="M10 20h4v-8h-4Z"/><path d="M16 20h4V8h-4Z"/>',
+  why: '<path d="M12 3 2 20h20Z"/><path d="M12 10v4"/><circle cx="12" cy="17" r=".6" fill="currentColor"/>',
   quiz: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 1c0 1.8-2.5 2.2-2.5 3.7"/><circle cx="12" cy="17.2" r=".6" fill="currentColor"/>',
   collapse: '<path d="M14 6l-6 6 6 6"/><path d="M20 6l-6 6 6 6"/>',
   expand: '<path d="M10 6l6 6-6 6"/><path d="M4 6l6 6-6 6"/>',
@@ -39,12 +54,14 @@ const RAIL_ICON = {
 function ConceptSection(cfg) {
   const BASE = cfg.base;
   const CONCEPTS = cfg.concepts;
-  const QUIZ = cfg.quiz;
-  const TOPICS = cfg.topics;
-  const store = makeStore(cfg.quizKey);
+  const QUIZ = cfg.quiz || [];
+  const TOPICS = cfg.topics || {};
+  const HAS_QUIZ = QUIZ.length > 0;
+  const PRACTICE = cfg.practice || null;
+  const store = makeStore(cfg.quizKey || 'no-quiz');
   const best = Object.assign({}, store.load());       // topic ('all' or a key) -> best score
   const quiz = { topic: null, order: [], i: 0, score: 0, picked: null, typed: '', missed: [], done: false };
-  let route = { page: 'concept', concept: 0, topic: 'all' };
+  let route = { page: 'concept', concept: 0, topic: 'all', rest: '' };
   let lastPage = null;                                  // to move focus only when navigating inside the section
   const uiStore = makeStore('er-ui-v1');                // this viewer's layout choice, shared by every concept section
   const ui = Object.assign({ sideCollapsed: false }, uiStore.load());
@@ -72,7 +89,7 @@ function ConceptSection(cfg) {
   }
 
   function sideHtml() {
-    const onQuiz = route.page === 'quiz';
+    const onQuiz = route.page !== 'concept';         // a quiz or a practice page: no card is current
     const collapsed = ui.sideCollapsed;
     const conceptLink = (k) => `<li><a href="${conceptHref(k)}"${!onQuiz && k === route.concept ? ' aria-current="page"' : ''}><span class="rail-n">${k + 1}</span><span class="rail-text">${esc(CONCEPTS[k].title)}</span></a></li>`;
 
@@ -96,11 +113,23 @@ function ConceptSection(cfg) {
       return `<li><a href="${BASE}/quiz${tp === 'all' ? '' : `/${tp}`}"${cur ? ' aria-current="page"' : ''}><span class="rail-text">${esc(tp === 'all' ? t('All topics') : TOPICS[tp])}</span>${b}</a></li>`;
     };
     const quizLabel = esc(t('Test yourself'));
-    const quizHub = `<li class="rail-hub rail-quiz${onQuiz ? ' is-active' : ''}">
+    const quizHub = !HAS_QUIZ ? '' : `<li class="rail-hub rail-quiz${onQuiz ? ' is-active' : ''}">
         <a class="rail-head" href="${BASE}/quiz"${onQuiz ? ' aria-current="true"' : ''} title="${quizLabel}">${icon('quiz')}<span class="rail-label">${quizLabel}</span></a>
         <div class="rail-pages">
           <p class="rail-fly-title" aria-hidden="true">${quizLabel}</p>
           <ol>${topics.map(quizLink).join('')}</ol>
+        </div>
+      </li>`;
+
+    /* The practice hub: links supplied by the practice module (exercise sets, quizzes). */
+    const onPractice = route.page === 'practice';
+    const pLinks = PRACTICE ? PRACTICE.links(onPractice ? route.rest : null) : [];
+    const pLabel = PRACTICE ? esc(t(PRACTICE.label)) : '';
+    const practiceHub = !PRACTICE ? '' : `<li class="rail-hub rail-practice${onPractice ? ' is-active' : ''}">
+        <a class="rail-head" href="${pLinks[0].href}"${onPractice ? ' aria-current="true"' : ''} title="${pLabel}">${icon(PRACTICE.icon || 'practice')}<span class="rail-label">${pLabel}</span></a>
+        <div class="rail-pages">
+          <p class="rail-fly-title" aria-hidden="true">${pLabel}</p>
+          <ol>${pLinks.map((l) => `<li><a href="${l.href}"${l.current ? ' aria-current="page"' : ''}><span class="rail-text">${esc(l.label)}</span>${l.extra || ''}</a></li>`).join('')}</ol>
         </div>
       </li>`;
 
@@ -111,14 +140,15 @@ function ConceptSection(cfg) {
       <nav class="rail" id="er-side" aria-label="${esc(cfg.title())}">
         <a class="rail-top" href="${BASE}" title="${esc(cfg.title())}"><span class="rail-badge" aria-hidden="true">${esc(cfg.badge)}</span><span class="rail-label">${esc(cfg.title())}</span></a>
         <ul class="rail-hubs">${hubs().map(hubHtml).join('')}</ul>
-        <ul class="rail-hubs rail-hubs-end">${quizHub}</ul>
+        <ul class="rail-hubs rail-hubs-end">${practiceHub}${quizHub}</ul>
         <button type="button" class="rail-toggle" data-action="toggle-side" data-fid="toggle-side" aria-expanded="${!collapsed}" title="${esc(toggle)}">${icon(collapsed ? 'expand' : 'collapse')}<span class="rail-label">${esc(toggle)}</span></button>
       </nav>
       <div class="side-select">
         <label for="side-go">${esc(t('Go to'))}</label>
         <select id="side-go">
           <optgroup label="${esc(t('Concepts'))}">${options}</optgroup>
-          <optgroup label="${esc(t('Test yourself'))}"><option value="${BASE}/quiz"${onQuiz ? ' selected' : ''}>${quizOption}</option></optgroup>
+          ${PRACTICE ? `<optgroup label="${pLabel}">${pLinks.map((l) => `<option value="${l.href}"${l.current ? ' selected' : ''}>${esc(l.label)}</option>`).join('')}</optgroup>` : ''}
+          ${HAS_QUIZ ? `<optgroup label="${esc(t('Test yourself'))}"><option value="${BASE}/quiz"${route.page === 'quiz' ? ' selected' : ''}>${quizOption}</option></optgroup>` : ''}
         </select>
       </div>`;
   }
@@ -146,21 +176,31 @@ function ConceptSection(cfg) {
     const n = QUIZ.filter((q) => q.topic === c.topic).length;
     const fig = cfg.figure ? cfg.figure(c) : '';
     const topic = TOPICS[c.topic] || c.topic;
-    // Without a figure the text takes the whole card; with one, the figure keeps its column.
+    // The figure floats right after the summary, so the body text wraps around it instead of leaving a
+    // tall empty column; widgets, results and call-outs below clear the float and use the full width.
     return `
       <article class="concept${fig ? '' : ' no-fig'}" id="c-${esc(c.id)}" aria-labelledby="c-${esc(c.id)}-h">
         <div class="concept-text">
           <h2 id="c-${esc(c.id)}-h" tabindex="-1">${esc(c.title)}</h2>
           <p class="summary">${md(c.summary)}</p>
+          ${fig ? `<figure class="concept-fig"><div class="scroll">${fig}</div>${c.caption ? `<figcaption>${md(c.caption)}</figcaption>` : ''}</figure>` : ''}
           ${(c.body || []).map((p) => `<p>${md(p)}</p>`).join('')}
           ${c.points && c.points.length ? `<ul class="plain">${c.points.map((p) => `<li>${md(p)}</li>`).join('')}</ul>` : ''}
           ${c.example ? `<p class="example"><strong>${esc(t('Example.'))}</strong> ${md(c.example)}</p>` : ''}
           ${c.table ? tableHtml(c.table) : ''}
+          ${(c.tables || []).map(tableHtml).join('')}
           ${c.code ? `<pre class="concept-code"><code>${esc(c.code)}</code></pre>` : ''}
           ${c.mistake ? `<p class="mistake"><strong>${esc(t('Common mistake.'))}</strong> ${md(c.mistake)}</p>` : ''}
         </div>
-        ${fig ? `<figure class="concept-fig"><div class="scroll">${fig}</div>${c.caption ? `<figcaption>${md(c.caption)}</figcaption>` : ''}</figure>` : ''}
         ${cfg.extra ? cfg.extra(c) : ''}
+        ${c.practice ? `<aside class="concept-quiz concept-practice" aria-labelledby="cp-${esc(c.id)}">
+            <svg class="cq-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${RAIL_ICON.practice}</svg>
+            <div class="cq-text">
+              <p class="cq-title" id="cp-${esc(c.id)}">${esc(t('Practise it'))}</p>
+              ${c.practice.sub ? `<p class="cq-sub">${md(c.practice.sub)}</p>` : ''}
+            </div>
+            <a class="btn" href="${c.practice.href}">${esc(c.practice.label || t('Start the exercise'))}</a>
+          </aside>` : ''}
         ${n ? `<aside class="concept-quiz" aria-labelledby="cq-${esc(c.id)}">
             ${RAIL_ICON.quiz ? `<svg class="cq-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${RAIL_ICON.quiz}</svg>` : ''}
             <div class="cq-text">
@@ -181,15 +221,18 @@ function ConceptSection(cfg) {
     const i = route.concept;
     const c = CONCEPTS[i];
     const prev = i > 0 ? { href: conceptHref(i - 1), label: `${i} · ${CONCEPTS[i - 1].title}`, kind: t('Previous') } : null;
+    let last = { href: `${BASE}/quiz`, label: t('Test yourself') };
+    if (!HAS_QUIZ && PRACTICE) last = { href: PRACTICE.links(null)[0].href, label: t(PRACTICE.label) };
+    else if (!HAS_QUIZ) last = cfg.nextLink ? { href: cfg.nextLink.href, label: cfg.nextLink.label() } : null;
     const next = i < CONCEPTS.length - 1
       ? { href: conceptHref(i + 1), label: `${i + 2} · ${CONCEPTS[i + 1].title}`, kind: t('Next') }
-      : { href: `${BASE}/quiz`, label: t('Test yourself'), kind: t('Finished reading?') };
+      : last && { ...last, kind: t('Finished reading?') };
     view().innerHTML = layout(`
       <p class="concept-count">${esc(t('Concept {n} of {total}', { n: i + 1, total: CONCEPTS.length }))}</p>
       ${cardHtml(c)}
       <nav class="pager" aria-label="${esc(t('Concepts'))}">
         ${prev ? `<a class="prev" href="${prev.href}"><span>← ${esc(prev.kind)}</span>${esc(prev.label)}</a>` : ''}
-        <a class="next" href="${next.href}"><span>${esc(next.kind)} →</span>${esc(next.label)}</a>
+        ${next ? `<a class="next" href="${next.href}"><span>${esc(next.kind)} →</span>${esc(next.label)}</a>` : ''}
       </nav>`);
   }
 
@@ -303,9 +346,10 @@ function ConceptSection(cfg) {
     reveal($('#qf-title'));
   }
 
-  function onClick(el) {
+  function onClick(el, e) {
+    if (el.dataset.action === 'toggle-side') { toggleSide(); return; }
+    if (route.page === 'practice') { if (PRACTICE.onClick) PRACTICE.onClick(el, e); return; }
     switch (el.dataset.action) {
-      case 'toggle-side': toggleSide(); break;
       case 'answer': answer(+el.dataset.i); break;
       case 'next':
         if (quiz.i < quiz.order.length - 1) { quiz.i++; quiz.picked = null; quiz.typed = ''; }
@@ -327,6 +371,7 @@ function ConceptSection(cfg) {
   }
 
   function onSubmit(form) {
+    if (route.page === 'practice') { if (PRACTICE.onSubmit) PRACTICE.onSubmit(form); return; }
     if (form.dataset.action !== 'fib-form') return;
     const input = $('#fib-in');
     const v = input ? input.value.trim() : '';
@@ -338,8 +383,9 @@ function ConceptSection(cfg) {
   /* The two dropdowns navigate as soon as a new option is picked. */
   function onChange(e) {
     const el = e.target;
+    if (el.id === 'side-go') { location.hash = el.value; return; }
+    if (route.page === 'practice') { if (PRACTICE.onChange) PRACTICE.onChange(e); return; }
     if (cfg.onChange) cfg.onChange(e);
-    if (el.id === 'side-go') location.hash = el.value;
     if (el.id === 'quiz-topic') location.hash = `${BASE}/quiz${el.value === 'all' ? '' : `/${el.value}`}`;
   }
 
@@ -347,14 +393,20 @@ function ConceptSection(cfg) {
     const r = rest || '';
     const m = r.match(/^quiz(?:\/([a-z-]+))?$/);
     const from = lastPage;
-    if (m) {
-      route = { page: 'quiz', concept: route.concept, topic: m[1] && TOPICS[m[1]] ? m[1] : 'all' };
+    if (PRACTICE && PRACTICE.match(r)) {
+      route = { page: 'practice', concept: route.concept, topic: 'all', rest: r };
+      lastPage = 'practice';
+      view().innerHTML = layout('<div id="practice-slot"></div>');
+      return `${PRACTICE.render(r)} · ${cfg.title()}`;
+    }
+    if (m && HAS_QUIZ) {
+      route = { page: 'quiz', concept: route.concept, topic: m[1] && TOPICS[m[1]] ? m[1] : 'all', rest: r };
       lastPage = 'quiz';
       renderQuiz();
       return `${t('Test yourself')}${route.topic !== 'all' ? `: ${TOPICS[route.topic]}` : ''} · ${cfg.title()}`;
     }
     const i = CONCEPTS.findIndex((c) => c.id === r);
-    route = { page: 'concept', concept: i < 0 ? 0 : i, topic: 'all' };
+    route = { page: 'concept', concept: i < 0 ? 0 : i, topic: 'all', rest: r };
     lastPage = `concept-${route.concept}`;
     renderConcept();
     // Moving between concepts: put screen readers on the new heading (the router already scrolled to the top).
@@ -372,7 +424,10 @@ function ConceptSection(cfg) {
     });
   })();
 
-  function onInput(e) { if (cfg.onInput) cfg.onInput(e); }
+  function onInput(e) {
+    if (route.page === 'practice') { if (PRACTICE.onInput) PRACTICE.onInput(e); return; }
+    if (cfg.onInput) cfg.onInput(e);
+  }
 
   return { render, onClick, onChange, onInput, onSubmit };
 }

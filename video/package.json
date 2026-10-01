@@ -24,6 +24,8 @@
     "dev": "remotion studio",
     "build": "remotion bundle",
     "upgrade": "remotion upgrade",
-    "lint": "eslint src && tsc"
+    "lint": "eslint src && tsc",
+    "render:site": "remotion render Normalization ../assets/video/normalization.mp4 --codec=h264 --crf=28 --scale=0.6667 && remotion still Normalization ../assets/video/normalization-poster.jpg --frame=320 --scale=0.6667 --image-format=jpeg --jpeg-quality=82 && node scripts/vtt.mjs",
+    "captions": "node scripts/vtt.mjs"
   }
 }

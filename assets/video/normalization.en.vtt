@@ -1,0 +1,213 @@
+WEBVTT
+
+1
+00:00:01.000 --> 00:00:09.856
+Database normalization, step by step. In this video, we'll take one messy table and turn it into a clean relational design.
+
+2
+00:00:12.500 --> 00:00:17.385
+Imagine a university that stores all its enrollments in one wide table.
+
+3
+00:00:18.000 --> 00:00:22.728
+The key is student ID plus course ID: one row per enrollment.
+
+4
+00:00:24.000 --> 00:00:30.452
+Look closer: Ana Ruiz twice, Databases three times, Computing five times.
+
+5
+00:00:31.000 --> 00:00:34.683
+That's redundancy, and it causes three anomalies.
+
+6
+00:00:36.500 --> 00:00:44.755
+First, the update anomaly. We rename course C10 in just one row, and now the same course has two different names.
+
+7
+00:00:46.000 --> 00:00:55.091
+Insert anomaly: course C30, Marketing, has no students yet. It can't be stored, because the key needs a student ID.
+
+8
+00:00:55.500 --> 00:01:04.042
+Delete anomaly: Ana drops Statistics. Deleting that one row also erases course C20 and the Maths department.
+
+9
+00:01:05.300 --> 00:01:11.543
+Normalization decomposes a table into smaller ones, guided by functional dependencies.
+
+10
+00:01:12.000 --> 00:01:14.900
+The goal: store each fact once.
+
+11
+00:01:16.000 --> 00:01:22.243
+The benefits: less redundancy, no anomalies, simpler updates, and less storage.
+
+12
+00:01:24.000 --> 00:01:30.452
+The costs: more tables and more joins, slower reads for some queries, and more design effort.
+
+13
+00:01:32.000 --> 00:01:39.105
+That's why some systems denormalize on purpose: for read-heavy analytics, it can be a sensible trade-off.
+
+14
+00:01:40.300 --> 00:01:45.342
+X determines Y means each value of X fixes exactly one Y.
+
+15
+00:01:46.300 --> 00:01:52.099
+Look at student S01. Both rows show the same name: Ana Ruiz.
+
+16
+00:01:52.500 --> 00:01:57.542
+The same goes for every student: student ID determines student name.
+
+17
+00:01:58.700 --> 00:02:03.585
+Student ID is the determinant, and student name is the dependent.
+
+18
+00:02:05.000 --> 00:02:10.825
+Counter-example: S01 got eight point five in one course, and seven in another.
+
+19
+00:02:12.000 --> 00:02:16.911
+So student ID alone doesn't determine grade: it needs the whole key.
+
+20
+00:02:18.300 --> 00:02:24.099
+Remember: dependencies come from what the data means, not from one sample of rows.
+
+21
+00:02:25.300 --> 00:02:30.368
+Enrollment has a composite key: student ID and course ID together.
+
+22
+00:02:31.300 --> 00:02:35.506
+Grade depends on the whole key. That's a full dependency.
+
+23
+00:02:37.300 --> 00:02:42.237
+Student name depends on student ID alone: a partial dependency.
+
+24
+00:02:43.600 --> 00:02:47.701
+The course and department columns depend on course ID alone.
+
+25
+00:02:50.000 --> 00:02:54.075
+Second normal form removes these partial dependencies.
+
+26
+00:02:55.300 --> 00:03:00.707
+Follow the chain: course ID, then department ID, then department name.
+
+27
+00:03:01.300 --> 00:03:05.401
+Department name describes the department, not the course.
+
+28
+00:03:07.200 --> 00:03:12.242
+It reaches the key only through department ID, which isn't a key attribute.
+
+29
+00:03:14.000 --> 00:03:18.676
+That's a transitive dependency, and third normal form removes it.
+
+30
+00:03:20.300 --> 00:03:25.263
+First normal form: one atomic value per cell. No lists.
+
+31
+00:03:26.300 --> 00:03:31.289
+Here, one cell holds two phone numbers. That breaks the rule.
+
+32
+00:03:32.300 --> 00:03:37.524
+We split it: one row per phone. Now every value is atomic.
+
+33
+00:03:39.000 --> 00:03:42.840
+Our Enrollment table already meets first normal form.
+
+34
+00:03:45.300 --> 00:03:50.655
+Second normal form: no non-key attribute may depend on just part of the key.
+
+35
+00:03:51.300 --> 00:03:56.812
+Student name depends on student ID alone, so it moves to a new Student table.
+
+36
+00:03:58.300 --> 00:04:04.517
+The course columns depend on course ID alone, so they move to a Course table, one row per course.
+
+37
+00:04:06.300 --> 00:04:12.360
+Enrollment keeps the full key and the grade. Its two key columns are now foreign keys.
+
+38
+00:04:14.300 --> 00:04:18.767
+Now each student, and each course, is stored exactly once.
+
+39
+00:04:20.000 --> 00:04:24.362
+New courses need no students, and renames touch one row.
+
+40
+00:04:25.300 --> 00:04:30.733
+Third normal form: no non-key attribute depends on another non-key attribute.
+
+41
+00:04:31.300 --> 00:04:37.308
+In Course, department name depends on department ID, not directly on course ID.
+
+42
+00:04:38.300 --> 00:04:44.360
+It moves to a Department table keyed by department ID, which Course keeps as a foreign key.
+
+43
+00:04:46.300 --> 00:04:51.655
+Computing is now stored once, so renaming a department is a single update.
+
+44
+00:04:53.300 --> 00:04:58.733
+Four tables, each fact in one place: the design is in third normal form.
+
+45
+00:05:00.300 --> 00:05:05.733
+Boyce-Codd normal form is stricter: every determinant must be a candidate key.
+
+46
+00:05:06.300 --> 00:05:11.524
+Here, each teacher teaches one subject, so teacher determines subject.
+
+47
+00:05:12.300 --> 00:05:17.420
+But teacher isn't a candidate key: Professor Mora appears in two rows.
+
+48
+00:05:18.400 --> 00:05:24.696
+So we split: Teaches, with teacher and subject, and Tutoring, with student and teacher.
+
+49
+00:05:25.300 --> 00:05:28.252
+Now join the tables back on their keys,
+
+50
+00:05:30.500 --> 00:05:34.000
+and exactly the original six rows come back.
+
+51
+00:05:36.000 --> 00:05:40.232
+To recap: each normal form removes one kind of problem.
+
+52
+00:05:42.000 --> 00:05:45.892
+Each form builds on the previous one, up to Boyce-Codd.
+
+53
+00:05:48.500 --> 00:05:53.855
+Now practise it, in the Normalization section of the Databases practice site.

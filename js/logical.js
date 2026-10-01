@@ -5,11 +5,13 @@
    The student reads an ER model and builds its tables: names, columns,
    primary keys, foreign keys (with their target) and NOT NULL on each FK.
    js/logical-engine.js derives every accepted solution and checks the design.
-   Data: data/logical.js (LOGICAL_EXERCISES). Routes: #/relational/logical[/N]
+   Data: data/<lang>/logical.js (LOGICAL_EXERCISES). Routes: #/relational/logical/practice[/N],
+   drawn inside the rules section (js/logical-section.js), which owns #/relational/logical.
    ========================================================================== */
 
 const LogicalSection = (() => {
-  const BASE = '#/relational/logical';
+  const ROOT = '#/relational/logical';
+  const BASE = `${ROOT}/practice`;
   const MAX_TABLES = 16;
   const MAX_COLS = 16;
   const progressStore = makeStore('er-logical-v1');
@@ -20,7 +22,7 @@ const LogicalSection = (() => {
   const cache = {};                     // exercise id -> { variants }
   let idx = 0;
 
-  const view = () => $('#view');
+  const view = () => $('#practice-slot') || $('#view');
   const sigOf = (ex) => hashOf([ex.entities, ex.relationships, ex.hierarchies || [], ex.prefer || {}]);
   const variantsOf = (ex) => (cache[ex.id] || (cache[ex.id] = { variants: LogicalEngine.variants(ex) })).variants;
 
@@ -109,27 +111,15 @@ const LogicalSection = (() => {
         </div></details>`;
   }
 
-  const RULES_HTML = `
-    <details class="how-step rules-logical">
-      <summary>${esc(t('The transformation rules'))}</summary>
-      <ol>
-        <li>${t('<strong>Every entity becomes a table</strong>, named after it.')}</li>
-        <li>${t('<strong>Every attribute becomes a column</strong> of its table. Composite attributes are split into their parts; derived attributes are left out.')}</li>
-        <li>${t('<strong>The identifier becomes the primary key.</strong>')}</li>
-        <li>${t('<strong>M:N relationship → its own table</strong>, whose PK combines the keys of both entities (each one also a FK). Relationship attributes go in it.')}</li>
-        <li>${t('<strong>1:N relationship → foreign key on the N side</strong>, referencing the 1 side.')}</li>
-        <li>${t('<strong>1:1 relationship → the key of either side passes to the other.</strong>')}</li>
-        <li>${t('<strong>(0,1)/(1,1) → the key passes to the optional side.</strong>')}</li>
-      </ol>
-      <ul class="plain extra-rules">
-        <li>${t('<strong>Weak entity:</strong> PK = owner\'s key (also a FK) + its partial key.')}</li>
-        <li>${t('<strong>Multivalued attribute:</strong> its own table, PK = owner\'s key + the value.')}</li>
-        <li>${t('<strong>Unary (recursive):</strong> 1:N → a FK to the same table, named after the role; M:N → a table with two FKs to it.')}</li>
-        <li>${t('<strong>Ternary:</strong> a table with a FK to each of the three entities.')}</li>
-        <li>${t('<strong>Hierarchy:</strong> supertype + one table per subtype (sharing the PK), a single table with a discriminator, or (if total) only the subtype tables.')}</li>
-        <li>${t('<strong>NOT NULL:</strong> a FK is mandatory when the min at the opposite end is 1 (look-across), optional when it is 0.')}</li>
-      </ul>
-    </details>`;
+  /* The rule cards (js/logical-section.js) this exercise practises, as links back to the theory. */
+  function rulesLinkHtml(ex) {
+    const cards = (typeof LOGICAL_RULES !== 'undefined' ? LOGICAL_RULES : []).filter((r) => r.exercise === ex.id);
+    const links = cards.length
+      ? cards.map((r) => `<a href="${ROOT}/${r.id}">${esc(r.title)}</a>`).join(' · ')
+      : `<a href="${ROOT}">${esc(t('The transformation rules'))}</a>`;
+    return `<p class="rule-back">${RULE_ICON}<span>${esc(cards.length ? t('Review the rule:') : t('Review:'))} ${links}</span></p>`;
+  }
+  const RULE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></svg>';
 
   /* Every PK column of every table, as FK targets. */
   function fkTargets(w) {
@@ -278,6 +268,7 @@ const LogicalSection = (() => {
           <h2 id="ex-title">${idx + 1} · ${esc(ex.title)}</h2>
           <p class="goal">${ex.source ? `${esc(ex.source)} · ` : ''}${esc(t('Practises:'))} ${(ex.focus || []).map((f) => `<span class="tag-sm">${esc(f)}</span>`).join(' ')}</p>
           <p class="story">${md(ex.statement)}</p>
+          ${rulesLinkHtml(ex)}
         </header>
 
         <section class="block" aria-labelledby="er-h">
@@ -285,7 +276,6 @@ const LogicalSection = (() => {
           <div class="scroll er-wrap">${ErDiagram.modelSvg(ex)}</div>
           ${ErDiagram.LEGEND}
           ${modelTextHtml(ex)}
-          ${RULES_HTML}
         </section>
 
         <section class="block" aria-labelledby="mine-h">
@@ -485,12 +475,35 @@ const LogicalSection = (() => {
     }
   }
 
+  /* rest: what follows #/relational/logical/practice ('' or 'N'). */
   function render(rest) {
     const n = /^\d+$/.test(rest || '') ? parseInt(rest, 10) : 1;
     idx = Math.min(Math.max(n - 1, 0), LOGICAL_EXERCISES.length - 1);
     renderExercise();
-    return `${t('Exercise {n}: {title}', { n: idx + 1, title: LOGICAL_EXERCISES[idx].title })} · ${t('ER → Logical')}`;
+    return t('Exercise {n}: {title}', { n: idx + 1, title: LOGICAL_EXERCISES[idx].title });
   }
+
+  /* Rail links of the practice hub, one per level; `current` marks the level being shown. */
+  function links(onPage) {
+    const LEVELS = { 1: t('Level 1 · one rule at a time'), 2: t('Level 2 · complete models') };
+    return Object.keys(LEVELS).map(Number).map((lv) => {
+      const items = LOGICAL_EXERCISES.map((e, i) => ({ e, i })).filter((x) => x.e.level === lv);
+      const target = (items.find((x) => !progress.solved[x.e.id]) || items[0]).i;
+      const done = items.filter((x) => progress.solved[x.e.id]).length;
+      return {
+        href: `${BASE}/${target + 1}`,
+        label: LEVELS[lv],
+        current: onPage && LOGICAL_EXERCISES[idx].level === lv,
+        extra: `<span class="rail-count" title="${esc(t('{done} of {total} solved', { done, total: items.length }))}">${done}/${items.length}</span>`,
+      };
+    }).filter((l) => l.href);
+  }
+
+  /* Index of an exercise by id, for links from the rule cards. */
+  const hrefOf = (id) => {
+    const i = LOGICAL_EXERCISES.findIndex((e) => e.id === id);
+    return i < 0 ? BASE : `${BASE}/${i + 1}`;
+  };
 
   /* Console warnings: the derived solution must match the course's reference (ex.expect). */
   function selfTest() {
@@ -512,5 +525,5 @@ const LogicalSection = (() => {
     });
   }
 
-  return { render, onClick, onInput, onChange, selfTest, sqlFor };
+  return { render, links, hrefOf, onClick, onInput, onChange, selfTest, sqlFor, notationHtml, variantToStudent };
 })();

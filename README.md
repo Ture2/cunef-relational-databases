@@ -54,34 +54,42 @@ js/core.js              binds the course data of the current language; shared he
 js/er-diagram.js        ER diagrams as inline SVG (Chen notation)
 js/er.js                ER concepts and quiz
 js/logical-engine.js    ER → logical rules and checker (no DOM; also runs in Node)
-js/logical.js           ER → logical exercise page
-js/normalization.js     normalization engine and pages
+js/concept-section.js   shared rail + concept cards engine (Theory, ER concepts, ER → Logical, Normalization), optional quiz and practice slot
+js/logical.js           ER → logical exercises (drawn inside the rules section)
+js/logical-section.js   ER → logical rule cards; their tables are derived by js/logical-engine.js
+js/normalization.js     normalization engine, exercises and diagnose quiz (drawn inside the theory section)
+js/normalization-section.js  normalization theory cards and the course video
 js/nosql.js             non-relational overview
 js/main.js              router and start-up
 data/en/, data/es/      course data, one folder per language, same files and shape:
   er-concepts.js        ER_CONCEPTS
   er-quiz.js            ER_QUIZ, ER_QUIZ_TOPICS
   logical.js            LOGICAL_EXERCISES
+  logical-rules.js      LOGICAL_RULES (transformation rule cards, each with a small ER model)
   normalization.js      NF_INFO, EXERCISES, ADV_OPTIONS, QUESTIONS
+  normalization-theory.js  NORM_THEORY (normalization theory cards)
+assets/video/           rendered course video (MP4, poster, WebVTT captions); built from video/ with npm run render:site
 .claude/skills/cunef-brand/  CUNEF brand skill (manual, logo, Word and PowerPoint templates)
 ```
 
 Direct links, handy for sharing in class:
 
 - `#/relational/er` (first concept), `#/relational/er/<conceptId>` (one concept, e.g. `#/relational/er/cardinality`) and `#/relational/er/quiz/weak` (quiz filtered to one topic)
-- `#/relational/logical/17` (exercise 17)
-- `#/relational/normalization/3`, `#/relational/normalization/diagnose` and `#/relational/normalization/diagnose/advanced`
+- `#/relational/logical` (the transformation rules), `#/relational/logical/<ruleId>` (e.g. `#/relational/logical/weak`) and `#/relational/logical/practice/17` (exercise 17)
+- `#/relational/normalization` (theory), `#/relational/normalization/video`, `#/relational/normalization/practice/3`, `#/relational/normalization/diagnose` and `#/relational/normalization/diagnose/advanced`
 - `#/nosql`
 
-Old links (`#/normalize/3`, `#/diagnose`, `#/diagnose/advanced`) are redirected to the new ones.
+Old links (`#/normalize/3`, `#/diagnose`, `#/diagnose/advanced`, `#/relational/logical/17`, `#/relational/normalization/3`) are redirected to the new ones.
 
 ## Publish on GitHub Pages
 
-1. Upload `index.html`, `styles.css` and the `assets/`, `js/` and `data/` folders to the root of the repository.
+1. Upload `index.html`, `styles.css`, `theory.css` and the `assets/`, `js/`, `data/` and `i18n/` folders to the root of the repository.
 2. In **Settings → Pages**, choose **Deploy from a branch**, branch `main` and folder `/ (root)`.
 3. In a minute it will be at `https://<user>.github.io/<repository>/`.
 
 To try it locally, just open `index.html` in the browser.
+
+**The video** is a normal committed file (`assets/video/normalization.mp4`, about 19 MB), not Git LFS: GitHub Pages does not serve LFS files from a branch deploy, and git refuses files over 100 MB. Pages serves it as `video/mp4` with byte ranges, so the player can seek. To rebuild it after changing the Remotion project: `cd video && npm i && npm run render:site` (720p H.264, the poster frame and the captions).
 
 ## Saved progress
 

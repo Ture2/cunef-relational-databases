@@ -11,7 +11,10 @@
 
 const Normalization = (() => {
 
-const BASE = '#/relational/normalization';
+const ROOT = '#/relational/normalization';
+const BASE = `${ROOT}/practice`;        // Normalize exercises; Diagnose lives at ROOT/diagnose
+/* Theory card of each normal form (data/<lang>/normalization-theory.js). */
+const NF_CARD = { '1NF': 'nf1', '2NF': 'nf2', '3NF': 'nf3', BCNF: 'bcnf', '4NF': 'nf4', '5NF': 'nf5' };
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -808,7 +811,7 @@ function stepCardHtml(ex, w) {
     : t('What {nf} asks for', { nf: nfLabel(st.nf) });
   return `<section class="block step-card" aria-labelledby="step-h">
       <h3 id="step-h" tabindex="-1">${title}</h3>
-      <p class="rule"><strong>${esc(info.name)}.</strong> ${esc(info.rule)}</p>
+      <p class="rule"><strong>${esc(info.name)}.</strong> ${esc(info.rule)} <a class="rule-link" href="${ROOT}/${NF_CARD[st.nf]}">${t('Review {nf} →', { nf: nfLabel(st.nf) })}</a></p>
       ${from ? `<p class="from">${t('You start from the tables you left in {nf}. Modify them: remove attributes from one table and put them in a new one.', { nf: nfLabel(from) })}</p>` : ''}
       <details class="how-step">
         <summary>${t('How to take this step')}</summary>
@@ -1200,8 +1203,8 @@ function quizTableHtml(qn) {
 
 function quizLevelsHtml() {
   return `<nav class="levels" aria-label="${t('Quiz level')}">
-      <a href="${BASE}/diagnose"${!quiz.adv ? ' aria-current="page"' : ''}>${t('Basic')} <span>${t('{a} to {b}', { a: nfLabel('1NF'), b: nfLabel('3NF') })}</span></a>
-      <a href="${BASE}/diagnose/advanced"${quiz.adv ? ' aria-current="page"' : ''}>${t('Advanced')} <span>${t('{a} to {b}', { a: nfLabel('BCNF'), b: nfLabel('5NF') })}</span></a>
+      <a href="${ROOT}/diagnose"${!quiz.adv ? ' aria-current="page"' : ''}>${t('Basic')} <span>${t('{a} to {b}', { a: nfLabel('1NF'), b: nfLabel('3NF') })}</span></a>
+      <a href="${ROOT}/diagnose/advanced"${quiz.adv ? ' aria-current="page"' : ''}>${t('Advanced')} <span>${t('{a} to {b}', { a: nfLabel('BCNF'), b: nfLabel('5NF') })}</span></a>
     </nav>`;
 }
 
@@ -1299,31 +1302,10 @@ function handleQuizAction(el) {
 }
 
 /* ==========================================================================
-   Section shell: the rules, the Normalize/Diagnose switch and the hooks for js/main.js
+   Practice shell, drawn inside the theory section (js/normalization-section.js)
    ========================================================================== */
 
-const RULES_HTML = `
-    <details class="rules">
-      <summary>${t('The rules in one sentence')}</summary>
-      <dl>
-        <div><dt>${nfLabel('1NF')}</dt><dd>${t('<strong>One cell, one value.</strong> No lists or repeating groups in a cell or a row.')}</dd></div>
-        <div><dt>${nfLabel('2NF')}</dt><dd>${t('<strong>The whole key.</strong> Every attribute depends on the entire key, not on part of it. It only matters with composite keys.')}</dd></div>
-        <div><dt>${nfLabel('3NF')}</dt><dd>${t('<strong>Nothing but the key.</strong> No attribute depends on another attribute that is not a key.')}</dd></div>
-        <div><dt>${nfLabel('BCNF')}</dt><dd>${t('<strong>Every determinant is a key.</strong> If something determines other attributes, it must identify each row.')}</dd></div>
-        <div><dt>${nfLabel('4NF')}</dt><dd>${t('<strong>One fact per table.</strong> Two independent pieces of data about the same thing do not share a table.')}</dd></div>
-        <div><dt>${nfLabel('5NF')}</dt><dd>${t('<strong>Nothing that can be rebuilt from its parts.</strong> If a table comes from joining smaller ones, store it as those parts.')}</dd></div>
-      </dl>
-    </details>`;
-
-function subNavHtml() {
-  const on = (m) => (route.mode === m ? ' aria-current="page"' : '');
-  return `<nav class="subnav" aria-label="${t('Normalization mode')}">
-      <a href="${BASE}"${on('normalize')}>${t('Normalize')}</a>
-      <a href="${BASE}/diagnose"${on('diagnose')}>${t('Diagnose')}</a>
-    </nav>`;
-}
-
-/* Route segments after #/relational/normalization: '', 'N', 'diagnose', 'diagnose/advanced'. */
+/* Route segments: '' or 'N' (after #/relational/normalization/practice), 'diagnose', 'diagnose/advanced'. */
 function parseRoute(rest) {
   const m = rest.match(/^(?:(\d+)|diagnose(?:\/(advanced))?)?$/);
   if (m && rest.startsWith('diagnose')) return { mode: 'diagnose', ex: 0, adv: m[2] === 'advanced' };
@@ -1333,11 +1315,31 @@ function parseRoute(rest) {
 
 function render(rest) {
   route = parseRoute(rest || '');
-  view.innerHTML = `${subNavHtml()}${RULES_HTML}<div id="norm-pane"></div>`;
+  ($('#practice-slot') || view).innerHTML = '<div id="norm-pane"></div>';
   if (route.mode === 'diagnose') renderQuiz(); else renderExercise();
   return route.mode === 'diagnose'
-    ? `${route.adv ? t('Diagnose (advanced)') : t('Diagnose')} · ${t('Normalization')}`
-    : `${t('Exercise {n}: {title}', { n: route.ex + 1, title: EXERCISES[route.ex].title })} · ${t('Normalization')}`;
+    ? (route.adv ? t('Diagnose (advanced)') : t('Diagnose'))
+    : t('Exercise {n}: {title}', { n: route.ex + 1, title: EXERCISES[route.ex].title });
+}
+
+/* Rail links of the practice hub; onPage: a practice page is showing (route is current). */
+function links(onPage) {
+  const done = EXERCISES.filter((e) => progress.solved[e.id]).length;
+  const first = EXERCISES.findIndex((e) => !progress.solved[e.id]);
+  const nBasic = QUESTIONS.filter((q) => !q.adv).length;
+  const nAdv = QUESTIONS.length - nBasic;
+  const score = (best, n) => (best ? `<span class="rail-score">${best}/${n}</span>` : `<span class="rail-count">${n}</span>`);
+  return [
+    { href: `${BASE}${first > 0 ? `/${first + 1}` : ''}`, label: t('Normalize tables'), current: onPage && route.mode === 'normalize', extra: `<span class="rail-count">${done}/${EXERCISES.length}</span>` },
+    { href: `${ROOT}/diagnose`, label: t('Diagnose · {a} to {b}', { a: nfLabel('1NF'), b: nfLabel('3NF') }), current: onPage && route.mode === 'diagnose' && !route.adv, extra: score(progress.quizBest, nBasic) },
+    { href: `${ROOT}/diagnose/advanced`, label: t('Diagnose · {a} to {b}', { a: nfLabel('BCNF'), b: nfLabel('5NF') }), current: onPage && route.mode === 'diagnose' && route.adv, extra: score(progress.quizBestAdv, nAdv) },
+  ];
+}
+
+/* First exercise whose final step reaches nf, for links from the theory cards. */
+function hrefFor(nf) {
+  const i = EXERCISES.findIndex((e) => e.steps.some((st) => st.nf === nf));
+  return i < 0 ? BASE : `${BASE}/${i + 1}`;
 }
 
 function onClick(el) {
@@ -1355,5 +1357,5 @@ function onInput(e) {
 
 selfTest();
 
-return { render, onClick, onInput };
+return { render, links, hrefFor, onClick, onInput };
 })();
