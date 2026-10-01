@@ -15,6 +15,8 @@
 const ErDiagram = (() => {
   const CH = 7.1;                          // approx. width of one character at the diagram font size
   const tw = (s) => String(s).length * CH;
+  /* Entity names are bold and often upper case (LIBRO, DEPARTAMENTO): capitals are wider. */
+  const twBold = (s) => [...String(s)].reduce((w, c) => w + (/[A-ZÁÉÍÓÚÜÑ0-9]/.test(c) ? 9.4 : 7.4), 0);
   const r1 = (n) => Math.round(n * 10) / 10;
 
   /* Where the segment from the centre of a shape towards (tx, ty) leaves the shape. */
@@ -93,7 +95,7 @@ const ErDiagram = (() => {
 
   function sized(n) {
     const out = { ...n };
-    if (n.type === 'entity') Object.assign(out, { w: Math.max(96, tw(n.label) + 28), h: 40, shape: 'rect' });
+    if (n.type === 'entity') Object.assign(out, { w: Math.max(96, twBold(n.label) + 24), h: 40, shape: 'rect' });
     else if (n.type === 'relationship') Object.assign(out, { w: Math.max(92, tw(n.label) + 48), h: 52, shape: 'diamond' });
     else if (n.type === 'attribute') Object.assign(out, { w: Math.max(70, tw(n.label) + 28), h: 32, shape: 'ellipse' });
     else Object.assign(out, { w: 40, h: 34, shape: 'tri' });
@@ -107,16 +109,19 @@ const ErDiagram = (() => {
 
   function autoAlt(nodes, edges) {
     const byId = Object.fromEntries(nodes.map((n) => [n.id, n]));
-    const ents = nodes.filter((n) => n.type === 'entity').map((n) => `${n.weak ? 'weak entity' : 'entity'} ${n.label}`);
+    const ents = nodes.filter((n) => n.type === 'entity').map((n) => (n.weak ? t('weak entity {name}', { name: n.label }) : t('entity {name}', { name: n.label })));
     const rels = nodes.filter((n) => n.type === 'relationship').map((r) => {
       const ends = edges.filter((e) => e.to === r.id || e.from === r.id).map((e) => {
         const other = byId[e.from === r.id ? e.to : e.from];
         return other && other.type === 'entity' ? `${other.label}${e.card ? ` ${e.card}` : ''}` : null;
       }).filter(Boolean);
-      return `relationship ${r.label} between ${ends.join(' and ')}`;
+      return t('relationship {name} between {ends}', { name: r.label, ends: ends.join(t(' and ')) });
     });
-    const atts = nodes.filter((n) => n.type === 'attribute').map((a) => `${a.label}${a.kind ? ` (${a.kind})` : ''}`);
-    return `ER diagram: ${[...ents, ...rels].join('; ')}${atts.length ? `. Attributes: ${atts.join(', ')}` : ''}.`;
+    const kindName = (k) => ({ key: t('key'), partial: t('partial key'), multivalued: t('multivalued'), derived: t('derived'), composite: t('composite') }[k] || k);
+    const atts = nodes.filter((n) => n.type === 'attribute').map((a) => `${a.label}${a.kind ? ` (${kindName(a.kind)})` : ''}`);
+    return atts.length
+      ? t('ER diagram: {items}. Attributes: {attributes}.', { items: [...ents, ...rels].join('; '), attributes: atts.join(', ') })
+      : t('ER diagram: {items}.', { items: [...ents, ...rels].join('; ') });
   }
 
   /* ---- Free layout --------------------------------------------------------- */
@@ -252,11 +257,16 @@ const ErDiagram = (() => {
         let p;
         if (unary) {
           // The two legs of a recursive relationship leave side by side from the box side facing the diamond.
+          // A diamond clearly above or below a wide box takes the top / bottom side, near the diamond.
           const off = k === 0 ? -1 : 1;
-          if (Math.abs(d.x - b.x) - b.w / 2 > Math.abs(d.y - b.y) - b.h / 2) {
+          const hGap = Math.abs(d.x - b.x) - b.w / 2;
+          const vGap = Math.abs(d.y - b.y) - b.h / 2;
+          if (hGap > vGap && !(b.w > d.w * 2.5 && vGap > 20 && hGap < d.w * 1.5)) {
             p = { x: b.x + Math.sign(d.x - b.x) * b.w / 2, y: b.y + off * Math.min(12, b.h / 4) };
           } else {
-            p = { x: b.x + off * Math.min(22, b.w / 4), y: b.y + Math.sign(d.y - b.y) * b.h / 2 };
+            const edge = b.w / 2 - 30;
+            const cx = Math.max(b.x - edge, Math.min(b.x + edge, d.x));
+            p = { x: cx + off * Math.min(22, b.w / 4), y: b.y + Math.sign(d.y - b.y) * b.h / 2 };
           }
         } else {
           p = exitPoint(b, d.x, d.y);
@@ -294,16 +304,21 @@ const ErDiagram = (() => {
       const x0 = pos.anchor === 'start' ? pos.x : pos.anchor === 'end' ? pos.x - w : pos.x - w / 2;
       return { x: x0 + w / 2, y: pos.y, w, h: 14 };
     };
-    const hits = (r) => solids.some((o) => Math.abs(o.x - r.x) < (o.w + r.w) / 2 - 1 && Math.abs(o.y - r.y) < (o.h + r.h) / 2 - 1)
-      || placed.some((o) => Math.abs(o.x - r.x) < (o.w + r.w) / 2 + 2 && Math.abs(o.y - r.y) < (o.h + r.h) / 2 + 1);
+    // How much a label would cover: shapes count a lot, other labels a bit less.
+    const overlap = (a, b, padX, padY) => Math.max(0, (a.w + b.w) / 2 + padX - Math.abs(a.x - b.x)) * Math.max(0, (a.h + b.h) / 2 + padY - Math.abs(a.y - b.y));
+    const covered = (r) => solids.reduce((sum, o) => sum + overlap(o, r, 2, 1), 0) * 3
+      + placed.reduce((sum, o) => sum + overlap(o, r, 2, 1), 0) * 2;
     legs.forEach((leg) => {
       const others = legs.filter((o) => o !== leg && o.box === leg.box).map((o) => o.p);
       const cands = [];
       [14, 30, 48].forEach((along) => [false, true].forEach((flip) => cands.push(labelPos(leg.p, leg.q, along, 10, flip))));
+      // Farther spots, used only when every close one covers something (long role labels).
+      [14, 30, 48, 66].forEach((along) => [false, true].forEach((flip) => cands.push(labelPos(leg.p, leg.q, along, 20, flip))));
       const score = (pos, i) => {
         const r = rectOf(pos, leg.text);
         const near = [...others, ...placed].map((o) => Math.hypot(o.x - r.x, o.y - r.y));
-        return (hits(r) ? -1000 : 0) + Math.min(60, near.length ? Math.min(...near) : 60) - i * 3;
+        const c = covered(r);
+        return (c ? -1000 - c : 0) + Math.min(60, near.length ? Math.min(...near) : 60) - i * 3;
       };
       let best = cands[0];
       let bestScore = -Infinity;
@@ -344,10 +359,10 @@ const ErDiagram = (() => {
     const maxX = Math.max(...all.map((b) => b.x + b.w / 2)) + pad;
     const maxY = Math.max(...all.map((b) => b.y + b.h / 2)) + pad;
     const body = `<g transform="translate(${r1(-minX)} ${r1(-minY)})"><g>${out.join('')}</g><g>${shapes.join('')}</g><g>${labels.join('')}</g></g>`;
-    return svgWrap(maxX - minX, maxY - minY, body, `ER model of “${ex.title}”. The same model is described as text below the diagram.`);
+    return svgWrap(maxX - minX, maxY - minY, body, t('ER model of “{title}”. The same model is described as text below the diagram.', { title: ex.title }));
   }
 
-  const LEGEND = `<p class="er-legend"><span><u>key</u></span><span><span class="dash-u">partial key</span></span><span>{multivalued}</span><span>/derived</span><span>composite (parts)</span><span>(min,max) look-across</span></p>`;
+  const LEGEND = `<p class="er-legend"><span><u>${esc(t('key'))}</u></span><span><span class="dash-u">${esc(t('partial key'))}</span></span><span>{${esc(t('multivalued'))}}</span><span>/${esc(t('derived'))}</span><span>${esc(t('composite (parts)'))}</span><span>${esc(t('(min,max) look-across'))}</span></p>`;
 
   return { chenSvg, modelSvg, attrText, LEGEND };
 })();

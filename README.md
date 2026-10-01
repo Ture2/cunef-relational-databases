@@ -10,12 +10,47 @@ A static site (HTML, CSS and JavaScript, no dependencies, no build step and no s
 
 The content comes from the G241 course material (Topic 2 and 3 translations, Quiz 2, the lab sessions and the ER model contract).
 
+## Navigation and brand
+
+- **App bar:** full window width: the CUNEF logo, the sections of the current course as tabs, and a gear button that opens **Settings**: language (Español / English), course (relational / non-relational) and theme (Light / Dark / System, the default). The theme is saved in `localStorage['theme']` and applied before the first paint.
+- **ER concepts:** a navigation rail on the left edge, in the style of a project portal. Hubs (Basics, Relationships, Weak entities and constraints, Extended ER model, Building the model, Test yourself) each have an icon in Chen notation. The active hub lists its concepts or quiz topics, with best scores; the other hubs open a flyout on hover or keyboard focus. **Collapse**, at the bottom, reduces the rail to icons, and the choice is remembered. Each concept has its own page with Previous / Next links. On narrow screens a dropdown replaces the rail. The hubs are defined in `GROUPS` in `js/er.js`.
+- **ER → Logical:** Level 1 / Level 2 tabs, then numbered tabs for the exercises of that level, plus ‹ › arrows. A dot marks a solved exercise.
+- **Normalization:** numbered tabs in the same style.
+
+The styling follows the CUNEF Universidad brand manual (the `cunef-brand-v1` kit):
+- **Colours:** blue `#1a1f6c` for headings and controls, light beige `#f0ece8` for the background and beige `#d6d1c4` for rules.
+- **Orange** `#ff5700` is used only for the logo and non-text accents, because it does not reach text contrast on light backgrounds.
+- **Font:** Arial, the brand's system typeface.
+- **Table colours** are shades of the brand hues that keep 4.5:1 contrast with white text.
+
+## Languages
+
+The whole site is available in Spanish and English: interface, course data and diagrams.
+
+**Choosing the language**
+- **First visit:** the site follows the browser, Spanish when it is set to Spanish and English otherwise.
+- **Switching:** Settings (the gear in the app bar) changes the language. The page reloads on the same route, and the choice is remembered on that device.
+- **Links:** `?lang=es` or `?lang=en` in a link forces the language, for example `index.html?lang=es#/relational/logical/4`.
+
+**How it is built**
+- **Interface text** goes through `t('English text', { params })`. The English text is the key, and the Spanish is in `i18n/es-*.js`. When a Spanish key is missing, the console shows `[i18n] missing es: …` and the English text is used.
+- **Normal forms** are shown with `nfLabel()`: 2FN, 3FN, FNBC, 4FN and 5FN in Spanish. Internally they stay `2NF`, `BCNF`, and so on.
+- **Course data** lives in `data/en/` and `data/es/`, with the same ids, order and structure. Only the text and the names differ: tables, attributes, entities and diagram labels.
+- **Diagrams** are drawn from the data, so a translated label redraws the diagram.
+- **Adding or changing an exercise:** edit both languages. The ER → logical self-test runs in each language: when the page opens, the console warns if the derived solution disagrees with `expect`.
+- **Progress** (solved exercises and best quiz scores) is shared between languages, because ids are the same. The tables a student builds are saved per language, because their names differ.
+- **Terminology** follows the course's Spanish originals and their glossaries (`content/translations/tema2-mcd` and `tema3-mld` in the course repository): clave ajena, entidad débil, correspondencia, lectura cruzada for look-across, dependencia de reunión, and so on.
+
 ## Files
 
 ```
-index.html              page shell: course switch, section tabs, #view
+index.html              page shell: app bar (CUNEF logo, section tabs, ES | EN switch, course switch), #view
+assets/cunef-logo.png   official CUNEF Universidad logo (orange positive, transparent margin trimmed)
 styles.css              all styles
-js/core.js              shared helpers (escaping, storage, focus, check lists)
+js/i18n.js              language (LANG), t() for interface text, nfLabel(), setLang(); loaded first
+i18n/es-app.js          Spanish interface text: shell, ER concepts, ER → Logical, NoSQL, checker messages
+i18n/es-normalization.js  Spanish interface text: normalization
+js/core.js              binds the course data of the current language; shared helpers (escaping, storage, focus, check lists)
 js/er-diagram.js        ER diagrams as inline SVG (Chen notation)
 js/er.js                ER concepts and quiz
 js/logical-engine.js    ER → logical rules and checker (no DOM; also runs in Node)
@@ -23,15 +58,17 @@ js/logical.js           ER → logical exercise page
 js/normalization.js     normalization engine and pages
 js/nosql.js             non-relational overview
 js/main.js              router and start-up
-data/er-concepts.js     ER_CONCEPTS
-data/er-quiz.js         ER_QUIZ, ER_QUIZ_TOPICS
-data/logical.js         LOGICAL_EXERCISES
-data/normalization.js   NF_INFO, EXERCISES, ADV_OPTIONS, QUESTIONS
+data/en/, data/es/      course data, one folder per language, same files and shape:
+  er-concepts.js        ER_CONCEPTS
+  er-quiz.js            ER_QUIZ, ER_QUIZ_TOPICS
+  logical.js            LOGICAL_EXERCISES
+  normalization.js      NF_INFO, EXERCISES, ADV_OPTIONS, QUESTIONS
+.claude/skills/cunef-brand/  CUNEF brand skill (manual, logo, Word and PowerPoint templates)
 ```
 
 Direct links, handy for sharing in class:
 
-- `#/relational/er` and `#/relational/er/quiz/weak` (quiz filtered to one topic)
+- `#/relational/er` (first concept), `#/relational/er/<conceptId>` (one concept, e.g. `#/relational/er/cardinality`) and `#/relational/er/quiz/weak` (quiz filtered to one topic)
 - `#/relational/logical/17` (exercise 17)
 - `#/relational/normalization/3`, `#/relational/normalization/diagnose` and `#/relational/normalization/diagnose/advanced`
 - `#/nosql`
@@ -40,7 +77,7 @@ Old links (`#/normalize/3`, `#/diagnose`, `#/diagnose/advanced`) are redirected 
 
 ## Publish on GitHub Pages
 
-1. Upload `index.html`, `styles.css` and the `js/` and `data/` folders to the root of the repository.
+1. Upload `index.html`, `styles.css` and the `assets/`, `js/` and `data/` folders to the root of the repository.
 2. In **Settings → Pages**, choose **Deploy from a branch**, branch `main` and folder `/ (root)`.
 3. In a minute it will be at `https://<user>.github.io/<repository>/`.
 
@@ -54,8 +91,12 @@ Everything is stored in `localStorage`, on that device only, and never sent anyw
 |---|---|
 | `er-quiz-v1` | Best ER quiz score for each topic |
 | `er-logical-v1` | Solved ER → logical exercises |
-| `er-logical-work-v1` | The tables of each ER → logical exercise. They are discarded when the exercise's ER model changes |
-| `normalization-en-v1`, `normalization-en-work-v1` | Normalization progress and work (unchanged from the previous version, so earlier progress is kept) |
+| `er-logical-work-v1` (`-es` in Spanish) | The tables of each ER → logical exercise. They are discarded when the exercise's ER model changes |
+| `normalization-en-v1`, `normalization-en-work-v1` (`-es` in Spanish) | Normalization progress and work (the `en` in the name is historical; progress is shared by both languages) |
+| `er-ui-v1` | Whether the ER concepts rail is collapsed to icons |
+| `lang` | The chosen language, `es` or `en` |
+| `theme` | `light`, `dark` or `system` |
+| `theory-quiz-v1` | Best Theory quiz score for each topic |
 
 ## ER concepts and quiz
 

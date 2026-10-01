@@ -18,6 +18,8 @@
    ========================================================================== */
 
 const LogicalEngine = (() => {
+  // Interface text: t() from js/i18n.js in the browser; a plain fallback (English + placeholders) elsewhere.
+  const tr = typeof t === 'function' ? t : (s, p) => (p ? s.replace(/\{(\w+)\}/g, (m, k) => (k in p ? String(p[k]) : m)) : s);
   const norm = (s) => String(s || '')
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/([a-z])([A-Z])/g, '$1 $2')
@@ -104,8 +106,8 @@ const LogicalEngine = (() => {
       const out = [];
       e.attrs.forEach((a) => {
         if (a.kind === 'key' || a.kind === 'partial' || a.kind === 'derived' || a.kind === 'multivalued') return;
-        if (a.kind === 'composite') (a.parts || []).forEach((p) => out.push({ name: p, why: `\`${a.name}\` is a composite attribute of \`${e.id}\`: store its parts as separate columns.`, composite: a.name }));
-        else out.push({ name: a.name, why: why || `Rule 2: every attribute of \`${e.id}\` becomes a column of its table.` });
+        if (a.kind === 'composite') (a.parts || []).forEach((p) => out.push({ name: p, why: tr('`{attr}` is a composite attribute of `{entity}`: store its parts as separate columns.', { attr: a.name, entity: e.id }), composite: a.name }));
+        else out.push({ name: a.name, why: why || tr('Rule 2: every attribute of `{entity}` becomes a column of its table.', { entity: e.id }) });
       });
       return out;
     };
@@ -155,16 +157,16 @@ const LogicalEngine = (() => {
       if (hs) {
         const s = strat(hs);
         if (s === 'super+subs') {
-          cols.push(...fkColsTo(hs.super, { pk: true, why: `\`${e.id}\` is a subtype of \`${hs.super}\` (supertype + subtypes strategy): its PK is the supertype's PK, which is also a FK to \`${hs.super}\`.` }));
+          cols.push(...fkColsTo(hs.super, { pk: true, why: tr('`{sub}` is a subtype of `{super}` (supertype + subtypes strategy): its PK is the supertype\'s PK, which is also a FK to `{super}`.', { sub: e.id, super: hs.super }) }));
         } else { // 'subs': the subtype copies the supertype's key and attributes
           cols.push(...pkCols(hs.super).map((c) => ({ name: c.name, pk: true })));
-          cols.push(...plainCols(ents[hs.super], `With one table per subtype, \`${e.id}\` also stores the attributes of \`${hs.super}\`.`));
+          cols.push(...plainCols(ents[hs.super], tr('With one table per subtype, `{sub}` also stores the attributes of `{super}`.', { sub: e.id, super: hs.super })));
         }
       } else if (e.weak) {
         const owner = ownerOf(e.id);
         const idr = identifyingOf(e.id);
         pkCols(e.id).forEach((c) => {
-          if (c.refEntity) cols.push({ name: c.name, pk: true, nn: true, fk: { table: tableOf(c.refEntity), col: c.refCol }, why: `\`${e.id}\` is a weak entity identified by \`${owner}\` (\`${idr.id}\`): its PK starts with the owner's key, which is also a FK.` });
+          if (c.refEntity) cols.push({ name: c.name, pk: true, nn: true, fk: { table: tableOf(c.refEntity), col: c.refCol }, why: tr('`{entity}` is a weak entity identified by `{owner}` (`{rel}`): its PK starts with the owner\'s key, which is also a FK.', { entity: e.id, owner, rel: idr.id }) });
           else cols.push({ name: c.name, pk: true });
         });
       } else {
@@ -172,20 +174,22 @@ const LogicalEngine = (() => {
       }
       cols.push(...plainCols(e));
       if (hp && strat(hp) === 'single') {
-        hp.subs.forEach((s) => cols.push(...plainCols(ents[s], `With a single table for the hierarchy, \`${e.id}\` also stores the attributes of subtype \`${s}\`.`)));
-        cols.push({ name: hp.discriminator || 'type', why: `With a single table for the hierarchy, a discriminator column says which subtype each row belongs to.` });
+        hp.subs.forEach((s) => cols.push(...plainCols(ents[s], tr('With a single table for the hierarchy, `{entity}` also stores the attributes of subtype `{sub}`.', { entity: e.id, sub: s }))));
+        cols.push({ name: hp.discriminator || tr('type'), why: tr('With a single table for the hierarchy, a discriminator column says which subtype each row belongs to.') });
       } else if (hp && hp.discriminator) {
-        cols.push({ name: hp.discriminator, optional: true, why: 'Discriminator of the hierarchy.' });
+        cols.push({ name: hp.discriminator, optional: true, why: tr('Discriminator of the hierarchy.') });
       }
       const pkWhy = e.weak
-        ? `Weak entity \`${e.id}\`: PK = owner's key + partial key (${e.attrs.filter((a) => a.kind === 'partial').map((a) => `\`${a.name}\``).join(', ')}).`
-        : hs ? `Subtype \`${e.id}\` shares the key of \`${hs.super}\`.`
-        : `Rule 3: the identifier of \`${e.id}\` becomes the PK.`;
+        ? tr('Weak entity `{entity}`: PK = owner\'s key + partial key ({partial}).', { entity: e.id, partial: e.attrs.filter((a) => a.kind === 'partial').map((a) => `\`${a.name}\``).join(', ') })
+        : hs ? tr('Subtype `{sub}` shares the key of `{super}`.', { sub: e.id, super: hs.super })
+        : tr('Rule 3: the identifier of `{entity}` becomes the PK.', { entity: e.id });
       addTable({
         name: e.id, kind: e.weak ? 'weak' : hs ? 'sub' : 'entity', element: e.id, cols, pkWhy,
-        why: e.weak ? `\`${e.id}\` is a weak entity: it still becomes a table (rule 1), identified through \`${ownerOf(e.id)}\`.`
-          : hs ? `\`${e.id}\` is a subtype of \`${hs.super}\`; with the ${strat(hs) === 'subs' ? 'one-table-per-subtype' : 'supertype + subtypes'} strategy it has its own table.`
-          : `Rule 1: entity \`${e.id}\` becomes a table.`,
+        why: e.weak ? tr('`{entity}` is a weak entity: it still becomes a table (rule 1), identified through `{owner}`.', { entity: e.id, owner: ownerOf(e.id) })
+          : hs ? (strat(hs) === 'subs'
+            ? tr('`{sub}` is a subtype of `{super}`; with the one-table-per-subtype strategy it has its own table.', { sub: e.id, super: hs.super })
+            : tr('`{sub}` is a subtype of `{super}`; with the supertype + subtypes strategy it has its own table.', { sub: e.id, super: hs.super }))
+          : tr('Rule 1: entity `{entity}` becomes a table.', { entity: e.id }),
       });
     });
 
@@ -197,10 +201,10 @@ const LogicalEngine = (() => {
         const name = `${e.id}${pascal(a.name)}`;
         addTable({
           name, kind: 'multivalued', element: `${e.id}.${a.name}`, aliases: [a.name, pascal(a.name)],
-          why: `\`${a.name}\` is multivalued: it needs its own table with the key of \`${e.id}\` plus the value.`,
-          pkWhy: `A multivalued attribute's table has PK = owner's key + the value.`,
+          why: tr('`{attr}` is multivalued: it needs its own table with the key of `{entity}` plus the value.', { attr: a.name, entity: e.id }),
+          pkWhy: tr('A multivalued attribute\'s table has PK = owner\'s key + the value.'),
           cols: [
-            ...fkColsTo(e.id, { pk: true, why: `The table of multivalued \`${a.name}\` references its owner \`${e.id}\`.` }),
+            ...fkColsTo(e.id, { pk: true, why: tr('The table of multivalued `{attr}` references its owner `{entity}`.', { attr: a.name, entity: e.id }) }),
             { name: a.name, pk: true },
           ],
         });
@@ -214,7 +218,7 @@ const LogicalEngine = (() => {
       if (r.identifying) {
         const weak = weakEnd(r);
         const holder = tables[tableOf(weak.entity)];
-        if (holder) (r.attrs || []).forEach((a) => holder.cols.push({ name: a.name, why: `Attribute of relationship \`${r.id}\`.` }));
+        if (holder) (r.attrs || []).forEach((a) => holder.cols.push({ name: a.name, why: tr('Attribute of relationship `{rel}`.', { rel: r.id }) }));
         return;
       }
       const ratio = ratioOf(r);
@@ -230,15 +234,17 @@ const LogicalEngine = (() => {
         if (!holder) return;
         const nn = cards[1 - manyIdx].min >= 1;
         const rule = ratio === '1:N'
-          ? `\`${r.id}\` is 1:N: rule 5, the key of the one side (\`${oneEnd.entity}\`) goes to the many side (\`${holderEnd.entity}\`).`
-          : `\`${r.id}\` is 1:1: the key of one side passes to the other (rules 6–7${unary ? '' : `; here \`${holderEnd.entity}\` holds it`}).`;
+          ? tr('`{rel}` is 1:N: rule 5, the key of the one side (`{one}`) goes to the many side (`{many}`).', { rel: r.id, one: oneEnd.entity, many: holderEnd.entity })
+          : unary
+            ? tr('`{rel}` is 1:1: the key of one side passes to the other (rules 6–7).', { rel: r.id })
+            : tr('`{rel}` is 1:1: the key of one side passes to the other (rules 6–7; here `{holder}` holds it).', { rel: r.id, holder: holderEnd.entity });
         const nnWhy = nn
-          ? `The min at \`${oneEnd.entity}\`'s end is 1: every \`${holderEnd.entity}\` must have one (NOT NULL).`
-          : `The min at \`${oneEnd.entity}\`'s end is 0: a \`${holderEnd.entity}\` may have none (NULL allowed).`;
+          ? tr('The min at `{one}`\'s end is 1: every `{holder}` must have one (NOT NULL).', { one: oneEnd.entity, holder: holderEnd.entity })
+          : tr('The min at `{one}`\'s end is 0: a `{holder}` may have none (NULL allowed).', { one: oneEnd.entity, holder: holderEnd.entity });
         const baseName = (c) => (unary ? (pkCols(oneEnd.entity).length > 1 ? `${oneEnd.role || r.id} ${c.name}` : (oneEnd.role || `${r.id} ${c.name}`)) : c.name);
-        const cols = fkColsTo(oneEnd.entity, { nn, why: `${rule} ${nnWhy}` }).map((c, i) => ({ ...c, name: uniqueName(holder, baseName(pkCols(oneEnd.entity)[i]), r.id), rel: r.id, nnWhy }));
+        const cols = fkColsTo(oneEnd.entity, { nn, why: `${rule} ${nnWhy}` }).map((c, i) => ({ ...c, name: uniqueName(holder, baseName(pkCols(oneEnd.entity)[i]), r.id), rel: r.id, nnWhy, sideWhy: `${rule} ${nnWhy}` }));
         holder.cols.push(...cols);
-        (r.attrs || []).forEach((a) => holder.cols.push({ name: a.name, why: `\`${a.name}\` belongs to \`${r.id}\` (${ratio}), so it goes with the foreign key, in \`${holder.name}\`.` }));
+        (r.attrs || []).forEach((a) => holder.cols.push({ name: a.name, why: tr('`{attr}` belongs to `{rel}` ({ratio}), so it goes with the foreign key, in `{table}`.', { attr: a.name, rel: r.id, ratio, table: holder.name }) }));
         return;
       }
       // M:N, unary M:N and ternary: a table of their own.
@@ -248,19 +254,21 @@ const LogicalEngine = (() => {
       const t = {
         name: r.id, kind: ratio === 'ternary' ? 'ternary' : 'mn', element: r.id, cols: [],
         why: ratio === 'ternary'
-          ? `\`${r.id}\` is a ternary relationship: it becomes a table with a FK to each of the three entities.`
-          : `\`${r.id}\` is M:N: rule 4, it becomes a table of its own.`,
+          ? tr('`{rel}` is a ternary relationship: it becomes a table with a FK to each of the three entities.', { rel: r.id })
+          : tr('`{rel}` is M:N: rule 4, it becomes a table of its own.', { rel: r.id }),
         pkWhy: ratio === 'ternary'
-          ? `The PK of ternary \`${r.id}\` combines the keys of its entities${choice[`ternaryKey:${r.id}`] === 'many' ? ' whose end has max N' : ''}.`
-          : `Rule 4: the PK of \`${r.id}\` combines the keys of both entities.`,
+          ? (choice[`ternaryKey:${r.id}`] === 'many'
+            ? tr('The PK of ternary `{rel}` combines the keys of its entities whose end has max N.', { rel: r.id })
+            : tr('The PK of ternary `{rel}` combines the keys of its entities.', { rel: r.id }))
+          : tr('Rule 4: the PK of `{rel}` combines the keys of both entities.', { rel: r.id }),
       };
       r.ends.forEach((end, i) => {
         const names = (c) => (unary ? (pkCols(end.entity).length > 1 ? `${end.role || i} ${c.name}` : (end.role || `${c.name} ${i + 1}`)) : c.name);
-        const fks = fkColsTo(end.entity, { pk: usePk.includes(i), nn: true, names, why: `${t.why} It references \`${end.entity}\`.` })
-          .map((c) => ({ ...c, name: uniqueName(t, c.name, end.role || r.id), rel: r.id }));
+        const fks = fkColsTo(end.entity, { pk: usePk.includes(i), nn: true, names, why: `${t.why} ${tr('It references `{entity}`.', { entity: end.entity })}` })
+          .map((c) => ({ ...c, name: uniqueName(t, c.name, end.role || r.id), rel: r.id, sideWhy: t.why }));
         t.cols.push(...fks);
       });
-      (r.attrs || []).forEach((a) => t.cols.push({ name: a.name, why: `\`${a.name}\` is an attribute of \`${r.id}\`, so it goes in its table.` }));
+      (r.attrs || []).forEach((a) => t.cols.push({ name: a.name, why: tr('`{attr}` is an attribute of `{rel}`, so it goes in its table.', { attr: a.name, rel: r.id }) }));
       addTable(t);
     });
 
@@ -328,22 +336,24 @@ const LogicalEngine = (() => {
 
     // Duplicated names.
     const seen = new Set();
-    stu.forEach((s) => { if (seen.has(s.key)) bad(`There are two tables called \`${s.name}\`.`, 'tables'); seen.add(s.key); });
+    stu.forEach((s) => { if (seen.has(s.key)) bad(tr('There are two tables called `{table}`.', { table: s.name }), 'tables'); seen.add(s.key); });
 
     // Missing tables.
-    exp.forEach((e) => { if (!sOf.has(e.name)) bad(`Missing a table. ${e.why}`, 'tables'); });
+    exp.forEach((e) => { if (!sOf.has(e.name)) bad(tr('Missing a table. {why}', { why: e.why }), 'tables'); });
 
     // Extra tables.
     stu.forEach((s) => {
       if (eOf.has(s.i)) return;
       const r = ex.relationships.find((x) => norm(x.id) === s.key);
       if (r && ratioOf(r) !== 'M:N' && ratioOf(r) !== 'ternary') {
-        bad(`\`${s.name}\`: \`${r.id}\` is ${r.identifying ? 'an identifying relationship' : ratioOf(r)}, so it does not need a table of its own; ${r.identifying ? 'the owner key goes into the weak entity’s PK.' : 'it becomes a foreign key in one of its tables.'}`, 'tables');
+        bad(r.identifying
+          ? tr('`{table}`: `{rel}` is an identifying relationship, so it does not need a table of its own; the owner key goes into the weak entity’s PK.', { table: s.name, rel: r.id })
+          : tr('`{table}`: `{rel}` is {ratio}, so it does not need a table of its own; it becomes a foreign key in one of its tables.', { table: s.name, rel: r.id, ratio: ratioOf(r) }), 'tables');
       } else {
         const ent = ex.entities.find((x) => norm(x.id) === s.key);
         bad(ent
-          ? `\`${s.name}\`: with the strategy you chose for the hierarchy, \`${ent.id}\` does not get a table of its own (or its columns do not match it).`
-          : `Table \`${s.name}\` does not correspond to any entity, M:N relationship or multivalued attribute of the model.`, 'tables');
+          ? tr('`{table}`: with the strategy you chose for the hierarchy, `{entity}` does not get a table of its own (or its columns do not match it).', { table: s.name, entity: ent.id })
+          : tr('Table `{table}` does not correspond to any entity, M:N relationship or multivalued attribute of the model.', { table: s.name }), 'tables');
       }
     });
 
@@ -364,7 +374,7 @@ const LogicalEngine = (() => {
           used.add(x);
           if (c.pk) pkWanted.add(c.name);
           if (x.pk) pkGot.add(c.name);
-          if (x.fk) bad(`${label}: \`${x.name}\` is not a foreign key.`, 'fks');
+          if (x.fk) bad(tr('{table}: `{col}` is not a foreign key.', { table: label, col: x.name }), 'fks');
           return;
         }
         if (c.optional) return;
@@ -374,7 +384,7 @@ const LogicalEngine = (() => {
           if (composites.has(c.composite)) return;
         }
         if (c.pk) pkWanted.add(c.name);
-        bad(`${label} is missing column \`${c.name}\`. ${c.why || ''}`.trim(), 'cols');
+        bad(tr('{table} is missing column `{col}`. {why}', { table: label, col: c.name, why: c.why || '' }).trim(), 'cols');
       });
 
       // Foreign keys, by the table and column they reference.
@@ -388,14 +398,16 @@ const LogicalEngine = (() => {
         if (c.pk) pkWanted.add(tag);
         if (!x) {
           const plain = s.cols.find((y) => !used.has(y) && !y.fk && y.key === norm(c.name));
-          if (plain) { used.add(plain); if (plain.pk) pkGot.add(tag); bad(`${label}: \`${plain.name}\` must be marked as a foreign key to \`${c.fk.table}.${c.fk.col}\`. ${c.why}`, 'fks'); return; }
-          bad(`${label} needs a foreign key to \`${c.fk.table}.${c.fk.col}\`. ${c.why}`, 'fks');
+          if (plain) { used.add(plain); if (plain.pk) pkGot.add(tag); bad(tr('{table}: `{col}` must be marked as a foreign key to `{ref}`. {why}', { table: label, col: plain.name, ref: `${c.fk.table}.${c.fk.col}`, why: c.why }), 'fks'); return; }
+          bad(tr('{table} needs a foreign key to `{ref}`. {why}', { table: label, ref: `${c.fk.table}.${c.fk.col}`, why: c.why }), 'fks');
           return;
         }
         used.add(x);
         if (x.pk) pkGot.add(tag);
         if (!c.pk && !x.pk && x.nn !== !!c.nn) {
-          bad(`${label}: the foreign key \`${x.name}\` should be ${c.nn ? 'NOT NULL' : 'NULL-able'}. ${c.nnWhy || ''}`.trim(), 'nulls');
+          bad((c.nn
+            ? tr('{table}: the foreign key `{col}` should be NOT NULL. {why}', { table: label, col: x.name, why: c.nnWhy || '' })
+            : tr('{table}: the foreign key `{col}` should allow NULL. {why}', { table: label, col: x.name, why: c.nnWhy || '' })).trim(), 'nulls');
         }
       });
 
@@ -404,27 +416,27 @@ const LogicalEngine = (() => {
       const extraPk = s.cols.filter((y) => y.pk && !used.has(y));
       if (!same || extraPk.length) {
         const want = e.cols.filter((c) => c.pk).map((c) => `\`${c.name}\``).join(' + ');
-        bad(`${label}: the primary key should be ${want}. ${e.pkWhy || ''}`.trim(), 'pks');
+        bad(tr('{table}: the primary key should be {pk}. {why}', { table: label, pk: want, why: e.pkWhy || '' }).trim(), 'pks');
       }
 
       // Columns that should not be there.
       s.cols.filter((y) => !used.has(y)).forEach((y) => {
         const owner = ents[e.element];
         const attr = owner && owner.attrs.find((a) => norm(a.name) === y.key);
-        if (attr && attr.kind === 'derived') { note(`${label}: \`${y.name}\` is derived, so it is normally omitted (it can be computed).`, 'cols'); return; }
-        if (attr && attr.kind === 'multivalued') { bad(`${label}: \`${y.name}\` is multivalued, it cannot be a single column: it needs its own table.`, 'cols'); return; }
+        if (attr && attr.kind === 'derived') { note(tr('{table}: `{col}` is derived, so it is normally omitted (it can be computed).', { table: label, col: y.name }), 'cols'); return; }
+        if (attr && attr.kind === 'multivalued') { bad(tr('{table}: `{col}` is multivalued, it cannot be a single column: it needs its own table.', { table: label, col: y.name }), 'cols'); return; }
         if (y.fk) {
           const tgt = expOfStuName(y.fk.table);
           const reverse = tgt && tgt.cols.find((c) => c.fk && c.fk.table === e.name && c.rel);
           if (reverse) {
             const r = relById[reverse.rel];
-            bad(`${label}: the foreign key \`${y.name}\` is on the wrong side. ${reverse.why.split(' It ')[0]}`, 'fks');
+            bad(tr('{table}: the foreign key `{col}` is on the wrong side. {why}', { table: label, col: y.name, why: reverse.sideWhy || reverse.why }), 'fks');
             return;
           }
-          bad(`${label}: unexpected foreign key \`${y.name}\` → \`${y.fk.table}\`. No relationship of the model puts it there.`, 'fks');
+          bad(tr('{table}: unexpected foreign key `{col}` → `{ref}`. No relationship of the model puts it there.', { table: label, col: y.name, ref: y.fk.table }), 'fks');
           return;
         }
-        bad(`${label}: column \`${y.name}\` does not come from the model (check the attribute names).`, 'cols');
+        bad(tr('{table}: column `{col}` does not come from the model (check the attribute names).', { table: label, col: y.name }), 'cols');
       });
     });
 
@@ -433,8 +445,8 @@ const LogicalEngine = (() => {
       if (!y.fk) return;
       const t = stu.find((x) => x.name === y.fk.table);
       const col = t && t.cols.find((x) => x.name === y.fk.col);
-      if (!t || !col) bad(`\`${s.name}\`: \`${y.name}\` references \`${y.fk.table}.${y.fk.col}\`, which does not exist.`, 'fks');
-      else if (!col.pk) bad(`\`${s.name}\`: \`${y.name}\` references \`${y.fk.table}.${y.fk.col}\`, which is not a primary key column.`, 'fks');
+      if (!t || !col) bad(tr('`{table}`: `{col}` references `{ref}`, which does not exist.', { table: s.name, col: y.name, ref: `${y.fk.table}.${y.fk.col}` }), 'fks');
+      else if (!col.pk) bad(tr('`{table}`: `{col}` references `{ref}`, which is not a primary key column.', { table: s.name, col: y.name, ref: `${y.fk.table}.${y.fk.col}` }), 'fks');
     }));
 
     return issues;
@@ -442,9 +454,11 @@ const LogicalEngine = (() => {
 
   function describeChoice(key, value) {
     const [kind, id] = key.split(':');
-    if (kind === 'oneToOne') return `the foreign key of 1:1 \`${id}\` in \`${value}\``;
-    if (kind === 'ternaryKey') return value === 'all' ? `a PK made of all three keys for ternary \`${id}\`` : `a PK made only of the keys of the N ends for ternary \`${id}\``;
-    return `the ${{ 'super+subs': 'supertype + subtypes', single: 'single-table', subs: 'one-table-per-subtype' }[value]} strategy for hierarchy \`${id}\``;
+    if (kind === 'oneToOne') return tr('the foreign key of 1:1 `{rel}` in `{entity}`', { rel: id, entity: value });
+    if (kind === 'ternaryKey') return value === 'all' ? tr('a PK made of all three keys for ternary `{rel}`', { rel: id }) : tr('a PK made only of the keys of the N ends for ternary `{rel}`', { rel: id });
+    if (value === 'single') return tr('the single-table strategy for hierarchy `{id}`', { id });
+    if (value === 'subs') return tr('the one-table-per-subtype strategy for hierarchy `{id}`', { id });
+    return tr('the supertype + subtypes strategy for hierarchy `{id}`', { id });
   }
 
   function check(ex, studentTables, vars = variants(ex)) {
@@ -457,13 +471,13 @@ const LogicalEngine = (() => {
       if (!best || nBad < best.nBad) best = { v, issues, nBad };
     });
     const checks = [];
-    if (unnamed) checks.push({ status: 'bad', text: `${unnamed} table${unnamed > 1 ? 's have' : ' has'} no name.` });
+    if (unnamed) checks.push({ status: 'bad', text: unnamed > 1 ? tr('{n} tables have no name.', { n: unnamed }) : tr('1 table has no name.') });
     const areas = [
-      ['tables', 'Every table of the model is there, and nothing else.'],
-      ['cols', 'The attributes are in the right tables.'],
-      ['pks', 'The primary keys are right.'],
-      ['fks', 'The foreign keys are on the right side and point to the right keys.'],
-      ['nulls', 'NULL / NOT NULL on the foreign keys follows the minimum cardinalities.'],
+      ['tables', tr('Every table of the model is there, and nothing else.')],
+      ['cols', tr('The attributes are in the right tables.')],
+      ['pks', tr('The primary keys are right.')],
+      ['fks', tr('The foreign keys are on the right side and point to the right keys.')],
+      ['nulls', tr('NULL / NOT NULL on the foreign keys follows the minimum cardinalities.')],
     ];
     areas.forEach(([area, okText]) => {
       const list = best.issues.filter((i) => i.area === area);
@@ -476,7 +490,7 @@ const LogicalEngine = (() => {
       const pref = vars.find((v) => v.preferred);
       Object.keys(best.v.choice).forEach((k) => {
         if (pref && pref.choice[k] !== best.v.choice[k]) {
-          notes.push(`You used ${describeChoice(k, best.v.choice[k])}; the course's reference uses ${describeChoice(k, pref.choice[k])}. Both are valid.`);
+          notes.push(tr('You used {yours}; the course\'s reference uses {reference}. Both are valid.', { yours: describeChoice(k, best.v.choice[k]), reference: describeChoice(k, pref.choice[k]) }));
         }
       });
     }

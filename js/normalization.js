@@ -19,13 +19,13 @@ const esc = (s) =>
 const MAX_TABLES = 8;
 const LEVELS = ['2NF', '3NF', 'BCNF', '4NF', '5NF'];
 const levelIdx = (nf) => LEVELS.indexOf(nf);
-const OPTIONS = ['Fails 1NF', 'Meets 1NF, but not 2NF', 'Meets 2NF, but not 3NF', 'Meets 3NF'];
+const OPTIONS = [t('Fails 1NF'), t('Meets 1NF, but not 2NF'), t('Meets 2NF, but not 3NF'), t('Meets 3NF')];
 const reduceMotion = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const ICON = {
-  ok: '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#1D7A4A"/><path d="M5.5 10.5l3 3 6-6.5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  bad: '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#B42318"/><path d="M6.6 6.6l6.8 6.8M13.4 6.6l-6.8 6.8" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>',
-  note: '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.2" fill="none" stroke="#58627D" stroke-width="1.6"/><path d="M10 9v5" stroke="#58627D" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="6.2" r="1.1" fill="#58627D"/></svg>',
+  ok: '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" style="fill:var(--ok)"/><path d="M5.5 10.5l3 3 6-6.5" fill="none" style="stroke:var(--on-status)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  bad: '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" style="fill:var(--bad)"/><path d="M6.6 6.6l6.8 6.8M13.4 6.6l-6.8 6.8" fill="none" style="stroke:var(--on-status)" stroke-width="2" stroke-linecap="round"/></svg>',
+  note: '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.2" fill="none" style="stroke:var(--muted)" stroke-width="1.6"/><path d="M10 9v5" style="stroke:var(--muted)" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="6.2" r="1.1" style="fill:var(--muted)"/></svg>',
   key: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="5" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M7.6 8H14M11.6 8v2.6M14 8v2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
 };
 
@@ -44,7 +44,7 @@ const progress = Object.assign({ solved: {}, quizBest: 0, quizBestAdv: 0 }, stor
 /* Intermediate exercise state (tables, current step and completed steps). It is saved with a
    signature of each exercise: if you change its attributes, dependencies or steps, the old state is discarded. */
 const workStore = {
-  key: 'normalization-en-work-v1',
+  key: langKey('normalization-en-work-v1'),
   load() {
     try { const d = JSON.parse(localStorage.getItem(this.key)); return d && typeof d === 'object' ? d : {}; } catch (e) { return {}; }
   },
@@ -358,75 +358,81 @@ function evaluate(ex, step, E, tables) {
   const push = (status, text) => checks.push({ status, text });
   const names = (m) => E.namesOf(m).join(', ');
   const fd = (l, r) => `${E.setText(l)} → ${names(r)}`;
-  const q = (t) => `“${t.label}”`;
+  const q = (tb) => `“${tb.label}”`;
   const nf = step.nf;
   const rels = tables.map((t) => t.attrs);
 
   // Coverage
   const missing = E.full & ~rels.reduce((a, b) => a | b, 0);
-  if (missing) push('bad', `Missing attributes: ${names(missing)}. Every attribute of the original table must appear in some table.`);
-  else push('ok', 'All the attributes of the original table appear in some table.');
+  if (missing) push('bad', t('Missing attributes: {attrs}. Every attribute of the original table must appear in some table.', { attrs: names(missing) }));
+  else push('ok', t('All the attributes of the original table appear in some table.'));
 
   // Primary keys
   const keyProblems = [];
-  for (const t of tables) {
-    if (!t.pk) { keyProblems.push(`${q(t)} has no primary key. Mark the attributes that identify each row.`); continue; }
-    const determined = E.closure(t.pk) & t.attrs;
-    if (determined !== t.attrs) {
-      keyProblems.push(`In ${q(t)}, the key (${names(t.pk)}) does not identify each row: it does not determine ${names(t.attrs & ~determined)}.`);
+  for (const tb of tables) {
+    if (!tb.pk) { keyProblems.push(t('{table} has no primary key. Mark the attributes that identify each row.', { table: q(tb) })); continue; }
+    const determined = E.closure(tb.pk) & tb.attrs;
+    if (determined !== tb.attrs) {
+      keyProblems.push(t('In {table}, the key ({key}) does not identify each row: it does not determine {attrs}.', { table: q(tb), key: names(tb.pk), attrs: names(tb.attrs & ~determined) }));
       continue;
     }
-    const removable = E.namesOf(t.pk).find((a) => (E.closure(t.pk & ~E.maskOf([a])) & t.attrs) === t.attrs);
-    if (removable) keyProblems.push(`In ${q(t)}, the key is not minimal: without ${removable} it still identifies each row.`);
+    const removable = E.namesOf(tb.pk).find((a) => (E.closure(tb.pk & ~E.maskOf([a])) & tb.attrs) === tb.attrs);
+    if (removable) keyProblems.push(t('In {table}, the key is not minimal: without {attr} it still identifies each row.', { table: q(tb), attr: removable }));
   }
-  if (keyProblems.length) keyProblems.forEach((t) => push('bad', t));
-  else push('ok', 'Every table has a valid primary key.');
+  if (keyProblems.length) keyProblems.forEach((text) => push('bad', text));
+  else push('ok', t('Every table has a valid primary key.'));
 
   // Normal form
   const nfProblems = [];
-  for (const t of tables) {
-    for (const v of E.problems(t.attrs, nf)) {
+  for (const tb of tables) {
+    for (const v of E.problems(tb.attrs, nf)) {
       const many = popcount(v.rhs || 0) > 1;
       if (v.type === 'partial') {
-        nfProblems.push(`${q(t)} does not meet 2NF: ${fd(v.lhs, v.rhs)}. ${many ? 'These attributes depend' : 'This attribute depends'} on only part of the key.`);
+        const p = { table: q(tb), nf: nfLabel('2NF'), fd: fd(v.lhs, v.rhs) };
+        nfProblems.push(many
+          ? t('{table} does not meet {nf}: {fd}. These attributes depend on only part of the key.', p)
+          : t('{table} does not meet {nf}: {fd}. This attribute depends on only part of the key.', p));
       } else if (v.type === 'transitive') {
-        nfProblems.push(`${q(t)} does not meet 3NF: ${fd(v.lhs, v.rhs)}. ${many ? 'These attributes depend' : 'This attribute depends'} on ${names(v.lhs)}, which is not a key.`);
+        const p = { table: q(tb), nf: nfLabel('3NF'), fd: fd(v.lhs, v.rhs), lhs: names(v.lhs) };
+        nfProblems.push(many
+          ? t('{table} does not meet {nf}: {fd}. These attributes depend on {lhs}, which is not a key.', p)
+          : t('{table} does not meet {nf}: {fd}. This attribute depends on {lhs}, which is not a key.', p));
       } else if (v.type === 'bcnf') {
-        nfProblems.push(`${q(t)} does not meet BCNF: ${fd(v.lhs, v.rhs)}. ${E.setText(v.lhs)} determines ${names(v.rhs)}, but does not identify each row of the table.`);
+        nfProblems.push(t('{table} does not meet {nf}: {fd}. {lhs} determines {rhs}, but does not identify each row of the table.', { table: q(tb), nf: nfLabel('BCNF'), fd: fd(v.lhs, v.rhs), lhs: E.setText(v.lhs), rhs: names(v.rhs) }));
       } else if (v.type === 'mvd') {
-        nfProblems.push(`${q(t)} does not meet 4NF: ${E.setText(v.lhs)} ↠ ${names(v.rhs)} | ${names(v.rest)}. For each ${E.setText(v.lhs)}, the values of ${names(v.rhs)} and of ${names(v.rest)} are independent of each other, which is why all their combinations are repeated in the same table.`);
+        nfProblems.push(t('{table} does not meet {nf}: {mvd}. For each {lhs}, the values of {rhs} and of {rest} are independent of each other, which is why all their combinations are repeated in the same table.', { table: q(tb), nf: nfLabel('4NF'), mvd: `${E.setText(v.lhs)} ↠ ${names(v.rhs)} | ${names(v.rest)}`, lhs: E.setText(v.lhs), rhs: names(v.rhs), rest: names(v.rest) }));
       } else if (v.type === 'jd') {
-        nfProblems.push(`${q(t)} does not meet 5NF: it can be rebuilt by joining ${v.comps.map((c) => E.setText(c)).join(', ')}. The table stores information that is already implied by those parts.`);
+        nfProblems.push(t('{table} does not meet {nf}: it can be rebuilt by joining {parts}. The table stores information that is already implied by those parts.', { table: q(tb), nf: nfLabel('5NF'), parts: v.comps.map((c) => E.setText(c)).join(', ') }));
       }
     }
   }
-  if (nfProblems.length) nfProblems.forEach((t) => push('bad', t));
-  else push('ok', `Every table meets ${nf}.`);
+  if (nfProblems.length) nfProblems.forEach((text) => push('bad', text));
+  else push('ok', t('Every table meets {nf}.', { nf: nfLabel(nf) }));
 
   // Lossless join and dependencies (only meaningful if no attributes are missing)
   let lostAllowed = false;
   if (!missing) {
     if (E.lossless(rels)) {
-      push('ok', 'No information is lost: joining the tables recovers the original table.');
+      push('ok', t('No information is lost: joining the tables recovers the original table.'));
     } else {
       const join = dataJoin(ex, E, tables);
       const example = join && join.spurious.length
-        ? ` For example, the row (${join.spurious[0].join(', ')}) would appear, and it was not there.`
+        ? ` ${t('For example, the row ({row}) would appear, and it was not there.', { row: join.spurious[0].join(', ') })}`
         : join
-          ? ' It is not visible with the sample rows, but the decomposition does not guarantee recovering the original.'
+          ? ` ${t('It is not visible with the sample rows, but the decomposition does not guarantee recovering the original.')}`
           : '';
       const cause = levelIdx(nf) >= 3
-        ? 'That split does not let you rebuild the original table: check which groups of attributes you keep together.'
-        : 'A common attribute that links them (a foreign key) is usually missing.';
-      push('bad', `Information is lost: joining the tables produces rows that were not in the original.${example} ${cause}`);
+        ? t('That split does not let you rebuild the original table: check which groups of attributes you keep together.')
+        : t('A common attribute that links them (a foreign key) is usually missing.');
+      push('bad', `${t('Information is lost: joining the tables produces rows that were not in the original.')}${example} ${cause}`);
     }
 
     const lost = E.lostDependencies(rels);
-    if (!lost.length) push('ok', 'All the functional dependencies are preserved.');
+    if (!lost.length) push('ok', t('All the functional dependencies are preserved.'));
     else if (step.allowLoss) {
       lostAllowed = true;
-      lost.forEach((d) => push('note', `The dependency ${fd(d.lhs, d.rhs)} is lost: no table contains those attributes together. In ${nf} this is sometimes unavoidable, and here it is worth it.`));
-    } else lost.forEach((d) => push('bad', `The dependency ${fd(d.lhs, d.rhs)} is lost: no table contains those attributes together.`));
+      lost.forEach((d) => push('note', t('The dependency {fd} is lost: no table contains those attributes together. In {nf} this is sometimes unavoidable, and here it is worth it.', { fd: fd(d.lhs, d.rhs), nf: nfLabel(nf) })));
+    } else lost.forEach((d) => push('bad', t('The dependency {fd} is lost: no table contains those attributes together.', { fd: fd(d.lhs, d.rhs) })));
   }
 
   const ok = !checks.some((c) => c.status === 'bad');
@@ -438,7 +444,7 @@ function evaluate(ex, step, E, tables) {
     // Redundant tables
     tables.forEach((a, i) => tables.forEach((b, j) => {
       if (i !== j && (a.attrs & b.attrs) === a.attrs && (a.attrs !== b.attrs || i < j)) {
-        notes.push(`${q(a)} is already contained in ${q(b)}: it is redundant.`);
+        notes.push(t('{a} is already contained in {b}: it is redundant.', { a: q(a), b: q(b) }));
       }
     }));
     for (let i = 0; i < tables.length; i++) {
@@ -447,14 +453,14 @@ function evaluate(ex, step, E, tables) {
         const b = tables[j];
         const common = a.attrs & b.attrs;
         if (a.pk && a.pk === b.pk && common !== a.attrs && common !== b.attrs && E.problems(a.attrs | b.attrs, nf).length === 0) {
-          notes.push(`${q(a)} and ${q(b)} have the same key: they can be merged without breaking ${nf}. Split a table only when a dependency justifies it.`);
+          notes.push(t('{a} and {b} have the same key: they can be merged without breaking {nf}. Split a table only when a dependency justifies it.', { a: q(a), b: q(b), nf: nfLabel(nf) }));
         }
       }
     }
     // Foreign keys: B’s key is inside A
     tables.forEach((a) => tables.forEach((b) => {
       if (a !== b && a.pk && b.pk && a.pk !== b.pk && (a.attrs & b.pk) === b.pk) {
-        fks.push(`${a.label} (${names(b.pk)}) references ${b.label}`);
+        fks.push(t('{a} ({cols}) references {b}', { a: a.label, cols: names(b.pk), b: b.label }));
       }
     }));
   }
@@ -540,7 +546,7 @@ let route = { mode: 'normalize', ex: 0, adv: false };
 
 const newTable = () => ({ name: '', cells: {} });      // cells: attribute -> 1 (included) | 2 (key)
 const cloneTable = (t) => ({ name: t.name, cells: { ...t.cells } });
-const tableLabel = (t, i) => t.name.trim() || `Table ${i + 1}`;
+const tableLabel = (tb, i) => tb.name.trim() || t('Table {n}', { n: i + 1 });
 const isEmptyTable = (t) => !Object.keys(t.cells).length;
 
 /* State of a step: the first starts empty; the following ones start from the previous step’s tables. */
@@ -648,14 +654,18 @@ function doneCount(ex) {
 
 function exerciseNav() {
   const done = EXERCISES.filter((e) => progress.solved[e.id]).length;
+  const link = (i) => (i >= 0 && i < EXERCISES.length ? { href: `${BASE}/${i + 1}`, title: `${i + 1} · ${EXERCISES[i].short}` } : null);
   const items = EXERCISES.map((e, i) => {
-    const frac = e.steps.length > 1 && !progress.solved[e.id] && doneCount(e) > 0 ? `<span class="frac">${doneCount(e)}/${e.steps.length}</span>` : '';
-    return `
-      <li><a href="${BASE}/${i + 1}"${i === route.ex ? ' aria-current="page"' : ''}>
-        <span class="n">${i + 1}</span><span>${esc(e.short)}</span>${frac}${progress.solved[e.id] ? `<span class="done" title="Solved">${ICON.ok}<span class="sr-only"> (solved)</span></span>` : ''}
-      </a></li>`;
-  }).join('');
-  return `<nav class="ex-nav" aria-label="Exercises"><ol>${items}</ol><p class="count">${done} of ${EXERCISES.length} solved · <button type="button" class="link" data-action="clear-all" data-fid="clear-all">Clear my progress</button></p></nav>`;
+    const partial = e.steps.length > 1 && !progress.solved[e.id] && doneCount(e) > 0;
+    return {
+      n: i + 1, href: `${BASE}/${i + 1}`, title: e.short, done: !!progress.solved[e.id],
+      extra: partial ? `<span class="frac" aria-hidden="true">${doneCount(e)}/${e.steps.length}</span>` : '',
+    };
+  });
+  return `<div class="ex-nav">
+      ${numberTabsHtml({ label: t('Exercises'), items, current: route.ex, prev: link(route.ex - 1), next: link(route.ex + 1) })}
+      <p class="count">${t('{done} of {total} solved', { done, total: EXERCISES.length })} · <button type="button" class="link" data-action="clear-all" data-fid="clear-all">${t('Clear my progress')}</button></p>
+    </div>`;
 }
 
 const cellHtml = (v, num) =>
@@ -674,55 +684,55 @@ function sourceHtml(ex, w) {
     return `<th scope="col"${thClass(ex.pk.includes(a), num[j])}><span class="id">${esc(a)}</span><span class="dots" aria-hidden="true">${dots}</span></th>`;
   }).join('');
   const body = ex.rows.map((r) => rowHtml(r, num)).join('');
-  return `<table class="src"><caption class="sr-only">Original table</caption><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+  return `<table class="src"><caption class="sr-only">${t('Original table')}</caption><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
 }
 
 /* Dependencies: functional ones always; multivalued from 4NF and join ones at 5NF. */
 function depsHtml(ex, w) {
   const E = w.engine;
   const k = levelIdx(ex.steps[w.step].nf);
-  const list = (items) => `<ul>${items.map((t) => `<li><code>${esc(t)}</code></li>`).join('')}</ul>`;
-  let body = '<p class="muted">Work out the dependencies from the table’s data.</p>';
+  const list = (items) => `<ul>${items.map((x) => `<li><code>${esc(x)}</code></li>`).join('')}</ul>`;
+  let body = `<p class="muted">${t('Work out the dependencies from the table’s data.')}</p>`;
   if (w.fds) {
     const mvds = E.jds.filter((j) => j.kind === 'mvd');
     const jds = E.jds.filter((j) => j.kind === 'jd');
-    body = `<p class="fds-title">Functional</p>${ex.fds.length ? list(ex.fds.map(fdText)) : '<p class="muted">There are no functional dependencies.</p>'}`;
+    body = `<p class="fds-title">${t('Functional')}</p>${ex.fds.length ? list(ex.fds.map(fdText)) : `<p class="muted">${t('There are no functional dependencies.')}</p>`}`;
     if (k >= 3 && mvds.length) {
-      body += `<p class="fds-title">Multivalued</p>${list(mvds.map((j) => j.show))}
-        <p class="muted small">X ↠ Y | Z reads: for each X, the values of Y and Z are independent and all their combinations occur.</p>`;
+      body += `<p class="fds-title">${t('Multivalued')}</p>${list(mvds.map((j) => j.show))}
+        <p class="muted small">${t('X ↠ Y | Z reads: for each X, the values of Y and Z are independent and all their combinations occur.')}</p>`;
     }
     if (k >= 4 && jds.length) {
-      body += `<p class="fds-title">Join</p>${list(jds.map((j) => j.show))}
-        <p class="muted small">⋈ is the join: the table is obtained by joining those parts.</p>`;
+      body += `<p class="fds-title">${t('Join')}</p>${list(jds.map((j) => j.show))}
+        <p class="muted small">${t('⋈ is the join: the table is obtained by joining those parts.')}</p>`;
     }
   }
   return `<div class="fds">
-      <button type="button" class="link" data-action="toggle-fds" data-fid="fds" aria-expanded="${w.fds}">${w.fds ? 'Hide' : 'Show'} dependencies</button>
+      <button type="button" class="link" data-action="toggle-fds" data-fid="fds" aria-expanded="${w.fds}">${w.fds ? t('Hide dependencies') : t('Show dependencies')}</button>
       ${body}
     </div>`;
 }
 
-const CELL_STATE = ['not included. Press to include it', 'included. Press to mark it as primary key', 'primary key. Press to remove it'];
+const CELL_STATE = [t('not included. Press to include it'), t('included. Press to mark it as primary key'), t('primary key. Press to remove it')];
 
 function matrixHtml(ex, w) {
   const T = cur(w).tables;
-  const head = T.map((t, i) => `
+  const head = T.map((tb, i) => `
       <th scope="col" class="tcol c${i + 1}">
         <div class="thi">
           <span class="badge" aria-hidden="true">${i + 1}</span>
-          <input type="text" data-name="${i}" value="${esc(t.name)}" placeholder="Table ${i + 1}" aria-label="Name of table ${i + 1}" maxlength="24" autocomplete="off" spellcheck="false">
-          ${T.length > 1 ? `<button type="button" class="rm" data-action="remove-table" data-t="${i}" data-fid="rm-${i}" aria-label="Remove table ${i + 1}">×</button>` : ''}
+          <input type="text" data-name="${i}" value="${esc(tb.name)}" placeholder="${esc(t('Table {n}', { n: i + 1 }))}" aria-label="${esc(t('Name of table {n}', { n: i + 1 }))}" maxlength="24" autocomplete="off" spellcheck="false">
+          ${T.length > 1 ? `<button type="button" class="rm" data-action="remove-table" data-t="${i}" data-fid="rm-${i}" aria-label="${esc(t('Remove table {n}', { n: i + 1 }))}">×</button>` : ''}
         </div>
       </th>`).join('');
   const rows = ex.attrs.map((a, r) => `
       <tr>
         <th scope="row" class="attr${ex.pk.includes(a) ? ' pk' : ''}"><span class="id">${esc(a)}</span></th>
-        ${T.map((t, i) => {
-          const s = t.cells[a] || 0;
-          return `<td class="c${i + 1} s${s}"><button type="button" class="cell s${s}" data-action="cycle" data-a="${r}" data-t="${i}" data-fid="c-${r}-${i}" aria-label="${esc(`${a} in ${tableLabel(t, i)}: ${CELL_STATE[s]}`)}"><span class="mark">${s === 2 ? ICON.key : ''}</span></button></td>`;
+        ${T.map((tb, i) => {
+          const s = tb.cells[a] || 0;
+          return `<td class="c${i + 1} s${s}"><button type="button" class="cell s${s}" data-action="cycle" data-a="${r}" data-t="${i}" data-fid="c-${r}-${i}" aria-label="${esc(t('{attr} in {table}: {state}', { attr: a, table: tableLabel(tb, i), state: CELL_STATE[s] }))}"><span class="mark">${s === 2 ? ICON.key : ''}</span></button></td>`;
         }).join('')}
       </tr>`).join('');
-  return `<table class="matrix"><caption class="sr-only">Assignment of attributes to the new tables</caption><thead><tr><th scope="col" class="corner">Attribute</th>${head}</tr></thead><tbody>${rows}</tbody></table>`;
+  return `<table class="matrix"><caption class="sr-only">${t('Assignment of attributes to the new tables')}</caption><thead><tr><th scope="col" class="corner">${t('Attribute')}</th>${head}</tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 /* Table with the projected data (no repeated rows). cols: [{ a, key }] */
@@ -740,34 +750,37 @@ function previewHtml(ex, title, ci, cols) {
   const head = ordered.map((c, k) => `<th scope="col"${thClass(c.key, num[k])}><span class="id">${esc(c.a)}</span></th>`).join('');
   const body = rows.map((r) => rowHtml(r, num, isDup(r) ? ' class="dup"' : '')).join('');
   const total = ex.rows.length;
-  const foot = `${rows.length} ${rows.length === 1 ? 'row' : 'rows'}${rows.length < total ? ` (the original has ${total})` : ''}`;
+  const foot = `${rows.length === 1 ? t('1 row') : t('{n} rows', { n: rows.length })}${rows.length < total ? ` ${t('(the original has {n})', { n: total })}` : ''}`;
   return `<figure class="pv c${ci + 1}">
       <figcaption><span class="badge" aria-hidden="true">${ci + 1}</span><span class="pv-name">${esc(title)}</span></figcaption>
       <div class="scroll"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
-      <div class="foot"><span>${foot}</span>${anyDup ? `<span class="warn">${ICON.bad}The key repeats with different data: that key does not identify each row.</span>` : ''}</div>
+      <div class="foot"><span>${foot}</span>${anyDup ? `<span class="warn">${ICON.bad}${t('The key repeats with different data: that key does not identify each row.')}</span>` : ''}</div>
     </figure>`;
 }
 
 function previewsHtml(ex, w) {
   const items = cur(w).tables
-    .map((t, i) => ({ t, i, attrs: ex.attrs.filter((a) => t.cells[a]) }))
+    .map((tb, i) => ({ t: tb, i, attrs: ex.attrs.filter((a) => tb.cells[a]) }))
     .filter((x) => x.attrs.length);
-  if (!items.length) return '<p class="empty">Include attributes in a table and you will see here how its data looks.</p>';
-  return items.map(({ t, i, attrs }) => previewHtml(ex, tableLabel(t, i), i, attrs.map((a) => ({ a, key: t.cells[a] === 2 })))).join('');
+  if (!items.length) return `<p class="empty">${t('Include attributes in a table and you will see here how its data looks.')}</p>`;
+  return items.map(({ t: tb, i, attrs }) => previewHtml(ex, tableLabel(tb, i), i, attrs.map((a) => ({ a, key: tb.cells[a] === 2 })))).join('');
 }
 
 /* Live check: does joining the student’s tables give back the original rows? */
 function joinHtml(ex, w) {
   const tables = collectTables(ex, w);
-  const covered = tables.reduce((a, t) => a | t.attrs, 0);
+  const covered = tables.reduce((a, tb) => a | tb.attrs, 0);
   if (covered !== w.engine.full) {
-    return '<p class="muted small">Once you include all the attributes you will see here whether joining your tables recovers the original’s rows.</p>';
+    return `<p class="muted small">${t('Once you include all the attributes you will see here whether joining your tables recovers the original’s rows.')}</p>`;
   }
   const j = dataJoin(ex, w.engine, tables);
   if (!j) return '';
-  if (!j.spurious.length) return `<p class="joincheck ok">${ICON.ok}<span>Joining your tables recovers exactly the ${ex.rows.length} rows of the original.</span></p>`;
-  const one = j.spurious.length === 1 ? 'was not' : 'were not';
-  return `<p class="joincheck bad">${ICON.bad}<span>Joining your tables gives ${j.total} rows, and ${j.spurious.length} ${one} in the original. For example: (${esc(j.spurious[0].join(', '))}).</span></p>`;
+  if (!j.spurious.length) return `<p class="joincheck ok">${ICON.ok}<span>${t('Joining your tables recovers exactly the {n} rows of the original.', { n: ex.rows.length })}</span></p>`;
+  const p = { total: j.total, n: j.spurious.length, row: esc(j.spurious[0].join(', ')) };
+  const msg = j.spurious.length === 1
+    ? t('Joining your tables gives {total} rows, and {n} was not in the original. For example: ({row}).', p)
+    : t('Joining your tables gives {total} rows, and {n} were not in the original. For example: ({row}).', p);
+  return `<p class="joincheck bad">${ICON.bad}<span>${msg}</span></p>`;
 }
 
 function stepperHtml(ex, w) {
@@ -778,11 +791,11 @@ function stepperHtml(ex, w) {
     const current = k === w.step;
     return `<li class="${done ? 'is-done' : ''}${current ? ' is-current' : ''}">
         <button type="button" data-action="goto-step" data-s="${k}" data-fid="step-${k}"${reachable ? '' : ' disabled'}${current ? ' aria-current="step"' : ''}>
-          <span class="sn">${done ? ICON.ok : k + 1}</span><span class="sl">${st.nf}</span><span class="sr-only">${done ? ' (done)' : current ? ' (current step)' : reachable ? '' : ' (locked)'}</span>
+          <span class="sn">${done ? ICON.ok : k + 1}</span><span class="sl">${nfLabel(st.nf)}</span><span class="sr-only">${done ? ` ${t('(done)')}` : current ? ` ${t('(current step)')}` : reachable ? '' : ` ${t('(locked)')}`}</span>
         </button>
       </li>`;
   }).join('');
-  return `<nav class="stepper" aria-label="Exercise steps"><ol>${items}</ol></nav>`;
+  return `<nav class="stepper" aria-label="${t('Exercise steps')}"><ol>${items}</ol></nav>`;
 }
 
 function stepCardHtml(ex, w) {
@@ -790,13 +803,15 @@ function stepCardHtml(ex, w) {
   const info = NF_INFO[st.nf];
   const multi = ex.steps.length > 1;
   const from = w.step === 0 ? null : ex.steps[w.step - 1].nf;
-  const title = multi ? `Step ${w.step + 1} of ${ex.steps.length}: reach ${st.nf}` : `What ${st.nf} asks for`;
+  const title = multi
+    ? t('Step {k} of {n}: reach {nf}', { k: w.step + 1, n: ex.steps.length, nf: nfLabel(st.nf) })
+    : t('What {nf} asks for', { nf: nfLabel(st.nf) });
   return `<section class="block step-card" aria-labelledby="step-h">
       <h3 id="step-h" tabindex="-1">${title}</h3>
       <p class="rule"><strong>${esc(info.name)}.</strong> ${esc(info.rule)}</p>
-      ${from ? `<p class="from">You start from the tables you left in ${from}. Modify them: remove attributes from one table and put them in a new one.</p>` : ''}
+      ${from ? `<p class="from">${t('You start from the tables you left in {nf}. Modify them: remove attributes from one table and put them in a new one.', { nf: nfLabel(from) })}</p>` : ''}
       <details class="how-step">
-        <summary>How to take this step</summary>
+        <summary>${t('How to take this step')}</summary>
         <ol>${info.how.map((h) => `<li>${esc(h)}</li>`).join('')}</ol>
       </details>
     </section>`;
@@ -809,7 +824,7 @@ const noAccents = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 function sqlName(label, i, used) {
   let n = noAccents(label).replace(/[^A-Za-z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
-  if (!n || /^\d/.test(n)) n = `table_${i + 1}`;
+  if (!n || /^\d/.test(n)) n = t('table_{n}', { n: i + 1 });
   let u = n;
   let k = 2;
   while (used.has(u.toLowerCase())) u = `${n}_${k++}`;
@@ -849,14 +864,14 @@ function sqlFor(ex, w) {
     refs.forEach((r) => lines.push(`  FOREIGN KEY (${E.namesOf(r.t.pk).join(', ')}) REFERENCES ${r.name} (${E.namesOf(r.t.pk).join(', ')})`));
     return `CREATE TABLE ${name} (\n${lines.join(',\n')}\n);`;
   });
-  return `-- Standard SQL (works on PostgreSQL, MySQL and SQLite with few changes).\n-- Types were inferred from the sample rows: review them.\n\n${body.join('\n\n')}\n`;
+  return `-- ${t('Standard SQL (works on PostgreSQL, MySQL and SQLite with few changes).')}\n-- ${t('Types were inferred from the sample rows: review them.')}\n\n${body.join('\n\n')}\n`;
 }
 
 function sqlHtml(ex, w) {
   return `<details class="sql">
-      <summary>SQL for this design</summary>
+      <summary>${t('SQL for this design')}</summary>
       <pre tabindex="0"><code>${esc(sqlFor(ex, w))}</code></pre>
-      <p class="actions"><button type="button" class="btn ghost" data-action="copy-sql" data-fid="copy-sql">Copy SQL</button></p>
+      <p class="actions"><button type="button" class="btn ghost" data-action="copy-sql" data-fid="copy-sql">${t('Copy SQL')}</button></p>
     </details>`;
 }
 
@@ -873,26 +888,28 @@ function feedbackHtml(ex, w) {
   const last = w.step === ex.steps.length - 1;
   const st = ex.steps[w.step];
   const tone = r.ok ? (r.notes.length ? 'mixed' : 'ok') : 'bad';
-  const title = r.ok ? (r.notes.length ? 'Correct, though it could be better' : 'Correct') : 'Not yet';
-  let lead = 'Review these points and check again.';
+  const title = r.ok ? (r.notes.length ? t('Correct, though it could be better') : t('Correct')) : t('Not yet');
+  let lead = t('Review these points and check again.');
   if (r.ok) {
-    lead = `The decomposition meets ${r.nf}, ${r.lostAllowed ? 'loses no information' : 'loses no information and preserves the dependencies'}.`;
+    lead = r.lostAllowed
+      ? t('The decomposition meets {nf} and loses no information.', { nf: nfLabel(r.nf) })
+      : t('The decomposition meets {nf}, loses no information and preserves the dependencies.', { nf: nfLabel(r.nf) });
     if (!last && r.reached && levelIdx(r.reached) >= levelIdx(ex.steps[w.step + 1].nf)) {
-      lead += ` It also already meets ${ex.steps[w.step + 1].nf}: the next step will only ask you to check it.`;
+      lead += ` ${t('It also already meets {nf}: the next step will only ask you to check it.', { nf: nfLabel(ex.steps[w.step + 1].nf) })}`;
     }
   }
   const checks = r.checks.map((c) => `<li>${ICON[c.status]}<span>${esc(c.text)}</span></li>`).join('');
-  const notes = r.notes.map((t) => `<li>${ICON.note}<span>${esc(t)}</span></li>`).join('');
+  const notes = r.notes.map((x) => `<li>${ICON.note}<span>${esc(x)}</span></li>`).join('');
   const fks = r.fks.length
-    ? `<h4>Relationships between tables</h4><ul class="plain">${r.fks.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`
+    ? `<h4>${t('Relationships between tables')}</h4><ul class="plain">${r.fks.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`
     : '';
   let after = '';
   if (r.ok && !last) {
-    after = `<p class="actions"><button type="button" class="btn" data-action="next-step" data-fid="next-step">Next step: reach ${ex.steps[w.step + 1].nf}</button></p>`;
+    after = `<p class="actions"><button type="button" class="btn" data-action="next-step" data-fid="next-step">${t('Next step: reach {nf}', { nf: nfLabel(ex.steps[w.step + 1].nf) })}</button></p>`;
   } else if (r.ok && last) {
     const idx = route.ex;
-    after = `${ex.steps.length > 1 ? `<p class="done-msg">You have completed the exercise: from 1NF to ${st.nf}.</p>` : ''}
-      ${idx < EXERCISES.length - 1 ? `<p class="actions"><a class="btn" href="${BASE}/${idx + 2}">Next exercise</a></p>` : ''}`;
+    after = `${ex.steps.length > 1 ? `<p class="done-msg">${t('You have completed the exercise: from {a} to {b}.', { a: nfLabel('1NF'), b: nfLabel(st.nf) })}</p>` : ''}
+      ${idx < EXERCISES.length - 1 ? `<p class="actions"><a class="btn" href="${BASE}/${idx + 2}">${t('Next exercise')}</a></p>` : ''}`;
   }
   return `<section class="feedback ${tone}" aria-labelledby="fb-title">
       <h3 id="fb-title" tabindex="-1">${title}</h3>
@@ -905,20 +922,20 @@ function feedbackHtml(ex, w) {
 
 function solutionHtml(ex, w) {
   const st = ex.steps[w.step];
-  const tables = st.solution.map((t, i) => previewHtml(ex, t.name, i, t.attrs.map((a) => ({ a, key: t.pk.includes(a) }))));
+  const tables = st.solution.map((tb, i) => previewHtml(ex, tb.name, i, tb.attrs.map((a) => ({ a, key: tb.pk.includes(a) }))));
   return `<section class="block solution" aria-labelledby="sol-h">
-      <h3 id="sol-h">Reference solution${ex.steps.length > 1 ? ` (${st.nf})` : ''}</h3>
+      <h3 id="sol-h">${t('Reference solution')}${ex.steps.length > 1 ? ` (${nfLabel(st.nf)})` : ''}</h3>
       <div class="previews">${tables.join('')}</div>
       <p class="insight">${esc(st.insight)}</p>
-      <p class="muted">There may be other valid solutions. What matters is that it passes the check.</p>
-      <p class="actions"><button type="button" class="btn ghost" data-action="use-solution" data-fid="use-solution">Load into my design</button></p>
+      <p class="muted">${t('There may be other valid solutions. What matters is that it passes the check.')}</p>
+      <p class="actions"><button type="button" class="btn ghost" data-action="use-solution" data-fid="use-solution">${t('Load into my design')}</button></p>
     </section>`;
 }
 
 function hintsHtml(ex, w) {
   const s = cur(w);
   if (!s.hints) return '';
-  return `<div class="hints">${ex.steps[w.step].hints.slice(0, s.hints).map((h, i) => `<p><strong>Hint ${i + 1}.</strong> ${esc(h)}</p>`).join('')}</div>`;
+  return `<div class="hints">${ex.steps[w.step].hints.slice(0, s.hints).map((h, i) => `<p><strong>${t('Hint {n}.', { n: i + 1 })}</strong> ${esc(h)}</p>`).join('')}</div>`;
 }
 
 function renderExercise() {
@@ -929,13 +946,13 @@ function renderExercise() {
   const noMoreHints = s.hints >= st.hints.length;
   const finalNf = ex.steps[ex.steps.length - 1].nf;
   const goal = ex.steps.length > 1
-    ? `Goal: reach <strong>${finalNf}</strong> in ${ex.steps.length} steps`
-    : `Goal: reach <strong>${finalNf}</strong>`;
+    ? t('Goal: reach <strong>{nf}</strong> in {n} steps', { nf: nfLabel(finalNf), n: ex.steps.length })
+    : t('Goal: reach <strong>{nf}</strong>', { nf: nfLabel(finalNf) });
   pane().innerHTML = `
     ${exerciseNav()}
     <article class="exercise" aria-labelledby="ex-title">
       <header class="ex-head">
-        <h2 id="ex-title">${esc(ex.title)}</h2>
+        <h2 id="ex-title">${route.ex + 1} · ${esc(ex.title)}</h2>
         <p class="goal">${goal}</p>
         <p class="story">${esc(ex.story)}</p>
       </header>
@@ -943,29 +960,29 @@ function renderExercise() {
       ${stepperHtml(ex, w)}
 
       <section class="block" aria-labelledby="src-h">
-        <h3 id="src-h">Original table</h3>
+        <h3 id="src-h">${t('Original table')}</h3>
         <div class="scroll" id="source">${sourceHtml(ex, w)}</div>
-        <p class="meta">${ex.rows.length} rows. Primary key: <code>${esc(ex.pk.join(', '))}</code>. The colored dots under each column show which new tables contain that attribute.</p>
+        <p class="meta">${t('{n} rows. Primary key: {pk}. The colored dots under each column show which new tables contain that attribute.', { n: ex.rows.length, pk: `<code>${esc(ex.pk.join(', '))}</code>` })}</p>
         ${depsHtml(ex, w)}
       </section>
 
       ${stepCardHtml(ex, w)}
 
       <section class="block" aria-labelledby="mine-h">
-        <h3 id="mine-h">Your decomposition</h3>
-        <p class="how">Each column is a table. Press a cell to include the attribute, press again to mark it as primary key (<span class="keyhint">${ICON.key}</span>) and a third time to remove it.</p>
+        <h3 id="mine-h">${t('Your decomposition')}</h3>
+        <p class="how">${t('Each column is a table. Press a cell to include the attribute, press again to mark it as primary key ({key}) and a third time to remove it.', { key: `<span class="keyhint">${ICON.key}</span>` })}</p>
         <div class="scroll">${matrixHtml(ex, w)}</div>
-        <p class="add-row"><button type="button" class="btn ghost" data-action="add-table" data-fid="add"${s.tables.length >= MAX_TABLES ? ' disabled' : ''}>Add table</button></p>
-        <h4>How your tables look</h4>
+        <p class="add-row"><button type="button" class="btn ghost" data-action="add-table" data-fid="add"${s.tables.length >= MAX_TABLES ? ' disabled' : ''}>${t('Add table')}</button></p>
+        <h4>${t('How your tables look')}</h4>
         <div class="previews" id="previews">${previewsHtml(ex, w)}</div>
         <div id="joincheck">${joinHtml(ex, w)}</div>
       </section>
 
       <div class="actions">
-        <button type="button" class="btn" data-action="check" data-fid="check">Check</button>
-        <button type="button" class="btn ghost" data-action="hint" data-fid="hint"${noMoreHints ? ' disabled' : ''}>${s.hints ? (noMoreHints ? 'No more hints' : 'Another hint') : 'Show hint'}</button>
-        <button type="button" class="btn ghost" data-action="solution" data-fid="solution" aria-expanded="${s.solution}">${s.solution ? 'Hide solution' : 'Show solution'}</button>
-        <button type="button" class="btn ghost" data-action="reset" data-fid="reset">${ex.steps.length > 1 ? 'Redo this step' : 'Start over'}</button>
+        <button type="button" class="btn" data-action="check" data-fid="check">${t('Check')}</button>
+        <button type="button" class="btn ghost" data-action="hint" data-fid="hint"${noMoreHints ? ' disabled' : ''}>${s.hints ? (noMoreHints ? t('No more hints') : t('Another hint')) : t('Show hint')}</button>
+        <button type="button" class="btn ghost" data-action="solution" data-fid="solution" aria-expanded="${s.solution}">${s.solution ? t('Hide solution') : t('Show solution')}</button>
+        <button type="button" class="btn ghost" data-action="reset" data-fid="reset">${ex.steps.length > 1 ? t('Redo this step') : t('Start over')}</button>
       </div>
       ${hintsHtml(ex, w)}
       <div id="feedback">${feedbackHtml(ex, w)}</div>
@@ -976,13 +993,13 @@ function renderExercise() {
 function collectTables(ex, w) {
   const E = w.engine;
   const tables = [];
-  cur(w).tables.forEach((t, i) => {
-    const names = ex.attrs.filter((a) => t.cells[a]);
+  cur(w).tables.forEach((tb, i) => {
+    const names = ex.attrs.filter((a) => tb.cells[a]);
     if (!names.length) return;
     tables.push({
-      label: tableLabel(t, i),
+      label: tableLabel(tb, i),
       attrs: E.maskOf(names),
-      pk: E.maskOf(names.filter((a) => t.cells[a] === 2)),
+      pk: E.maskOf(names.filter((a) => tb.cells[a] === 2)),
     });
   });
   return tables;
@@ -1016,11 +1033,11 @@ function handleExerciseAction(el) {
     case 'cycle': {
       const a = ex.attrs[+el.dataset.a];
       const ti = +el.dataset.t;
-      const t = s.tables[ti];
-      const v = ((t.cells[a] || 0) + 1) % 3;
-      if (v === 0) delete t.cells[a]; else t.cells[a] = v;
+      const tb = s.tables[ti];
+      const v = ((tb.cells[a] || 0) + 1) % 3;
+      if (v === 0) delete tb.cells[a]; else tb.cells[a] = v;
       touch(w);
-      announce(`${a} in ${tableLabel(t, ti)}: ${['removed', 'included', 'primary key'][v]}`);
+      announce(t('{attr} in {table}: {state}', { attr: a, table: tableLabel(tb, ti), state: [t('removed'), t('included'), t('primary key')][v] }));
       withFocus(renderExercise);
       break;
     }
@@ -1028,7 +1045,7 @@ function handleExerciseAction(el) {
       if (s.tables.length < MAX_TABLES) {
         s.tables.push(newTable());
         touch(w);
-        announce(`Table ${s.tables.length} added`);
+        announce(t('Table {n} added', { n: s.tables.length }));
         withFocus(renderExercise);
       }
       break;
@@ -1036,13 +1053,13 @@ function handleExerciseAction(el) {
       if (s.tables.length > 1) {
         s.tables.splice(+el.dataset.t, 1);
         touch(w);
-        announce('Table removed');
+        announce(t('Table removed'));
         renderExercise();
         $('[data-action="add-table"]', view)?.focus({ preventScroll: true });
       }
       break;
     case 'clear-all':
-      if (typeof window.confirm === 'function' && !window.confirm('Clear all your progress saved in this browser (exercises, steps and quiz results)?')) return;
+      if (typeof window.confirm === 'function' && !window.confirm(t('Clear all your progress saved in this browser (exercises, steps and quiz results)?'))) return;
       workStore.clear();
       store.save({ solved: {}, quizBest: 0, quizBestAdv: 0 });
       Object.keys(savedWork).forEach((k) => delete savedWork[k]);
@@ -1050,15 +1067,15 @@ function handleExerciseAction(el) {
       progress.solved = {};
       progress.quizBest = 0;
       progress.quizBestAdv = 0;
-      announce('Progress cleared');
+      announce(t('Progress cleared'));
       renderExercise();
       return;
     case 'copy-sql': {
       const code = $('.sql code', view);
       if (!code) return;
       const finish = (okCopy) => {
-        el.textContent = okCopy ? 'Copied' : 'Select the text and copy';
-        announce(okCopy ? 'SQL copied to the clipboard' : 'Could not copy automatically. The text is selected: copy it with the keyboard.');
+        el.textContent = okCopy ? t('Copied') : t('Select the text and copy');
+        announce(okCopy ? t('SQL copied to the clipboard') : t('Could not copy automatically. The text is selected: copy it with the keyboard.'));
       };
       copyText(code.textContent).then((okCopy) => {
         if (okCopy) { finish(true); return; }
@@ -1089,20 +1106,20 @@ function handleExerciseAction(el) {
       withFocus(renderExercise);
       break;
     case 'use-solution': {
-      s.tables = st.solution.map((t) => ({
-        name: t.name,
-        cells: Object.fromEntries(t.attrs.map((a) => [a, t.pk.includes(a) ? 2 : 1])),
+      s.tables = st.solution.map((tb) => ({
+        name: tb.name,
+        cells: Object.fromEntries(tb.attrs.map((a) => [a, tb.pk.includes(a) ? 2 : 1])),
       }));
       if (s.tables.length < MAX_TABLES) s.tables.push(newTable());
       touch(w);
-      announce('Solution loaded into your design. Press Check to continue.');
+      announce(t('Solution loaded into your design. Press Check to continue.'));
       renderExercise();
       $('[data-action="check"]', view)?.focus({ preventScroll: true });
       break;
     }
     case 'reset': {
       const fresh = newStepState(w, w.step);
-      if (!sameTables(s.tables, fresh.tables) && typeof window.confirm === 'function' && !window.confirm(ex.steps.length > 1 ? 'Discard your attempt at this step and redo it?' : 'Discard your attempt and start over?')) return;
+      if (!sameTables(s.tables, fresh.tables) && typeof window.confirm === 'function' && !window.confirm(ex.steps.length > 1 ? t('Discard your attempt at this step and redo it?') : t('Discard your attempt and start over?'))) return;
       w.steps[w.step] = fresh;
       for (let j = w.step + 1; j < w.steps.length; j++) w.steps[j] = null;
       renderExercise();
@@ -1112,7 +1129,7 @@ function handleExerciseAction(el) {
       const tables = collectTables(ex, w);
       s.result = tables.length
         ? evaluate(ex, st, w.engine, tables)
-        : { ok: false, nf: st.nf, notes: [], fks: [], checks: [{ status: 'bad', text: 'There is no table with attributes yet. Press the cells of the matrix to include them.' }] };
+        : { ok: false, nf: st.nf, notes: [], fks: [], checks: [{ status: 'bad', text: t('There is no table with attributes yet. Press the cells of the matrix to include them.') }] };
       s.done = s.result.ok;
       if (s.done && w.step === ex.steps.length - 1 && !progress.solved[ex.id]) {
         progress.solved[ex.id] = true;
@@ -1126,7 +1143,7 @@ function handleExerciseAction(el) {
       if (s.done && w.step < ex.steps.length - 1) {
         w.step++;
         if (!w.steps[w.step]) w.steps[w.step] = newStepState(w, w.step);
-        announce(`Step ${w.step + 1} of ${ex.steps.length}: reach ${ex.steps[w.step].nf}`);
+        announce(t('Step {k} of {n}: reach {nf}', { k: w.step + 1, n: ex.steps.length, nf: nfLabel(ex.steps[w.step].nf) }));
         renderExercise();
         reveal($('#step-h'));
       }
@@ -1141,7 +1158,7 @@ function handleExerciseAction(el) {
           const tables = collectTables(ex, w);
           if (tables.length) w.steps[k].result = evaluate(ex, ex.steps[k], w.engine, tables);
         }
-        announce(`Step ${k + 1} of ${ex.steps.length}: reach ${ex.steps[k].nf}`);
+        announce(t('Step {k} of {n}: reach {nf}', { k: k + 1, n: ex.steps.length, nf: nfLabel(ex.steps[k].nf) }));
         renderExercise();
         reveal($('#step-h'));
       }
@@ -1178,13 +1195,13 @@ function quizTableHtml(qn) {
   const num = numericCols(qn.rows, qn.cols.length);
   const head = qn.cols.map((c, k) => `<th scope="col"${thClass(qn.pk.includes(c), num[k])}><span class="id">${esc(c)}</span></th>`).join('');
   const body = qn.rows.map((r) => rowHtml(r, num)).join('');
-  return `<table class="src"><caption class="sr-only">Table ${esc(qn.name)}</caption><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+  return `<table class="src"><caption class="sr-only">${t('Table {name}', { name: esc(qn.name) })}</caption><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
 }
 
 function quizLevelsHtml() {
-  return `<nav class="levels" aria-label="Quiz level">
-      <a href="${BASE}/diagnose"${!quiz.adv ? ' aria-current="page"' : ''}>Basic <span>1NF to 3NF</span></a>
-      <a href="${BASE}/diagnose/advanced"${quiz.adv ? ' aria-current="page"' : ''}>Advanced <span>BCNF to 5NF</span></a>
+  return `<nav class="levels" aria-label="${t('Quiz level')}">
+      <a href="${BASE}/diagnose"${!quiz.adv ? ' aria-current="page"' : ''}>${t('Basic')} <span>${t('{a} to {b}', { a: nfLabel('1NF'), b: nfLabel('3NF') })}</span></a>
+      <a href="${BASE}/diagnose/advanced"${quiz.adv ? ' aria-current="page"' : ''}>${t('Advanced')} <span>${t('{a} to {b}', { a: nfLabel('BCNF'), b: nfLabel('5NF') })}</span></a>
     </nav>`;
 }
 
@@ -1200,31 +1217,31 @@ function renderQuiz() {
     let cls = 'opt';
     let tag = '';
     if (answered) {
-      if (k === qn.answer) { cls += ' correct'; tag = '<span class="tag">Correct</span>'; }
-      else if (k === quiz.picked) { cls += ' wrong'; tag = '<span class="tag">Your answer</span>'; }
+      if (k === qn.answer) { cls += ' correct'; tag = `<span class="tag">${t('Correct')}</span>`; }
+      else if (k === quiz.picked) { cls += ' wrong'; tag = `<span class="tag">${t('Your answer')}</span>`; }
     }
     return `<button type="button" class="${cls}" data-action="answer" data-i="${k}"${answered ? ' disabled' : ''}><span>${label}</span>${tag}</button>`;
   }).join('');
 
   const verdict = answered
     ? `<section class="feedback ${quiz.picked === qn.answer ? 'ok' : 'bad'}" aria-labelledby="qf-title">
-         <h3 id="qf-title" tabindex="-1">${quiz.picked === qn.answer ? 'Correct' : 'Not that one'}</h3>
-         <p>${quiz.picked === qn.answer ? '' : `The answer is “${opts[qn.answer]}”. `}${esc(qn.why)}</p>
+         <h3 id="qf-title" tabindex="-1">${quiz.picked === qn.answer ? t('Correct') : t('Not that one')}</h3>
+         <p>${quiz.picked === qn.answer ? '' : `${t('The answer is “{answer}”.', { answer: opts[qn.answer] })} `}${esc(qn.why)}</p>
        </section>
-       <p class="actions"><button type="button" class="btn" data-action="next" data-fid="next">${last ? 'See result' : 'Next table'}</button></p>`
+       <p class="actions"><button type="button" class="btn" data-action="next" data-fid="next">${last ? t('See result') : t('Next table')}</button></p>`
     : '';
 
   pane().innerHTML = `
     ${quizLevelsHtml()}
     <article class="quiz" aria-labelledby="q-title">
-      <p class="q-progress">Table ${quiz.i + 1} of ${quiz.order.length}. Correct: ${quiz.score}.</p>
-      <h2 id="q-title">Which normal form does <span class="tname">${esc(qn.name)}</span> reach?</h2>
+      <p class="q-progress">${t('Table {i} of {n}. Correct: {score}.', { i: quiz.i + 1, n: quiz.order.length, score: quiz.score })}</p>
+      <h2 id="q-title">${t('Which normal form does {name} reach?', { name: `<span class="tname">${esc(qn.name)}</span>` })}</h2>
       <div class="scroll">${quizTableHtml(qn)}</div>
-      <p class="meta">Primary key: <code>${esc(qn.pk.join(', '))}</code></p>
-      ${qn.fds && qn.fds.length ? `<div class="fds"><p class="fds-title">Functional dependencies</p><ul>${qn.fds.map((f) => `<li><code>${esc(fdText(f))}</code></li>`).join('')}</ul></div>` : ''}
-      ${qn.adv && (!qn.fds || !qn.fds.length) ? '<p class="meta">This table has no functional dependencies between its attributes.</p>' : ''}
+      <p class="meta">${t('Primary key:')} <code>${esc(qn.pk.join(', '))}</code></p>
+      ${qn.fds && qn.fds.length ? `<div class="fds"><p class="fds-title">${t('Functional dependencies')}</p><ul>${qn.fds.map((f) => `<li><code>${esc(fdText(f))}</code></li>`).join('')}</ul></div>` : ''}
+      ${qn.adv && (!qn.fds || !qn.fds.length) ? `<p class="meta">${t('This table has no functional dependencies between its attributes.')}</p>` : ''}
       ${qn.note ? `<p class="meta">${esc(qn.note)}</p>` : ''}
-      <div class="options" role="group" aria-label="Choose an answer">${options}</div>
+      <div class="options" role="group" aria-label="${t('Choose an answer')}">${options}</div>
       <div id="q-fb">${verdict}</div>
     </article>`;
 }
@@ -1236,14 +1253,14 @@ function renderQuizEnd() {
   pane().innerHTML = `
     ${quizLevelsHtml()}
     <article class="quiz" aria-labelledby="q-title">
-      <h2 id="q-title" tabindex="-1">You got ${quiz.score} of ${total} right</h2>
-      <p class="meta">Best result on this device: ${best} of ${total}.</p>
+      <h2 id="q-title" tabindex="-1">${t('You got {score} of {total} right', { score: quiz.score, total })}</h2>
+      <p class="meta">${t('Best result on this device: {best} of {total}.', { best, total })}</p>
       ${missed.length
-        ? `<h3>To review</h3><ul class="plain review">${missed.map((qn) => `<li><strong>${esc(qn.name)}</strong> (${optionsOf(qn)[qn.answer]}). ${esc(qn.why)}</li>`).join('')}</ul>`
-        : '<p class="story">You did not miss any. Move on to normalizing tables.</p>'}
+        ? `<h3>${t('To review')}</h3><ul class="plain review">${missed.map((qn) => `<li><strong>${esc(qn.name)}</strong> (${optionsOf(qn)[qn.answer]}). ${esc(qn.why)}</li>`).join('')}</ul>`
+        : `<p class="story">${t('You did not miss any. Move on to normalizing tables.')}</p>`}
       <p class="actions">
-        <button type="button" class="btn" data-action="restart" data-fid="restart">Repeat in a different order</button>
-        <a class="btn ghost" href="${BASE}">Go to Normalize</a>
+        <button type="button" class="btn" data-action="restart" data-fid="restart">${t('Repeat in a different order')}</button>
+        <a class="btn ghost" href="${BASE}">${t('Go to Normalize')}</a>
       </p>
     </article>`;
   $('#q-title')?.focus({ preventScroll: true });
@@ -1287,22 +1304,22 @@ function handleQuizAction(el) {
 
 const RULES_HTML = `
     <details class="rules">
-      <summary>The rules in one sentence</summary>
+      <summary>${t('The rules in one sentence')}</summary>
       <dl>
-        <div><dt>1NF</dt><dd><strong>One cell, one value.</strong> No lists or repeating groups in a cell or a row.</dd></div>
-        <div><dt>2NF</dt><dd><strong>The whole key.</strong> Every attribute depends on the entire key, not on part of it. It only matters with composite keys.</dd></div>
-        <div><dt>3NF</dt><dd><strong>Nothing but the key.</strong> No attribute depends on another attribute that is not a key.</dd></div>
-        <div><dt>BCNF</dt><dd><strong>Every determinant is a key.</strong> If something determines other attributes, it must identify each row.</dd></div>
-        <div><dt>4NF</dt><dd><strong>One fact per table.</strong> Two independent pieces of data about the same thing do not share a table.</dd></div>
-        <div><dt>5NF</dt><dd><strong>Nothing that can be rebuilt from its parts.</strong> If a table comes from joining smaller ones, store it as those parts.</dd></div>
+        <div><dt>${nfLabel('1NF')}</dt><dd>${t('<strong>One cell, one value.</strong> No lists or repeating groups in a cell or a row.')}</dd></div>
+        <div><dt>${nfLabel('2NF')}</dt><dd>${t('<strong>The whole key.</strong> Every attribute depends on the entire key, not on part of it. It only matters with composite keys.')}</dd></div>
+        <div><dt>${nfLabel('3NF')}</dt><dd>${t('<strong>Nothing but the key.</strong> No attribute depends on another attribute that is not a key.')}</dd></div>
+        <div><dt>${nfLabel('BCNF')}</dt><dd>${t('<strong>Every determinant is a key.</strong> If something determines other attributes, it must identify each row.')}</dd></div>
+        <div><dt>${nfLabel('4NF')}</dt><dd>${t('<strong>One fact per table.</strong> Two independent pieces of data about the same thing do not share a table.')}</dd></div>
+        <div><dt>${nfLabel('5NF')}</dt><dd>${t('<strong>Nothing that can be rebuilt from its parts.</strong> If a table comes from joining smaller ones, store it as those parts.')}</dd></div>
       </dl>
     </details>`;
 
 function subNavHtml() {
   const on = (m) => (route.mode === m ? ' aria-current="page"' : '');
-  return `<nav class="subnav" aria-label="Normalization mode">
-      <a href="${BASE}"${on('normalize')}>Normalize</a>
-      <a href="${BASE}/diagnose"${on('diagnose')}>Diagnose</a>
+  return `<nav class="subnav" aria-label="${t('Normalization mode')}">
+      <a href="${BASE}"${on('normalize')}>${t('Normalize')}</a>
+      <a href="${BASE}/diagnose"${on('diagnose')}>${t('Diagnose')}</a>
     </nav>`;
 }
 
@@ -1319,8 +1336,8 @@ function render(rest) {
   view.innerHTML = `${subNavHtml()}${RULES_HTML}<div id="norm-pane"></div>`;
   if (route.mode === 'diagnose') renderQuiz(); else renderExercise();
   return route.mode === 'diagnose'
-    ? `Diagnose${route.adv ? ' (advanced)' : ''} · Normalization`
-    : `Exercise ${route.ex + 1}: ${EXERCISES[route.ex].title} · Normalization`;
+    ? `${route.adv ? t('Diagnose (advanced)') : t('Diagnose')} · ${t('Normalization')}`
+    : `${t('Exercise {n}: {title}', { n: route.ex + 1, title: EXERCISES[route.ex].title })} · ${t('Normalization')}`;
 }
 
 function onClick(el) {

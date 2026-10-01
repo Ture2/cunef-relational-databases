@@ -1,0 +1,377 @@
+{
+  "voice": "en-GB-SoniaNeural",
+  "rate": "+0%",
+  "segments": [
+    {
+      "id": "s01-01",
+      "scene": "title",
+      "startSec": 1.0,
+      "text": "Database normalization, step by step. In this video, we'll take one messy table and turn it into a clean relational design.",
+      "durationSec": 8.856
+    },
+    {
+      "id": "s02-01",
+      "scene": "problem",
+      "startSec": 0.5,
+      "text": "Imagine a university that stores all its enrollments in one wide table.",
+      "durationSec": 4.885
+    },
+    {
+      "id": "s02-02",
+      "scene": "problem",
+      "startSec": 6.0,
+      "text": "The key is student ID plus course ID: one row per enrollment.",
+      "durationSec": 4.728
+    },
+    {
+      "id": "s02-03",
+      "scene": "problem",
+      "startSec": 12.0,
+      "text": "Look closer: Ana Ruiz twice, Databases three times, Computing five times.",
+      "durationSec": 6.452
+    },
+    {
+      "id": "s02-04",
+      "scene": "problem",
+      "startSec": 19.0,
+      "text": "That's redundancy, and it causes three anomalies.",
+      "durationSec": 3.683
+    },
+    {
+      "id": "s02-05",
+      "scene": "problem",
+      "startSec": 24.5,
+      "text": "First, the update anomaly. We rename course C10 in just one row, and now the same course has two different names.",
+      "durationSec": 8.255
+    },
+    {
+      "id": "s02-06",
+      "scene": "problem",
+      "startSec": 34.0,
+      "text": "Insert anomaly: course C30, Marketing, has no students yet. It can't be stored, because the key needs a student ID.",
+      "durationSec": 9.091
+    },
+    {
+      "id": "s02-07",
+      "scene": "problem",
+      "startSec": 43.5,
+      "text": "Delete anomaly: Ana drops Statistics. Deleting that one row also erases course C20 and the Maths department.",
+      "durationSec": 8.542
+    },
+    {
+      "id": "s03-01",
+      "scene": "whatIs",
+      "startSec": 0.3,
+      "text": "Normalization decomposes a table into smaller ones, guided by functional dependencies.",
+      "durationSec": 6.243
+    },
+    {
+      "id": "s03-02",
+      "scene": "whatIs",
+      "startSec": 7.0,
+      "text": "The goal: store each fact once.",
+      "durationSec": 2.9
+    },
+    {
+      "id": "s03-03",
+      "scene": "whatIs",
+      "startSec": 11.0,
+      "text": "The benefits: less redundancy, no anomalies, simpler updates, and less storage.",
+      "durationSec": 6.243
+    },
+    {
+      "id": "s03-04",
+      "scene": "whatIs",
+      "startSec": 19.0,
+      "text": "The costs: more tables and more joins, slower reads for some queries, and more design effort.",
+      "durationSec": 6.452
+    },
+    {
+      "id": "s03-05",
+      "scene": "whatIs",
+      "startSec": 27.0,
+      "text": "That's why some systems denormalize on purpose: for read-heavy analytics, it can be a sensible trade-off.",
+      "durationSec": 7.105
+    },
+    {
+      "id": "s04-01",
+      "scene": "fd",
+      "startSec": 0.3,
+      "text": "X determines Y means each value of X fixes exactly one Y.",
+      "durationSec": 5.042
+    },
+    {
+      "id": "s04-02",
+      "scene": "fd",
+      "startSec": 6.3,
+      "text": "Look at student S01. Both rows show the same name: Ana Ruiz.",
+      "durationSec": 5.799
+    },
+    {
+      "id": "s04-03",
+      "scene": "fd",
+      "startSec": 12.5,
+      "text": "The same goes for every student: student ID determines student name.",
+      "durationSec": 5.042
+    },
+    {
+      "id": "s04-04",
+      "scene": "fd",
+      "startSec": 18.7,
+      "text": "Student ID is the determinant, and student name is the dependent.",
+      "durationSec": 4.885
+    },
+    {
+      "id": "s04-05",
+      "scene": "fd",
+      "startSec": 25.0,
+      "text": "Counter-example: S01 got eight point five in one course, and seven in another.",
+      "durationSec": 5.825
+    },
+    {
+      "id": "s04-06",
+      "scene": "fd",
+      "startSec": 32.0,
+      "text": "So student ID alone doesn't determine grade: it needs the whole key.",
+      "durationSec": 4.911
+    },
+    {
+      "id": "s04-07",
+      "scene": "fd",
+      "startSec": 38.3,
+      "text": "Remember: dependencies come from what the data means, not from one sample of rows.",
+      "durationSec": 5.799
+    },
+    {
+      "id": "s05-01",
+      "scene": "partial",
+      "startSec": 0.3,
+      "text": "Enrollment has a composite key: student ID and course ID together.",
+      "durationSec": 5.068
+    },
+    {
+      "id": "s05-02",
+      "scene": "partial",
+      "startSec": 6.3,
+      "text": "Grade depends on the whole key. That's a full dependency.",
+      "durationSec": 4.206
+    },
+    {
+      "id": "s05-03",
+      "scene": "partial",
+      "startSec": 12.3,
+      "text": "Student name depends on student ID alone: a partial dependency.",
+      "durationSec": 4.937
+    },
+    {
+      "id": "s05-04",
+      "scene": "partial",
+      "startSec": 18.6,
+      "text": "The course and department columns depend on course ID alone.",
+      "durationSec": 4.101
+    },
+    {
+      "id": "s05-05",
+      "scene": "partial",
+      "startSec": 25.0,
+      "text": "Second normal form removes these partial dependencies.",
+      "durationSec": 4.075
+    },
+    {
+      "id": "s06-01",
+      "scene": "transitive",
+      "startSec": 0.3,
+      "text": "Follow the chain: course ID, then department ID, then department name.",
+      "durationSec": 5.407
+    },
+    {
+      "id": "s06-02",
+      "scene": "transitive",
+      "startSec": 6.3,
+      "text": "Department name describes the department, not the course.",
+      "durationSec": 4.101
+    },
+    {
+      "id": "s06-03",
+      "scene": "transitive",
+      "startSec": 12.2,
+      "text": "It reaches the key only through department ID, which isn't a key attribute.",
+      "durationSec": 5.042
+    },
+    {
+      "id": "s06-04",
+      "scene": "transitive",
+      "startSec": 19.0,
+      "text": "That's a transitive dependency, and third normal form removes it.",
+      "durationSec": 4.676
+    },
+    {
+      "id": "s07-01",
+      "scene": "nf1",
+      "startSec": 0.3,
+      "text": "First normal form: one atomic value per cell. No lists.",
+      "durationSec": 4.963
+    },
+    {
+      "id": "s07-02",
+      "scene": "nf1",
+      "startSec": 6.3,
+      "text": "Here, one cell holds two phone numbers. That breaks the rule.",
+      "durationSec": 4.989
+    },
+    {
+      "id": "s07-03",
+      "scene": "nf1",
+      "startSec": 12.3,
+      "text": "We split it: one row per phone. Now every value is atomic.",
+      "durationSec": 5.224
+    },
+    {
+      "id": "s07-04",
+      "scene": "nf1",
+      "startSec": 19.0,
+      "text": "Our Enrollment table already meets first normal form.",
+      "durationSec": 3.84
+    },
+    {
+      "id": "s08-01",
+      "scene": "nf2",
+      "startSec": 0.3,
+      "text": "Second normal form: no non-key attribute may depend on just part of the key.",
+      "durationSec": 5.355
+    },
+    {
+      "id": "s08-02",
+      "scene": "nf2",
+      "startSec": 6.3,
+      "text": "Student name depends on student ID alone, so it moves to a new Student table.",
+      "durationSec": 5.512
+    },
+    {
+      "id": "s08-03",
+      "scene": "nf2",
+      "startSec": 13.3,
+      "text": "The course columns depend on course ID alone, so they move to a Course table, one row per course.",
+      "durationSec": 6.217
+    },
+    {
+      "id": "s08-04",
+      "scene": "nf2",
+      "startSec": 21.3,
+      "text": "Enrollment keeps the full key and the grade. Its two key columns are now foreign keys.",
+      "durationSec": 6.06
+    },
+    {
+      "id": "s08-05",
+      "scene": "nf2",
+      "startSec": 29.3,
+      "text": "Now each student, and each course, is stored exactly once.",
+      "durationSec": 4.467
+    },
+    {
+      "id": "s08-06",
+      "scene": "nf2",
+      "startSec": 35.0,
+      "text": "New courses need no students, and renames touch one row.",
+      "durationSec": 4.362
+    },
+    {
+      "id": "s09-01",
+      "scene": "nf3",
+      "startSec": 0.3,
+      "text": "Third normal form: no non-key attribute depends on another non-key attribute.",
+      "durationSec": 5.433
+    },
+    {
+      "id": "s09-02",
+      "scene": "nf3",
+      "startSec": 6.3,
+      "text": "In Course, department name depends on department ID, not directly on course ID.",
+      "durationSec": 6.008
+    },
+    {
+      "id": "s09-03",
+      "scene": "nf3",
+      "startSec": 13.3,
+      "text": "It moves to a Department table keyed by department ID, which Course keeps as a foreign key.",
+      "durationSec": 6.06
+    },
+    {
+      "id": "s09-04",
+      "scene": "nf3",
+      "startSec": 21.3,
+      "text": "Computing is now stored once, so renaming a department is a single update.",
+      "durationSec": 5.355
+    },
+    {
+      "id": "s09-05",
+      "scene": "nf3",
+      "startSec": 28.3,
+      "text": "Four tables, each fact in one place: the design is in third normal form.",
+      "durationSec": 5.433
+    },
+    {
+      "id": "s10-01",
+      "scene": "bcnf",
+      "startSec": 0.3,
+      "text": "Boyce-Codd normal form is stricter: every determinant must be a candidate key.",
+      "durationSec": 5.433
+    },
+    {
+      "id": "s10-02",
+      "scene": "bcnf",
+      "startSec": 6.3,
+      "text": "Here, each teacher teaches one subject, so teacher determines subject.",
+      "durationSec": 5.224
+    },
+    {
+      "id": "s10-03",
+      "scene": "bcnf",
+      "startSec": 12.3,
+      "text": "But teacher isn't a candidate key: Professor Mora appears in two rows.",
+      "durationSec": 5.12
+    },
+    {
+      "id": "s10-04",
+      "scene": "bcnf",
+      "startSec": 18.4,
+      "text": "So we split: Teaches, with teacher and subject, and Tutoring, with student and teacher.",
+      "durationSec": 6.296
+    },
+    {
+      "id": "s11-01",
+      "scene": "lossless",
+      "startSec": 0.3,
+      "text": "Now join the tables back on their keys,",
+      "durationSec": 2.952
+    },
+    {
+      "id": "s11-02",
+      "scene": "lossless",
+      "startSec": 5.5,
+      "text": "and exactly the original six rows come back.",
+      "durationSec": 3.5
+    },
+    {
+      "id": "s11-03",
+      "scene": "lossless",
+      "startSec": 11.0,
+      "text": "To recap: each normal form removes one kind of problem.",
+      "durationSec": 4.232
+    },
+    {
+      "id": "s11-04",
+      "scene": "lossless",
+      "startSec": 17.0,
+      "text": "Each form builds on the previous one, up to Boyce-Codd.",
+      "durationSec": 3.892
+    },
+    {
+      "id": "s12-01",
+      "scene": "outro",
+      "startSec": 0.5,
+      "text": "Now practise it, in the Normalization section of the Databases practice site.",
+      "durationSec": 5.355
+    }
+  ]
+}

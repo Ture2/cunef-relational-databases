@@ -1,0 +1,6 @@
+interface:
+  display_name: "CUNEF Brand"
+  short_description: "Apply CUNEF Universidad brand rules and official templates"
+  icon_small: "assets/logos/cunef-universidad-orange-transparent.png"
+  icon_large: "assets/logos/cunef-universidad-orange-transparent.png"
+  brand_color: "#ff5700"

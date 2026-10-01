@@ -12,23 +12,82 @@
 (() => {
   const COURSES = {
     relational: {
-      title: 'Relational databases',
-      lede: 'From the ER model to well-designed tables: learn the concepts, transform ER diagrams into logical models and normalize them.',
+      title: t('Relational databases'),
       sections: [
-        { id: 'er', href: '#/relational/er', label: 'ER concepts', module: ErSection },
-        { id: 'logical', href: '#/relational/logical', label: 'ER → Logical', module: LogicalSection },
-        { id: 'normalization', href: '#/relational/normalization', label: 'Normalization', module: Normalization },
+        { id: 'theory', href: '#/relational/theory', label: t('Theory'), module: TheorySection },
+        { id: 'er', href: '#/relational/er', label: t('ER concepts'), module: ErSection },
+        { id: 'logical', href: '#/relational/logical', label: t('ER → Logical'), module: LogicalSection },
+        { id: 'normalization', href: '#/relational/normalization', label: t('Normalization'), module: Normalization },
       ],
     },
     nosql: {
-      title: 'Non-relational databases',
-      lede: 'Document, key-value, wide-column and graph databases.',
-      sections: [{ id: 'overview', href: '#/nosql', label: 'Overview', module: NoSqlSection }],
+      title: t('Non-relational databases'),
+      sections: [{ id: 'overview', href: '#/nosql', label: t('Overview'), module: NoSqlSection }],
     },
   };
 
   const view = $('#view');
   let current = null;           // module handling #view
+
+  /* The static shell in index.html is written in English: translate it once. */
+  function translateShell() {
+    $('.skip').textContent = t('Skip to content');
+    $('.brand-name').textContent = t('Databases practice');
+    $('#footer-course').textContent = t('Databases · Escuela Politécnica Superior');
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) meta.setAttribute('content', t('Interactive databases practice: ER concepts, ER to logical model transformation with instant checking, and normalization up to 5NF.'));
+    $('#settings-label').textContent = t('Settings');
+    $('#settings-btn').title = t('Settings');
+    $('#settings-title').textContent = t('Settings');
+    $('#set-lang-h').textContent = t('Language');
+    $('#set-course-h').textContent = t('Course');
+    $('#set-theme-h').textContent = t('Theme');
+    const labels = { relational: t('Relational databases'), nosql: t('Non-relational databases'), light: t('Light'), dark: t('Dark'), system: t('System') };
+    document.querySelectorAll('.settings-panel [data-set]').forEach((b) => { if (labels[b.dataset.value]) b.textContent = labels[b.dataset.value]; });
+  }
+  translateShell();
+
+  /* ---- Settings menu: language, course and theme ------------------------------ */
+
+  const settingsBtn = $('#settings-btn');
+  const panel = $('#settings-panel');
+  let currentCourse = 'relational';
+
+  function markSettings() {
+    const now = { lang: LANG, course: currentCourse, theme: THEME };
+    panel.querySelectorAll('[data-set]').forEach((b) => b.setAttribute('aria-pressed', String(now[b.dataset.set] === b.dataset.value)));
+  }
+  function openSettings() {
+    markSettings();
+    panel.hidden = false;
+    settingsBtn.setAttribute('aria-expanded', 'true');
+    (panel.querySelector('[aria-pressed="true"]') || panel.querySelector('button')).focus();
+  }
+  function closeSettings(focusButton = true) {
+    if (panel.hidden) return;
+    panel.hidden = true;
+    settingsBtn.setAttribute('aria-expanded', 'false');
+    if (focusButton) settingsBtn.focus();
+  }
+  settingsBtn.addEventListener('click', () => (panel.hidden ? openSettings() : closeSettings()));
+  panel.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-set]');
+    if (!b) return;
+    const v = b.dataset.value;
+    if (b.dataset.set === 'lang') { setLang(v); return; }          // reloads on the same route
+    if (b.dataset.set === 'theme') {
+      setTheme(v);
+      markSettings();
+      announce(t('Theme: {theme}', { theme: b.textContent }));
+      return;                                                        // stays open: the change is visible at once
+    }
+    closeSettings(false);
+    location.hash = v === 'nosql' ? '#/nosql' : '#/relational/theory';
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) closeSettings(); });
+  document.addEventListener('click', (e) => {
+    if (!panel.hidden && !e.target.closest('.settings')) closeSettings(false);
+  });
 
   function legacy(hash) {
     let m = hash.match(/^#\/normalize(?:\/(\d+))?$/);
@@ -42,7 +101,7 @@
     const hash = location.hash;
     const old = legacy(hash);
     if (old) { history.replaceState(null, '', old); return parse(); }
-    let m = hash.match(/^#\/relational\/(er|logical|normalization)(?:\/(.*))?$/);
+    let m = hash.match(/^#\/relational\/(theory|er|logical|normalization)(?:\/(.*))?$/);
     if (m) return { course: 'relational', section: m[1], rest: m[2] || '' };
     m = hash.match(/^#\/nosql(?:\/(.*))?$/);
     if (m) return { course: 'nosql', section: 'overview', rest: m[1] || '' };
@@ -51,25 +110,27 @@
 
   function header(route) {
     const course = COURSES[route.course];
-    $('#course-title').textContent = course.title;
-    $('#course-lede').textContent = course.lede;
-    document.querySelectorAll('.course-switch a').forEach((a) => {
-      if (a.dataset.course === route.course) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
-    });
+    currentCourse = route.course;
     $('#section-nav').innerHTML = course.sections.length > 1
-      ? course.sections.map((s, i) => `<a href="${s.href}"${s.id === route.section ? ' aria-current="page"' : ''}><span class="step-n">${i + 1}</span>${esc(s.label)}</a>`).join('')
+      ? course.sections.map((s) => `<a href="${s.href}"${s.id === route.section ? ' aria-current="page"' : ''}>${esc(s.label)}</a>`).join('')
       : '';
     $('#section-nav').hidden = course.sections.length < 2;
+    $('#section-nav').setAttribute('aria-label', t('{course}: sections', { course: course.title }));
   }
 
   function render() {
     const route = parse();
-    if (!route) { history.replaceState(null, '', '#/relational/er'); render(); return; }
+    if (!route) { history.replaceState(null, '', '#/relational/theory'); render(); return; }
     header(route);
+    // The ER concepts section draws a full-height rail on the left edge, so it uses the full width.
+    $('#main').classList.toggle('is-wide', route.course === 'relational' && (route.section === 'er' || route.section === 'theory'));
     const section = COURSES[route.course].sections.find((s) => s.id === route.section);
     current = section.module;
     const title = current.render(route.rest);
-    document.title = `${title} · Databases practice`;
+    document.title = `${title} · ${t('Databases practice')}`;
+    // Keep the current exercise tab visible when the strip scrolls sideways (phones).
+    const tab = view.querySelector('.numtab[aria-current]');
+    if (tab) { const strip = tab.closest('.numtabs'); strip.scrollLeft = tab.offsetLeft - (strip.clientWidth - tab.offsetWidth) / 2; }
   }
 
   view.addEventListener('click', (e) => {
