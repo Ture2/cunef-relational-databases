@@ -3,65 +3,99 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Database normalization</title>
-  <meta name="description" content="Interactive normalization practice up to 5NF: decompose tables step by step, check your design instantly and diagnose the normal form of each case.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='2' width='13' height='13' fill='%230E7C86'/%3E%3Crect x='17' y='2' width='13' height='13' fill='%236B46C1'/%3E%3Crect x='2' y='17' width='28' height='13' fill='%23B26A00'/%3E%3C/svg%3E">
+  <title>Databases practice</title>
+  <meta name="description" content="Interactive databases practice: ER concepts, ER to logical model transformation with instant checking, and normalization up to 5NF.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 8v16c0 2.8 5.4 5 12 5s12-2.2 12-5V8' fill='%231a1f6c'/%3E%3Cellipse cx='16' cy='8' rx='12' ry='5' fill='%23ff5700'/%3E%3C/svg%3E">
+  <script>/* Theme before the first paint (js/i18n.js handles changes). */try{var th=localStorage.getItem('theme');if(th==='dark'||th==='light')document.documentElement.dataset.theme=th;}catch(e){}</script>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="theory.css">
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
 
-  <header class="top">
-    <div class="wrap">
-      <div class="brand">
-        <h1>Database normalization</h1>
-        <p class="lede">Decompose tables step by step, from 2NF to 5NF, and check your design instantly, or diagnose the normal form of each case.</p>
+  <header class="appbar">
+    <div class="wrap appbar-row">
+      <a class="brand" href="#/relational/theory">
+        <img src="assets/cunef-logo.png" width="91" height="32" alt="CUNEF Universidad">
+        <span class="brand-name">Databases practice</span>
+      </a>
+      <nav class="modes" id="section-nav" aria-label="Section"></nav>
+      <div class="settings">
+        <button type="button" class="settings-btn" id="settings-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="settings-panel">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+          <span class="sr-only" id="settings-label">Settings</span>
+        </button>
+        <div class="settings-panel" id="settings-panel" role="dialog" aria-labelledby="settings-title" hidden>
+          <p class="settings-title" id="settings-title">Settings</p>
+          <div class="settings-group" role="group" aria-labelledby="set-lang-h">
+            <p class="settings-h" id="set-lang-h">Language</p>
+            <div class="seg">
+              <button type="button" data-set="lang" data-value="es" lang="es">Español</button>
+              <button type="button" data-set="lang" data-value="en" lang="en">English</button>
+            </div>
+          </div>
+          <div class="settings-group" role="group" aria-labelledby="set-course-h">
+            <p class="settings-h" id="set-course-h">Course</p>
+            <div class="seg seg-col">
+              <button type="button" data-set="course" data-value="relational">Relational databases</button>
+              <button type="button" data-set="course" data-value="nosql">Non-relational databases</button>
+            </div>
+          </div>
+          <div class="settings-group" role="group" aria-labelledby="set-theme-h">
+            <p class="settings-h" id="set-theme-h">Theme</p>
+            <div class="seg">
+              <button type="button" data-set="theme" data-value="light">Light</button>
+              <button type="button" data-set="theme" data-value="dark">Dark</button>
+              <button type="button" data-set="theme" data-value="system">System</button>
+            </div>
+          </div>
+        </div>
       </div>
-      <nav class="modes" aria-label="Practice mode">
-        <a href="#/normalize" data-mode="normalize">Normalize</a>
-        <a href="#/diagnose" data-mode="diagnose">Diagnose</a>
-      </nav>
     </div>
   </header>
 
   <main id="main" class="wrap">
-    <details class="rules">
-      <summary>The rules in one sentence</summary>
-      <dl>
-        <div>
-          <dt>1NF</dt>
-          <dd><strong>One cell, one value.</strong> No lists or repeating groups in a cell or a row.</dd>
-        </div>
-        <div>
-          <dt>2NF</dt>
-          <dd><strong>The whole key.</strong> Every attribute depends on the entire key, not on part of it. It only matters with composite keys.</dd>
-        </div>
-        <div>
-          <dt>3NF</dt>
-          <dd><strong>Nothing but the key.</strong> No attribute depends on another attribute that is not a key.</dd>
-        </div>
-        <div>
-          <dt>BCNF</dt>
-          <dd><strong>Every determinant is a key.</strong> If something determines other attributes, it must identify each row.</dd>
-        </div>
-        <div>
-          <dt>4NF</dt>
-          <dd><strong>One fact per table.</strong> Two independent pieces of data about the same thing do not share a table.</dd>
-        </div>
-        <div>
-          <dt>5NF</dt>
-          <dd><strong>Nothing that can be rebuilt from its parts.</strong> If a table comes from joining smaller ones, store it as those parts.</dd>
-        </div>
-      </dl>
-    </details>
-
     <div id="view"></div>
     <noscript><p class="story">This practice tool needs JavaScript enabled to work.</p></noscript>
   </main>
 
+  <footer class="site-footer">
+    <div class="wrap footer-row">
+      <img src="assets/cunef-logo.png" width="68" height="24" alt="CUNEF Universidad">
+      <p class="footer-text">
+        <span class="footer-copy">© 2026 Alberto Turégano</span>
+        <span class="footer-course" id="footer-course">Databases · Escuela Politécnica Superior</span>
+      </p>
+    </div>
+  </footer>
+
   <p id="sr-status" class="sr-only" role="status" aria-live="polite"></p>
 
-  <script src="exercises.js"></script>
-  <script src="app.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="i18n/es-app.js"></script>
+  <script src="i18n/es-normalization.js"></script>
+  <script src="i18n/es-theory.js"></script>
+  <script src="data/en/normalization.js"></script>
+  <script src="data/en/er-concepts.js"></script>
+  <script src="data/en/er-quiz.js"></script>
+  <script src="data/en/logical.js"></script>
+  <script src="data/en/theory.js"></script>
+  <script src="data/es/normalization.js"></script>
+  <script src="data/es/er-concepts.js"></script>
+  <script src="data/es/er-quiz.js"></script>
+  <script src="data/es/logical.js"></script>
+  <script src="data/es/theory.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/er-diagram.js"></script>
+  <script src="js/logical-engine.js"></script>
+  <script src="js/normalization.js"></script>
+  <script src="js/concept-section.js"></script>
+  <script src="js/theory-figures.js"></script>
+  <script src="js/theory-widgets.js"></script>
+  <script src="js/theory.js"></script>
+  <script src="js/er.js"></script>
+  <script src="js/logical.js"></script>
+  <script src="js/nosql.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>
