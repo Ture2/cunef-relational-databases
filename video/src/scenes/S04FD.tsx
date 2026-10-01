@@ -1,7 +1,6 @@
 import type React from 'react';
 import {SceneNarration} from '../components/Narration';
 import {Interactive, useCurrentFrame, useVideoConfig, type InteractivitySchema} from 'remotion';
-import {Caption} from '../components/Caption';
 import {DataTable, geom} from '../components/DataTable';
 import {DependencyArrow} from '../components/DependencyArrow';
 import {Heading, SceneShell} from '../components/Shell';
@@ -197,28 +196,7 @@ const FDSceneInner: React.FC<{readonly style?: React.CSSProperties}> = ({style})
           (student_id, course_id) → grade
         </Statement>
       </Interactive.Div>
-
-      <Caption name="C1 definition" from={0} durationInFrames={180} premountFor={fps}>
-        A functional dependency X → Y: each value of X determines exactly one Y.
-      </Caption>
-      <Caption name="C2 S01" from={180} durationInFrames={195} premountFor={fps}>
-        Rows with `student_id` S01 always carry the same name: Ana Ruiz.
-      </Caption>
-      <Caption name="C3 holds" from={375} durationInFrames={180} premountFor={fps}>
-        The same holds for S02 and S03. So `student_id → student_name`.
-      </Caption>
-      <Caption name="C4 roles" from={555} durationInFrames={195} premountFor={fps}>
-        `student_id` is the determinant; `student_name` is the dependent.
-      </Caption>
-      <Caption name="C5 counter-example" from={750} durationInFrames={210} premountFor={fps}>
-        Counter-example: S01 has grade 8.5 in one row and 7.0 in another.
-      </Caption>
-      <Caption name="C6 whole key" from={960} durationInFrames={180} premountFor={fps}>
-        So `student_id` does not determine grade: grade needs the whole key (student_id, course_id).
-      </Caption>
-      <Caption name="C7 meaning" from={1140} durationInFrames={210} premountFor={fps}>
-        Dependencies come from the meaning of the data, not from one sample.
-      </Caption>
+      
     </SceneShell>
   );
 };

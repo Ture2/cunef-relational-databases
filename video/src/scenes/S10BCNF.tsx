@@ -2,7 +2,6 @@ import type React from 'react';
 import {SceneNarration} from '../components/Narration';
 import {Interactive, useCurrentFrame, useVideoConfig, type InteractivitySchema} from 'remotion';
 import {prog, window01} from '../anim';
-import {Caption} from '../components/Caption';
 import {DataTable, geom, type Column} from '../components/DataTable';
 import {DependencyArrow} from '../components/DependencyArrow';
 import {Heading, SceneShell} from '../components/Shell';
@@ -89,19 +88,7 @@ const BCNFSceneInner: React.FC<{readonly style?: React.CSSProperties}> = ({style
         rows={TUTORING2_ROWS}
         style={{opacity: split2, translate: `${(1 - split2) * 40}px 0px`}}
       />
-
-      <Caption name="C1 rule" from={0} durationInFrames={180} premountFor={fps}>
-        BCNF is stricter than 3NF: every determinant must be a candidate key.
-      </Caption>
-      <Caption name="C2 teacher → subject" from={180} durationInFrames={180} premountFor={fps}>
-        Rule: each teacher teaches one subject, so `teacher → subject`.
-      </Caption>
-      <Caption name="C3 not a key" from={360} durationInFrames={180} premountFor={fps}>
-        But teacher is not a candidate key: Prof. Mora appears in two rows.
-      </Caption>
-      <Caption name="C4 split" from={540} durationInFrames={210} premountFor={fps}>
-        Split on it: Teaches (teacher, subject) and Tutoring (student, teacher).
-      </Caption>
+   
     </SceneShell>
   );
 };

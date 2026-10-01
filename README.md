@@ -1,11 +1,13 @@
 # Databases practice
 
-A static site (HTML, CSS and JavaScript, no dependencies, no build step and no server) for practising the databases course. Students choose a course at the top of the page:
+A static site (HTML, CSS and JavaScript, no build step and no server; the only external code is SQLite for the runnable SQL examples, loaded from cdnjs on the SQL tab) for practising the databases course. Students choose a course at the top of the page:
 
-- **Relational databases**, in three sections in teaching order:
+- **Relational databases**, in sections in teaching order (Theory comes first):
   1. **ER concepts**: concept cards (entities, attributes, keys, relationships, correspondence, look-across cardinality, weak entities, relationship constraints, hierarchies, categories, aggregation, the time dimension, modelling steps), each with a small Chen diagram. They are followed by a **Test yourself** quiz of 33 multiple-choice, true/false and fill-in questions, which can be filtered by topic.
   2. **ER → Logical**: the student reads an ER model (diagram plus a text version) and builds the relational tables. For each table they give its name and columns, mark the primary key, pick a foreign key's target, and mark NOT NULL on the foreign keys. The checker explains every mistake in terms of the course's transformation rules. There are 21 exercises: 9 at level 1 (one rule at a time) and 12 at level 2 (complete models from the lab sessions).
   3. **Normalization**: the existing normalization practice from 2NF to 5NF, in two modes, Normalize and Diagnose (described below).
+  4. **SQL**: the sub-languages (DDL, DML, DCL, TCL), constraints, indexes, clustering, partitioning and efficiency, in 20 cards. Most examples run in the browser on SQLite (sql.js) and show results, timings and query plans; every snippet can be downloaded as a `.sql` file. A 28-question quiz and a free **SQL sandbox** on the course's sample tables follow.
+- **Progress** (the button next to the settings): cards read, exercises solved and best quiz scores of every section, with a Continue link to the next unfinished step.
 - **Non-relational databases**: for now an overview of the four NoSQL families. The route (`#/nosql`) is ready for practice once the course material exists.
 
 The content comes from the G241 course material (Topic 2 and 3 translations, Quiz 2, the lab sessions and the ER model contract).
@@ -59,6 +61,9 @@ js/logical.js           ER → logical exercises (drawn inside the rules section
 js/logical-section.js   ER → logical rule cards; their tables are derived by js/logical-engine.js
 js/normalization.js     normalization engine, exercises and diagnose quiz (drawn inside the theory section)
 js/normalization-section.js  normalization theory cards and the course video
+js/sql.js               SQL concept cards, quiz and sandbox
+js/sql-runner.js        runnable SQL examples: loads sql.js (SQLite in WebAssembly) on first use, runs, shows plans, downloads .sql
+js/progress.js          progress page (#/progress) and the app-bar ring
 js/nosql.js             non-relational overview
 js/main.js              router and start-up
 data/en/, data/es/      course data, one folder per language, same files and shape:
@@ -68,7 +73,8 @@ data/en/, data/es/      course data, one folder per language, same files and sha
   logical-rules.js      LOGICAL_RULES (transformation rule cards, each with a small ER model)
   normalization.js      NF_INFO, EXERCISES, ADV_OPTIONS, QUESTIONS
   normalization-theory.js  NORM_THEORY (normalization theory cards)
-assets/video/           rendered course video (MP4, poster, WebVTT captions); built from video/ with npm run render:site
+  sql.js                SQL_CONCEPTS, SQL_QUIZ, SQL_QUIZ_TOPICS, SQL_SANDBOX (runnable examples use the same SQL in both languages)
+assets/video/           rendered course video (MP4 and poster, no subtitles); built from video/ with npm run render:site
 .claude/skills/cunef-brand/  CUNEF brand skill (manual, logo, Word and PowerPoint templates)
 ```
 
@@ -77,6 +83,8 @@ Direct links, handy for sharing in class:
 - `#/relational/er` (first concept), `#/relational/er/<conceptId>` (one concept, e.g. `#/relational/er/cardinality`) and `#/relational/er/quiz/weak` (quiz filtered to one topic)
 - `#/relational/logical` (the transformation rules), `#/relational/logical/<ruleId>` (e.g. `#/relational/logical/weak`) and `#/relational/logical/practice/17` (exercise 17)
 - `#/relational/normalization` (theory), `#/relational/normalization/video`, `#/relational/normalization/practice/3`, `#/relational/normalization/diagnose` and `#/relational/normalization/diagnose/advanced`
+- `#/relational/sql`, `#/relational/sql/<cardId>` (e.g. `#/relational/sql/composite-index`), `#/relational/sql/quiz/indexes` and `#/relational/sql/practice` (the sandbox)
+- `#/progress`
 - `#/nosql`
 
 Old links (`#/normalize/3`, `#/diagnose`, `#/diagnose/advanced`, `#/relational/logical/17`, `#/relational/normalization/3`) are redirected to the new ones.
@@ -89,7 +97,7 @@ Old links (`#/normalize/3`, `#/diagnose`, `#/diagnose/advanced`, `#/relational/l
 
 To try it locally, just open `index.html` in the browser.
 
-**The video** is a normal committed file (`assets/video/normalization.mp4`, about 19 MB), not Git LFS: GitHub Pages does not serve LFS files from a branch deploy, and git refuses files over 100 MB. Pages serves it as `video/mp4` with byte ranges, so the player can seek. To rebuild it after changing the Remotion project: `cd video && npm i && npm run render:site` (720p H.264, the poster frame and the captions).
+**The video** is a normal committed file (`assets/video/normalization.mp4`, about 18 MB), not Git LFS: GitHub Pages does not serve LFS files from a branch deploy, and git refuses files over 100 MB. Pages serves it as `video/mp4` with byte ranges, so the player can seek. To rebuild it after changing the Remotion project: `cd video && npm i && npm run render:site` (720p H.264 and the poster frame). The video has no subtitles of any kind: the narration is in English and the diagrams carry the on-screen text.
 
 ## Saved progress
 
@@ -105,6 +113,11 @@ Everything is stored in `localStorage`, on that device only, and never sent anyw
 | `lang` | The chosen language, `es` or `en` |
 | `theme` | `light`, `dark` or `system` |
 | `theory-quiz-v1` | Best Theory quiz score for each topic |
+| `sql-quiz-v1` | Best SQL quiz score for each topic |
+| `read-v1` | The concept cards opened in each section (for the progress page) |
+| `sql-sandbox-v1` | The text of the SQL sandbox |
+
+The progress page's **Clear all progress** removes every key above except `lang`, `theme` and `er-ui-v1`.
 
 ## ER concepts and quiz
 

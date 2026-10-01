@@ -11,13 +11,13 @@
    whatever cfg.practice.match(rest) accepts.
 
    Card fields: id, title, summary, body[], points[], table { caption, head, rows },
-   tables [table, …], code, example, mistake, caption, practice { href, label?, sub? },
+   tables [table, …], code, dialect, example, mistake, caption, practice { href, label?, sub? },
    plus whatever cfg.figure / cfg.extra read.
    cfg: { base, title(), badge, groups: [{ key, label, icon, ids? }] (without ids, a
           hub takes the cards whose `hub` is its key), concepts,
           quiz?, topics?, quizKey?, figure(item) → svg | '', extra(card) → html,
           perfectText(), nextLink: { href, label() }, onClick(el), onChange(e),
-          onInput(e),
+          onInput(e), onKeydown(e), codeDownload (code blocks get a "Download .sql" button),
           practice?: { label, icon, match(rest), links(rest | null) → [{ href, label, current, extra? }],
                        render(rest) → title (draws into #practice-slot),
                        onClick(el, e), onInput(e), onChange(e), onSubmit(form) } }
@@ -46,6 +46,10 @@ const RAIL_ICON = {
   arrow: '<path d="M4 8h12"/><path d="M13 5l3 3-3 3"/><path d="M20 16H8"/><path d="M11 13l-3 3 3 3"/>',
   forms: '<path d="M4 20h4v-4H4Z"/><path d="M10 20h4v-8h-4Z"/><path d="M16 20h4V8h-4Z"/>',
   why: '<path d="M12 3 2 20h20Z"/><path d="M12 10v4"/><circle cx="12" cy="17" r=".6" fill="currentColor"/>',
+  code: '<path d="M8 7l-5 5 5 5"/><path d="M16 7l5 5-5 5"/><path d="M13.5 4l-3 16"/>',
+  key: '<circle cx="8" cy="12" r="4"/><path d="M12 12h9M18 12v3M21 12v2"/>',
+  cluster: '<rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="16" width="18" height="4" rx="1"/><path d="M7 6h.01M7 12h.01M7 18h.01"/>',
+  speed: '<path d="M4 18a8 8 0 1 1 16 0"/><path d="M12 18l4.5-6"/><path d="M4 18h16"/>',
   quiz: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 1c0 1.8-2.5 2.2-2.5 3.7"/><circle cx="12" cy="17.2" r=".6" fill="currentColor"/>',
   collapse: '<path d="M14 6l-6 6 6 6"/><path d="M20 6l-6 6 6 6"/>',
   expand: '<path d="M10 6l6 6-6 6"/><path d="M4 6l6 6-6 6"/>',
@@ -63,6 +67,7 @@ function ConceptSection(cfg) {
   const quiz = { topic: null, order: [], i: 0, score: 0, picked: null, typed: '', missed: [], done: false };
   let route = { page: 'concept', concept: 0, topic: 'all', rest: '' };
   let lastPage = null;                                  // to move focus only when navigating inside the section
+  const readStore = makeStore('read-v1');               // cards opened, per section: { [base]: { [cardId]: 1 } }
   const uiStore = makeStore('er-ui-v1');                // this viewer's layout choice, shared by every concept section
   const ui = Object.assign({ sideCollapsed: false }, uiStore.load());
 
@@ -189,7 +194,7 @@ function ConceptSection(cfg) {
           ${c.example ? `<p class="example"><strong>${esc(t('Example.'))}</strong> ${md(c.example)}</p>` : ''}
           ${c.table ? tableHtml(c.table) : ''}
           ${(c.tables || []).map(tableHtml).join('')}
-          ${c.code ? `<pre class="concept-code"><code>${esc(c.code)}</code></pre>` : ''}
+          ${c.code ? codeHtml(c) : ''}
           ${c.mistake ? `<p class="mistake"><strong>${esc(t('Common mistake.'))}</strong> ${md(c.mistake)}</p>` : ''}
         </div>
         ${cfg.extra ? cfg.extra(c) : ''}
@@ -212,14 +217,40 @@ function ConceptSection(cfg) {
       </article>`;
   }
 
+  /* A code block; with cfg.codeDownload it gets a dialect label and a "Download .sql" button. */
+  const codeHtml = (c) => (cfg.codeDownload
+    ? `<div class="code-block">
+        <div class="code-bar">${c.dialect ? `<span class="dialect">${esc(c.dialect)}</span>` : ''}
+          <button type="button" class="code-dl" data-action="dl-code" data-card="${esc(c.id)}" data-fid="dl-${esc(c.id)}">${esc(t('Download .sql'))}</button></div>
+        <pre class="concept-code"><code>${esc(c.code)}</code></pre>
+      </div>`
+    : `<pre class="concept-code"><code>${esc(c.code)}</code></pre>`);
+
+  function downloadCode(id) {
+    const c = CONCEPTS.find((x) => x.id === id);
+    if (c) downloadText(`${c.id}.sql`, `${c.dialect ? `-- ${c.dialect}
+` : ''}${c.code.trim()}
+`, 'application/sql');
+  }
+
   /* A small data table inside a card: { caption?, head: [...], rows: [[...]] }; cells use md(). */
   const tableHtml = (tb) => `<div class="scroll concept-table"><table class="src">${tb.caption ? `<caption>${md(tb.caption)}</caption>` : ''}
       <thead><tr>${tb.head.map((h) => `<th scope="col">${md(h)}</th>`).join('')}</tr></thead>
       <tbody>${tb.rows.map((r) => `<tr>${r.map((v, k) => (k === 0 ? `<th scope="row">${md(v)}</th>` : `<td>${md(v)}</td>`)).join('')}</tr>`).join('')}</tbody></table></div>`;
 
+  /* Opening a card counts as reading it (js/progress.js). */
+  function markRead(c) {
+    const all = readStore.load();
+    const mine = all[BASE] && typeof all[BASE] === 'object' ? all[BASE] : {};
+    if (mine[c.id]) return;
+    all[BASE] = { ...mine, [c.id]: 1 };
+    readStore.save(all);
+  }
+
   function renderConcept() {
     const i = route.concept;
     const c = CONCEPTS[i];
+    markRead(c);
     const prev = i > 0 ? { href: conceptHref(i - 1), label: `${i} · ${CONCEPTS[i - 1].title}`, kind: t('Previous') } : null;
     let last = { href: `${BASE}/quiz`, label: t('Test yourself') };
     if (!HAS_QUIZ && PRACTICE) last = { href: PRACTICE.links(null)[0].href, label: t(PRACTICE.label) };
@@ -360,6 +391,7 @@ function ConceptSection(cfg) {
         renderQuiz();
         (quiz.done ? $('#q-title') : $('#fib-in') || $('.options .opt'))?.focus({ preventScroll: true });
         break;
+      case 'dl-code': downloadCode(el.dataset.card); break;
       case 'restart':
         startQuiz(quiz.topic);
         renderQuiz();
@@ -429,5 +461,10 @@ function ConceptSection(cfg) {
     if (cfg.onInput) cfg.onInput(e);
   }
 
-  return { render, onClick, onChange, onInput, onSubmit };
+  function onKeydown(e) {
+    if (route.page === 'practice') { if (PRACTICE.onKeydown) PRACTICE.onKeydown(e); return; }
+    if (cfg.onKeydown) cfg.onKeydown(e);
+  }
+
+  return { render, onClick, onChange, onInput, onKeydown, onSubmit };
 }

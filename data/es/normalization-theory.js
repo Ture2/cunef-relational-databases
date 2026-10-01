@@ -39,7 +39,7 @@ DATA.es.NORM_THEORY = [
     title: 'Vídeo: la normalización paso a paso',
     summary: 'Un recorrido de seis minutos por todo el camino, desde una tabla desordenada hasta 1FN, 2FN, 3FN y FNBC, con el mismo ejemplo que estas tarjetas.',
     body: [
-      'Míralo una vez antes de las tarjetas, o usa los capítulos para saltar al paso que necesites. Los subtítulos están en inglés.',
+      'Míralo una vez antes de las tarjetas, o usa los capítulos para saltar al paso que necesites.',
     ],
     video: true,
   },

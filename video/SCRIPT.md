@@ -1,8 +1,8 @@
 # Database normalization, step by step — script and timeline
 
-- Language: English · 1920×1080 · 30 fps · on-screen captions + British English voice-over + soft synthesized music (see "Narration" at the end)
+- Language: English · 1920×1080 · 30 fps · British English voice-over (no subtitles) + soft synthesized music (see "Narration" at the end)
 - Total: **05:58** (10 740 frames). The single source of timing is `src/timeline.ts`.
-- Captions: bottom caption box, 42 px, at most ~2.5 words/s, each held ≥ 4 s.
+- Captions: none are rendered. The "Caption" column of each scene below is the beat the narration explains, kept as the storyboard.
   Times inside a scene are **local** (seconds from the scene start).
 - Style: CUNEF brand. Beige background `#f0ece8`, ink blue `#1a1f6c` text,
   orange `#ff5700` only for non-text accents (arrows, key underlines, highlight outlines),

@@ -2,7 +2,6 @@ import type React from 'react';
 import {SceneNarration} from '../components/Narration';
 import {Interactive, useCurrentFrame, useVideoConfig, type InteractivitySchema} from 'remotion';
 import {AnomalyCallout} from '../components/AnomalyCallout';
-import {Caption} from '../components/Caption';
 import {DataTable, ROW_H} from '../components/DataTable';
 import {Heading, SceneShell} from '../components/Shell';
 import {cols, rowsOf, WIDE_KEYS} from '../data';
@@ -99,37 +98,7 @@ const ProblemSceneInner: React.FC<{readonly style?: React.CSSProperties}> = ({st
       <AnomalyCallout name="Delete anomaly" from={1305} durationInFrames={285} premountFor={fps} title="Delete anomaly" style={{left: 290, top: 730}}>
         one delete erases unrelated facts
       </AnomalyCallout>
-
-      <Caption name="C1 wide table" from={15} durationInFrames={165} premountFor={fps}>
-        A university stores all its enrollments in one wide table.
-      </Caption>
-      <Caption name="C2 key" from={180} durationInFrames={180} premountFor={fps}>
-        Its key is (`student_id`, `course_id`): one row per student and course.
-      </Caption>
-      <Caption name="C3 look closer" from={360} durationInFrames={210} premountFor={fps}>
-        Look closer: Ana Ruiz appears twice, Databases three times, Computing five times.
-      </Caption>
-      <Caption name="C4 redundancy" from={570} durationInFrames={165} premountFor={fps}>
-        That is redundancy: one fact stored many times. It leads to three anomalies.
-      </Caption>
-      <Caption name="C5 update" from={735} durationInFrames={135} premountFor={fps}>
-        Update anomaly: we rename course C10 in just one row…
-      </Caption>
-      <Caption name="C6 update result" from={870} durationInFrames={150} premountFor={fps}>
-        …so C10 now has two different names. The data is inconsistent.
-      </Caption>
-      <Caption name="C7 insert" from={1020} durationInFrames={135} premountFor={fps}>
-        Insert anomaly: a new course, C30 Marketing, has no students yet.
-      </Caption>
-      <Caption name="C8 insert result" from={1155} durationInFrames={150} premountFor={fps}>
-        It can't be stored: `student_id` is part of the key, so it can't be empty.
-      </Caption>
-      <Caption name="C9 delete" from={1305} durationInFrames={135} premountFor={fps}>
-        Delete anomaly: Ana drops Statistics, the course's only enrollment.
-      </Caption>
-      <Caption name="C10 delete result" from={1440} durationInFrames={150} premountFor={fps}>
-        Deleting that row also erases course C20 and the Maths department.
-      </Caption>
+         
     </SceneShell>
   );
 };

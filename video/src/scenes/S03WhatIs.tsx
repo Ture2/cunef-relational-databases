@@ -1,7 +1,6 @@
 import type React from 'react';
 import {SceneNarration} from '../components/Narration';
 import {Interactive, useCurrentFrame, useVideoConfig, type InteractivitySchema} from 'remotion';
-import {Caption} from '../components/Caption';
 import {Heading, SceneShell} from '../components/Shell';
 import {prog} from '../anim';
 import {C, TONES} from '../theme';
@@ -152,22 +151,7 @@ const WhatIsSceneInner: React.FC<{readonly style?: React.CSSProperties}> = ({sty
       >
         <b>Denormalization</b>: a deliberate trade-off for read-heavy analytics.
       </Interactive.Div>
-
-      <Caption name="C1 definition" from={0} durationInFrames={195} premountFor={fps}>
-        Normalization decomposes a table into smaller tables, guided by functional dependencies.
-      </Caption>
-      <Caption name="C2 goal" from={195} durationInFrames={135} premountFor={fps}>
-        The goal: every fact is stored once, in one place.
-      </Caption>
-      <Caption name="C3 pros" from={330} durationInFrames={240} premountFor={fps}>
-        Pros: less redundancy, no anomalies, simpler updates and less storage.
-      </Caption>
-      <Caption name="C4 cons" from={570} durationInFrames={240} premountFor={fps}>
-        Cons: more tables and joins, slower reads for some queries, and design effort.
-      </Caption>
-      <Caption name="C5 denormalization" from={810} durationInFrames={240} premountFor={fps}>
-        Denormalizing on purpose is a valid trade-off for read-heavy analytics.
-      </Caption>
+    
     </SceneShell>
   );
 };

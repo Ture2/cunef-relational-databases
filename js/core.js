@@ -24,6 +24,10 @@ const THEORY_QUIZ_TOPICS = langData('THEORY_QUIZ_TOPICS');
 const THEORY_QUIZ = langData('THEORY_QUIZ');
 const LOGICAL_RULES = langData('LOGICAL_RULES');
 const NORM_THEORY = langData('NORM_THEORY');
+const SQL_CONCEPTS = langData('SQL_CONCEPTS');
+const SQL_QUIZ_TOPICS = langData('SQL_QUIZ_TOPICS');
+const SQL_QUIZ = langData('SQL_QUIZ');
+const SQL_SANDBOX = langData('SQL_SANDBOX');
 
 /* Storage key for work that depends on the language (tables built with translated names). */
 const langKey = (key) => (LANG === 'en' ? key : `${key}-${LANG}`);
@@ -46,6 +50,23 @@ const ICON = {
   key: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="5" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M7.6 8H14M11.6 8v2.6M14 8v2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
 };
 
+/* Saves text as a file on the viewer's device; it is built in the browser and never uploaded. */
+function downloadText(filename, text, type = 'text/plain') {
+  const url = URL.createObjectURL(new Blob([text], { type: `${type};charset=utf-8` }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* Tells the progress view (js/progress.js) that something saved changed. */
+const progressChanged = (key) => {
+  try { window.dispatchEvent(new CustomEvent('progress-change', { detail: key })); } catch (e) { /* old browser */ }
+};
+
 /* A JSON value saved in the browser (this device only). Works, without saving, when storage is blocked. */
 function makeStore(key) {
   return {
@@ -54,6 +75,7 @@ function makeStore(key) {
     },
     save(data) {
       try { localStorage.setItem(key, JSON.stringify(data)); } catch (e) { /* no storage available */ }
+      progressChanged(key);
     },
     clear() {
       try { localStorage.removeItem(key); } catch (e) { /* no storage available */ }

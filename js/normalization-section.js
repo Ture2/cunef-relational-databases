@@ -15,7 +15,6 @@ const NormalizationSection = (() => {
   const VIDEO = {
     src: 'assets/video/normalization.mp4',
     poster: 'assets/video/normalization-poster.jpg',
-    captions: 'assets/video/normalization.en.vtt',
     /* Chapter starts in seconds: the scene offsets of video/src/timeline.ts. */
     chapters: [
       [0, 'Introduction'], [12, 'The problem: anomalies'], [65, 'What normalization is'],
@@ -31,13 +30,12 @@ const NormalizationSection = (() => {
         <div class="video-frame">
           <video id="norm-video" controls preload="metadata" playsinline poster="${VIDEO.poster}">
             <source src="${VIDEO.src}" type="video/mp4">
-            <track kind="captions" src="${VIDEO.captions}" srclang="en" label="English"${LANG !== 'en' ? ' default' : ''}>
             <p>${esc(t('Your browser cannot play this video.'))} <a href="${VIDEO.src}">${esc(t('Download it (MP4)'))}</a></p>
           </video>
         </div>
         <h3 class="video-ch-h">${esc(t('Chapters'))}</h3>
         <ol class="video-chapters">${VIDEO.chapters.map(([s, name]) => `<li><button type="button" class="chapter" data-action="v-seek" data-t="${s}" data-fid="ch-${s}"><span class="ch-time">${clock(s)}</span><span>${esc(chapterLabel(name))}</span></button></li>`).join('')}</ol>
-        <p class="meta">${esc(t('6 minutes · English narration with captions.'))} <a href="${VIDEO.src}" download>${esc(t('Download (MP4, 19 MB)'))}</a></p>
+        <p class="meta">${esc(t('6 minutes · English narration.'))} <a href="${VIDEO.src}" download>${esc(t('Download (MP4, 18 MB)'))}</a></p>
       </section>`;
   }
 

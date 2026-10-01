@@ -1,7 +1,6 @@
 import type React from 'react';
 import {SceneNarration} from '../components/Narration';
 import {Interactive, useCurrentFrame, useVideoConfig, type InteractivitySchema} from 'remotion';
-import {Caption} from '../components/Caption';
 import {DataTable, ROW_H, type Column} from '../components/DataTable';
 import {Chip, Heading, SceneShell} from '../components/Shell';
 import {prog, window01} from '../anim';
@@ -61,19 +60,7 @@ const FirstNFSceneInner: React.FC<{readonly style?: React.CSSProperties}> = ({st
       <Chip tone="yellow" style={{left: 1400, top: 470, opacity: prog(f, 19.3, 20), scale: `${0.8 + 0.2 * prog(f, 19.3, 20)}`}}>
         1NF ✓
       </Chip>
-
-      <Caption name="C1 rule" from={0} durationInFrames={180} premountFor={fps}>
-        1NF: every cell holds a single, atomic value. No lists, no repeating groups.
-      </Caption>
-      <Caption name="C2 violation" from={180} durationInFrames={180} premountFor={fps}>
-        Here one cell holds two phone numbers. That breaks 1NF.
-      </Caption>
-      <Caption name="C3 split" from={360} durationInFrames={210} premountFor={fps}>
-        Split it: one row per phone. Now every value is atomic.
-      </Caption>
-      <Caption name="C4 enrollment" from={570} durationInFrames={180} premountFor={fps}>
-        Our Enrollment table already met 1NF: one value in every cell.
-      </Caption>
+   
     </SceneShell>
   );
 };

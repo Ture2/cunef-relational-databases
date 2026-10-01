@@ -2,7 +2,6 @@ import type React from 'react';
 import {SceneNarration} from '../components/Narration';
 import {Interactive, useCurrentFrame, useVideoConfig, type InteractivitySchema} from 'remotion';
 import {prog, window01} from '../anim';
-import {Caption} from '../components/Caption';
 import {colX, DataTable, ROW_H} from '../components/DataTable';
 import {Heading, SceneShell} from '../components/Shell';
 import {rowsOf, WIDE_KEYS} from '../data';
@@ -158,25 +157,7 @@ const SecondNFSceneInner: React.FC<{readonly style?: React.CSSProperties}> = ({s
           return c > 0 && crs.tint > 0 ? {bg: TONES.orange.soft} : undefined;
         }}
       />
-
-      <Caption name="C1 rule" from={0} durationInFrames={180} premountFor={fps}>
-        2NF: 1NF, and no non-key attribute depends on only part of the key.
-      </Caption>
-      <Caption name="C2 student" from={180} durationInFrames={210} premountFor={fps}>
-        `student_name` depends on `student_id` alone: it moves to Student.
-      </Caption>
-      <Caption name="C3 course" from={390} durationInFrames={240} premountFor={fps}>
-        The course columns depend on `course_id` alone: they move to Course.
-      </Caption>
-      <Caption name="C4 enrollment" from={630} durationInFrames={240} premountFor={fps}>
-        Enrollment keeps the full key and grade. Both key columns are now foreign keys.
-      </Caption>
-      <Caption name="C5 once" from={870} durationInFrames={180} premountFor={fps}>
-        Each student and each course is now stored once.
-      </Caption>
-      <Caption name="C6 anomalies gone" from={1050} durationInFrames={150} premountFor={fps}>
-        New courses need no students; a rename touches one row.
-      </Caption>
+     
     </SceneShell>
   );
 };

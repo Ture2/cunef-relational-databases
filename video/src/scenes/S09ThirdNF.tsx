@@ -2,7 +2,6 @@ import type React from 'react';
 import {SceneNarration} from '../components/Narration';
 import {Interactive, useCurrentFrame, useVideoConfig, type InteractivitySchema} from 'remotion';
 import {prog, window01} from '../anim';
-import {Caption} from '../components/Caption';
 import {DataTable, geom} from '../components/DataTable';
 import {DependencyArrow} from '../components/DependencyArrow';
 import {Chip, Heading, SceneShell} from '../components/Shell';
@@ -107,22 +106,7 @@ const ThirdNFSceneInner: React.FC<{readonly style?: React.CSSProperties}> = ({st
       <Chip tone="maroon" style={{left: 85, top: 600, opacity: prog(f, 28.3, 29), scale: `${0.8 + 0.2 * prog(f, 28.3, 29)}`}}>
         3NF ✓
       </Chip>
-
-      <Caption name="C1 rule" from={0} durationInFrames={180} premountFor={fps}>
-        3NF: 2NF, and no non-key attribute depends on another non-key attribute.
-      </Caption>
-      <Caption name="C2 violation" from={180} durationInFrames={210} premountFor={fps}>
-        In Course, `dept_name` depends on `dept_id`, not directly on `course_id`.
-      </Caption>
-      <Caption name="C3 move" from={390} durationInFrames={240} premountFor={fps}>
-        Move it to Department, keyed by `dept_id`. Course keeps `dept_id` as a foreign key.
-      </Caption>
-      <Caption name="C4 once" from={630} durationInFrames={210} premountFor={fps}>
-        Computing is now stored once: renaming a department is one update.
-      </Caption>
-      <Caption name="C5 done" from={840} durationInFrames={210} premountFor={fps}>
-        Four tables, each fact in exactly one place. The design is in 3NF.
-      </Caption>
+    
     </SceneShell>
   );
 };

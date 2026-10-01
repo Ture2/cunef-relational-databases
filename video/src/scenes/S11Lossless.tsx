@@ -2,7 +2,6 @@ import type React from 'react';
 import {SceneNarration} from '../components/Narration';
 import {Interactive, useCurrentFrame, useVideoConfig, type InteractivitySchema} from 'remotion';
 import {prog} from '../anim';
-import {Caption} from '../components/Caption';
 import {DataTable} from '../components/DataTable';
 import {Ladder} from '../components/Ladder';
 import {Chip, Heading, SceneShell} from '../components/Shell';
@@ -78,19 +77,7 @@ const LosslessSceneInner: React.FC<{readonly style?: React.CSSProperties}> = ({s
         6 rows = original 6 ✓
       </Chip>
       <Ladder name="Ladder" from={330} durationInFrames={360} premountFor={fps} stagger={20} />
-
-      <Caption name="C1 join back" from={0} durationInFrames={165} premountFor={fps}>
-        Lossless join: join the tables back on their keys…
-      </Caption>
-      <Caption name="C2 rows reappear" from={165} durationInFrames={165} premountFor={fps}>
-        …and exactly the original six rows reappear. Nothing lost, nothing invented.
-      </Caption>
-      <Caption name="C3 recap" from={330} durationInFrames={180} premountFor={fps}>
-        Recap: each normal form removes one kind of problem.
-      </Caption>
-      <Caption name="C4 ladder" from={510} durationInFrames={180} premountFor={fps}>
-        Each step builds on the previous one: 1NF → 2NF → 3NF → BCNF.
-      </Caption>
+   
     </SceneShell>
   );
 };

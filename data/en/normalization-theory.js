@@ -39,7 +39,7 @@ DATA.en.NORM_THEORY = [
     title: 'Video: normalization step by step',
     summary: 'A six-minute walk-through of the whole path, from one messy table to 1NF, 2NF, 3NF and BCNF, with the same example as these cards.',
     body: [
-      'Watch it once before the cards, or use the chapters to jump to the step you need. The captions are in English.',
+      'Watch it once before the cards, or use the chapters to jump to the step you need.',
     ],
     video: true,
   },

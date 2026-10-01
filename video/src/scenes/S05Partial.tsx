@@ -1,7 +1,6 @@
 import type React from 'react';
 import {SceneNarration} from '../components/Narration';
 import {Interactive, useCurrentFrame, useVideoConfig, type InteractivitySchema} from 'remotion';
-import {Caption} from '../components/Caption';
 import {DataTable, geom, HEAD_H} from '../components/DataTable';
 import {DependencyArrow} from '../components/DependencyArrow';
 import {Chip, Heading, SceneShell} from '../components/Shell';
@@ -142,22 +141,7 @@ const PartialSceneInner: React.FC<{readonly style?: React.CSSProperties}> = ({st
       <Chip tone="blue" style={{left: 1540, top: 70, opacity: prog(f, 25.2, 26), scale: `${0.8 + 0.2 * prog(f, 25.2, 26)}`}}>
         → 2NF
       </Chip>
-
-      <Caption name="C1 composite key" from={0} durationInFrames={180} premountFor={fps}>
-        The key of Enrollment is composite: (`student_id`, `course_id`).
-      </Caption>
-      <Caption name="C2 full" from={180} durationInFrames={180} premountFor={fps}>
-        grade depends on the whole key. That is a full dependency.
-      </Caption>
-      <Caption name="C3 partial student" from={360} durationInFrames={195} premountFor={fps}>
-        `student_name` depends on `student_id` alone, just part of the key: a partial dependency.
-      </Caption>
-      <Caption name="C4 partial course" from={555} durationInFrames={195} premountFor={fps}>
-        course_name, credits, dept_id and dept_name depend on `course_id` alone: partial too.
-      </Caption>
-      <Caption name="C5 2NF" from={750} durationInFrames={150} premountFor={fps}>
-        2NF removes partial dependencies.
-      </Caption>
+    
     </SceneShell>
   );
 };

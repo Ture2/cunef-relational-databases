@@ -40,6 +40,7 @@ const store = {
   },
   save(data) {
     try { localStorage.setItem(this.key, JSON.stringify(data)); } catch (e) { /* no storage available */ }
+    progressChanged(this.key);
   },
 };
 const progress = Object.assign({ solved: {}, quizBest: 0, quizBestAdv: 0 }, store.load());

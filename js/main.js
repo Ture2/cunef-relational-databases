@@ -6,6 +6,8 @@
      #/relational/er[/card | /quiz[/topic]]       ER concepts and quiz
      #/relational/logical[/rule | /practice[/N]]  ER → logical rules and exercises
      #/relational/normalization[/card | /practice[/N] | /diagnose[/advanced]]
+     #/relational/sql[/card | /quiz[/topic] | /practice]  SQL concepts, quiz and sandbox
+     #/progress                                   Progress across every section
      #/nosql                                      Non-relational overview
    Old links (#/normalize/N, #/diagnose..., …/logical/N, …/normalization/N) are redirected.
    ========================================================================== */
@@ -19,6 +21,7 @@
         { id: 'er', href: '#/relational/er', label: t('ER concepts'), module: ErSection },
         { id: 'logical', href: '#/relational/logical', label: t('ER → Logical'), module: LogicalRulesSection },
         { id: 'normalization', href: '#/relational/normalization', label: t('Normalization'), module: NormalizationSection },
+        { id: 'sql', href: '#/relational/sql', label: t('SQL'), module: SqlSection },
       ],
     },
     nosql: {
@@ -34,6 +37,7 @@
   function translateShell() {
     $('.skip').textContent = t('Skip to content');
     $('.brand-name').textContent = t('Databases practice');
+    $('.progress-label').textContent = t('Progress');
     $('#footer-course').textContent = t('Databases · Escuela Politécnica Superior');
     const meta = document.querySelector('meta[name="description"]');
     if (meta) meta.setAttribute('content', t('Interactive databases practice: ER concepts, ER to logical model transformation with instant checking, and normalization up to 5NF.'));
@@ -105,7 +109,8 @@
     const hash = location.hash;
     const old = legacy(hash);
     if (old) { history.replaceState(null, '', old); return parse(); }
-    let m = hash.match(/^#\/relational\/(theory|er|logical|normalization)(?:\/(.*))?$/);
+    if (hash === '#/progress') return { course: 'relational', section: 'progress', rest: '' };
+    let m = hash.match(/^#\/relational\/(theory|er|logical|normalization|sql)(?:\/(.*))?$/);
     if (m) return { course: 'relational', section: m[1], rest: m[2] || '' };
     m = hash.match(/^#\/nosql(?:\/(.*))?$/);
     if (m) return { course: 'nosql', section: 'overview', rest: m[1] || '' };
@@ -127,11 +132,15 @@
     if (!route) { history.replaceState(null, '', '#/relational/theory'); render(); return; }
     header(route);
     // Every relational section draws a full-height rail on the left edge, so it uses the full width.
-    $('#main').classList.toggle('is-wide', route.course === 'relational');
-    const section = COURSES[route.course].sections.find((s) => s.id === route.section);
+    $('#main').classList.toggle('is-wide', route.course === 'relational' && route.section !== 'progress');
+    const section = route.section === 'progress'
+      ? { module: ProgressPage }
+      : COURSES[route.course].sections.find((s) => s.id === route.section);
     current = section.module;
+    $('#progress-btn').toggleAttribute('aria-current', route.section === 'progress');
     const title = current.render(route.rest);
     document.title = `${title} · ${t('Databases practice')}`;
+    ProgressPage.updateButton();
     // Keep the current exercise tab visible when the strip scrolls sideways (phones).
     const tab = view.querySelector('.numtab[aria-current]');
     if (tab) { const strip = tab.closest('.numtabs'); strip.scrollLeft = tab.offsetLeft - (strip.clientWidth - tab.offsetWidth) / 2; }
@@ -146,6 +155,7 @@
   });
   view.addEventListener('input', (e) => { if (current && current.onInput) current.onInput(e); });
   view.addEventListener('change', (e) => { if (current && current.onChange) current.onChange(e); });
+  view.addEventListener('keydown', (e) => { if (current && current.onKeydown) current.onKeydown(e); });
   view.addEventListener('submit', (e) => {
     e.preventDefault();
     if (current && current.onSubmit) current.onSubmit(e.target);

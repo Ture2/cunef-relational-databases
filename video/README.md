@@ -4,7 +4,7 @@ Remotion project for a ~6-minute educational video (English, 1920×1080, 30 fps,
 
 - Script and timeline: [`SCRIPT.md`](SCRIPT.md)
 - Scene timing (single source): `src/timeline.ts`
-- Scenes: `src/scenes/`, reusable pieces: `src/components/` (`DataTable`, `DependencyArrow`, `Caption`, `Ladder`, `AnomalyCallout`)
+- Scenes: `src/scenes/`, reusable pieces: `src/components/` (`DataTable`, `DependencyArrow`, `Ladder`, `AnomalyCallout`)
 
 ## Setup
 
@@ -31,8 +31,7 @@ A single frame: `npx remotion still Normalization out/stills/frame.png --frame=1
 For the website (`../assets/video/`, committed and served by GitHub Pages):
 
 ```bash
-npm run render:site   # 720p H.264 (~19 MB), poster frame and WebVTT captions
-npm run captions      # only the captions, from src/narration.json + src/timeline.ts
+npm run render:site   # 720p H.264 (~18 MB) and the poster frame
 ```
 
 `out/` stays gitignored; the site copy lives in `assets/video/`. If the scenes change, also update the chapter times in `js/normalization-section.js`.

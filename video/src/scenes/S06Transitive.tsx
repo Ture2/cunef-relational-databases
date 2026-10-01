@@ -1,7 +1,6 @@
 import type React from 'react';
 import {SceneNarration} from '../components/Narration';
 import {Interactive, useCurrentFrame, useVideoConfig, type InteractivitySchema} from 'remotion';
-import {Caption} from '../components/Caption';
 import {DataTable, geom} from '../components/DataTable';
 import {DependencyArrow} from '../components/DependencyArrow';
 import {Chip, Heading, SceneShell} from '../components/Shell';
@@ -66,19 +65,7 @@ const TransitiveSceneInner: React.FC<{readonly style?: React.CSSProperties}> = (
       <Chip tone="maroon" style={{left: 1540, top: 70, opacity: prog(f, 19.2, 20), scale: `${0.8 + 0.2 * prog(f, 19.2, 20)}`}}>
         → 3NF
       </Chip>
-
-      <Caption name="C1 chain" from={0} durationInFrames={180} premountFor={fps}>
-        Now follow a chain: `course_id → dept_id → dept_name`.
-      </Caption>
-      <Caption name="C2 describes department" from={180} durationInFrames={180} premountFor={fps}>
-        dept_name describes the department, not the course.
-      </Caption>
-      <Caption name="C3 only through" from={360} durationInFrames={210} premountFor={fps}>
-        It depends on the key only through `dept_id`, which is not a key attribute.
-      </Caption>
-      <Caption name="C4 transitive" from={570} durationInFrames={180} premountFor={fps}>
-        That is a transitive dependency. 3NF removes it.
-      </Caption>
+   
     </SceneShell>
   );
 };
