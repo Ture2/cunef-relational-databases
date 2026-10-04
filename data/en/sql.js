@@ -1,64 +1,126 @@
 'use strict';
 /* SQL: concept cards (js/sql.js), quiz and sandbox.
    Card fields: those of js/concept-section.js, plus
-     sql      { setup, query, expectError? }: a runnable SQLite example (js/sql-runner.js). The setup
-              runs first in a fresh database; the query is what the student edits. expectError marks
-              examples whose last statement fails on purpose (the self-check in the README uses it).
-     code + dialect   a static example for features SQLite does not have (roles, partitions…).
+     sql      { setup, query, expectError? }: a runnable example written in ORACLE (the course practises on
+              freesql.com); js/oracle-dialect.js translates it to SQLite in the browser. The setup runs first
+              in a fresh database; the query is what the student edits. expectError marks examples whose
+              last statement fails on purpose (tools/check-cards.mjs uses it).
+     code + dialect   a static Oracle example for features the sandbox cannot simulate (roles, partitions…).
    The runnable examples share the enrolment schema of the Normalization section (student, course,
    department, enrolment); the efficiency cards add a customer / orders table with many rows. */
 (() => {
   const SCHOOL = `CREATE TABLE department (
-  dept_id TEXT PRIMARY KEY,
-  name    TEXT NOT NULL UNIQUE
+  dept_id VARCHAR2(3) PRIMARY KEY,
+  name    VARCHAR2(30) NOT NULL UNIQUE
 );
 CREATE TABLE student (
-  student_id TEXT PRIMARY KEY,
-  name       TEXT NOT NULL,
-  email      TEXT UNIQUE
+  student_id VARCHAR2(3) PRIMARY KEY,
+  name       VARCHAR2(40) NOT NULL,
+  email      VARCHAR2(40) UNIQUE
 );
 CREATE TABLE course (
-  course_id TEXT PRIMARY KEY,
-  title     TEXT NOT NULL,
-  credits   REAL NOT NULL CHECK (credits > 0),
-  dept_id   TEXT NOT NULL REFERENCES department (dept_id)
+  course_id VARCHAR2(3) PRIMARY KEY,
+  title     VARCHAR2(40) NOT NULL,
+  credits   NUMBER(3,1) NOT NULL CHECK (credits > 0),
+  dept_id   VARCHAR2(3) NOT NULL REFERENCES department (dept_id)
 );
 CREATE TABLE enrolment (
-  student_id TEXT REFERENCES student (student_id) ON DELETE CASCADE,
-  course_id  TEXT REFERENCES course (course_id),
-  grade      REAL CHECK (grade BETWEEN 0 AND 10),
+  student_id VARCHAR2(3) REFERENCES student (student_id) ON DELETE CASCADE,
+  course_id  VARCHAR2(3) REFERENCES course (course_id),
+  grade      NUMBER(4,2) CHECK (grade BETWEEN 0 AND 10),
   PRIMARY KEY (student_id, course_id)
 );
-INSERT INTO department VALUES ('D01', 'Computing'), ('D02', 'Maths');
-INSERT INTO student VALUES ('S01', 'Ana Ruiz', 'ana@uni.es'), ('S02', 'Luis Gil', 'luis@uni.es'), ('S03', 'Eva Sanz', NULL);
-INSERT INTO course VALUES ('C10', 'Databases', 6, 'D01'), ('C11', 'Python', 4.5, 'D01'), ('C20', 'Statistics', 6, 'D02'), ('C30', 'Marketing', 3, 'D02');
-INSERT INTO enrolment VALUES ('S01', 'C10', 8.5), ('S01', 'C20', 7.0), ('S02', 'C10', 6.5), ('S02', 'C11', 9.0), ('S03', 'C10', 5.0), ('S03', 'C11', 7.5);`;
+INSERT INTO department VALUES ('D01', 'Computing');
+INSERT INTO department VALUES ('D02', 'Maths');
+INSERT INTO student VALUES ('S01', 'Ana Ruiz', 'ana@uni.es');
+INSERT INTO student VALUES ('S02', 'Luis Gil', 'luis@uni.es');
+INSERT INTO student VALUES ('S03', 'Eva Sanz', NULL);
+INSERT INTO course VALUES ('C10', 'Databases', 6, 'D01');
+INSERT INTO course VALUES ('C11', 'Python', 4.5, 'D01');
+INSERT INTO course VALUES ('C20', 'Statistics', 6, 'D02');
+INSERT INTO course VALUES ('C30', 'Marketing', 3, 'D02');
+INSERT INTO enrolment VALUES ('S01', 'C10', 8.5);
+INSERT INTO enrolment VALUES ('S01', 'C20', 7.0);
+INSERT INTO enrolment VALUES ('S02', 'C10', 6.5);
+INSERT INTO enrolment VALUES ('S02', 'C11', 9.0);
+INSERT INTO enrolment VALUES ('S03', 'C10', 5.0);
+INSERT INTO enrolment VALUES ('S03', 'C11', 7.5);
+COMMIT;`;
 
-  /* 50,000 customers and 100,000 orders, generated with a recursive query (about 0.2 s). */
+  /* 50,000 customers and 100,000 orders, generated with CONNECT BY LEVEL (about 0.2 s). */
   const SHOP = `CREATE TABLE customer (
-  customer_id INTEGER PRIMARY KEY,
-  email       TEXT NOT NULL,
-  city        TEXT NOT NULL,
-  signup_date TEXT NOT NULL
+  customer_id NUMBER(6) PRIMARY KEY,
+  email       VARCHAR2(60) NOT NULL,
+  city        VARCHAR2(20) NOT NULL,
+  signup_date DATE NOT NULL
 );
 CREATE TABLE orders (
-  order_id    INTEGER PRIMARY KEY,
-  customer_id INTEGER NOT NULL REFERENCES customer (customer_id),
-  order_date  TEXT NOT NULL,
-  total       REAL NOT NULL
+  order_id    NUMBER(7) PRIMARY KEY,
+  customer_id NUMBER(6) NOT NULL REFERENCES customer (customer_id),
+  order_date  DATE NOT NULL,
+  total       NUMBER(8,2) NOT NULL
 );
-WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 50000)
 INSERT INTO customer
-SELECT i, 'user' || i || '@mail.com',
-       CASE i % 5 WHEN 0 THEN 'Madrid' WHEN 1 THEN 'Barcelona' WHEN 2 THEN 'Valencia' WHEN 3 THEN 'Sevilla' ELSE 'Bilbao' END,
-       date('2020-01-01', '+' || (i % 1500) || ' days')
-FROM n;
-WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 100000)
+SELECT LEVEL, 'user' || LEVEL || '@mail.com',
+       CASE MOD(LEVEL, 5) WHEN 0 THEN 'Madrid' WHEN 1 THEN 'Barcelona' WHEN 2 THEN 'Valencia' WHEN 3 THEN 'Sevilla' ELSE 'Bilbao' END,
+       DATE '2020-01-01' + MOD(LEVEL, 1500)
+FROM dual CONNECT BY LEVEL <= 50000;
 INSERT INTO orders
-SELECT i, 1 + (i * 7919) % 50000, date('2023-01-01', '+' || (i % 700) || ' days'), round(5 + (i % 400) * 0.75, 2)
-FROM n;`;
+SELECT LEVEL, 1 + MOD(LEVEL * 7919, 50000), DATE '2023-01-01' + MOD(LEVEL, 700), ROUND(5 + MOD(LEVEL, 400) * 0.75, 2)
+FROM dual CONNECT BY LEVEL <= 100000;
+COMMIT;`;
 
   DATA.en.SQL_CONCEPTS = [
+    /* ───────────── Oracle and FreeSQL ───────────── */
+    {
+      id: 'freesql',
+      hub: 'oracle',
+      topic: 'oracle',
+      title: 'Practising on Oracle with FreeSQL',
+      summary: '**FreeSQL** (freesql.com) is Oracle\'s free online worksheet: you write Oracle SQL in the browser and run it on a real Oracle database, with nothing to install. It is where you practise in this course.',
+      body: [
+        'Every runnable example of this website is written in **Oracle SQL**. The page runs a browser simulation so you get an instant answer, but the reference is the real thing: use the **Copy and open FreeSQL** button under any example and paste the script in the worksheet.',
+        'In the worksheet you choose the **database version** (use 23ai or 26ai: the scripts of this site use features from 23ai such as `DROP TABLE IF EXISTS`), write your SQL, and run a single statement or the whole script. Signing in with a free Oracle account lets you save and share your scripts and get a connection string for tools such as SQL Developer.',
+        'The scripts copied from this site start by dropping the tables they create, so you can run them again and again on a clean slate.',
+      ],
+      points: [
+        'Run one statement: put the cursor in it and run. Run the whole script: use the script option of the worksheet.',
+        'Your schema persists between sessions: drop what you no longer need.',
+        'The simulation here does not support PL/SQL, partitioning, sequences or privileges: for those, FreeSQL is the only place to run them.',
+      ],
+      mistake: 'Trusting only the simulation. It translates a subset of Oracle to a different engine: when its result surprises you, check it in FreeSQL.',
+    },
+    {
+      id: 'oracle-dialect',
+      hub: 'oracle',
+      topic: 'oracle',
+      title: 'Oracle compared with other SQL dialects',
+      summary: 'SQL is a standard, but every DBMS has its own dialect. Most errors of students who learned SQL elsewhere come from a few differences: row limiting, types, dates, empty strings and transactions.',
+      body: [
+        'The sandbox warns you when the code you typed would not work on Oracle (for example, if you write `LIMIT`) and shows the error as Oracle would report it, such as `ORA-00942: table or view does not exist`.',
+      ],
+      table: {
+        caption: 'Oracle versus SQLite, PostgreSQL and MySQL',
+        head: ['Topic', 'Oracle', 'Others'],
+        rows: [
+          ['First n rows', '`FETCH FIRST n ROWS ONLY`', '`LIMIT n`'],
+          ['Set difference', '`MINUS`', '`EXCEPT`'],
+          ['Text type', '`VARCHAR2(n)`, `CLOB`', '`TEXT`, `VARCHAR(n)`'],
+          ['Numbers', '`NUMBER(p, s)`', '`INTEGER`, `NUMERIC`, `REAL`'],
+          ['Auto number', '`GENERATED ALWAYS AS IDENTITY`', '`AUTOINCREMENT`, `SERIAL`, `AUTO_INCREMENT`'],
+          ['Current date', '`SYSDATE`', '`date(\'now\')`, `CURRENT_DATE`, `NOW()`'],
+          ['Date literal', '`DATE \'2024-01-31\'`, `TO_DATE(…)`', 'A plain string'],
+          ['Null replacement', '`NVL(a, b)`, `COALESCE`', '`IFNULL(a, b)`'],
+          ['Empty string', 'Is **NULL**', 'Is an empty string'],
+          ['Select without table', '`SELECT 1 FROM dual`', '`SELECT 1`'],
+          ['Transactions', 'Start with the first DML; DDL commits', '`BEGIN` / `START TRANSACTION`'],
+          ['Data dictionary', '`USER_TABLES`, `USER_TAB_COLUMNS`', '`sqlite_master`, `information_schema`'],
+          ['Execution plan', '`EXPLAIN PLAN FOR` + `DBMS_XPLAN`', '`EXPLAIN`'],
+        ],
+      },
+      mistake: 'Writing a comparison like `WHERE signup_date >= \'2024-01-01\'` against a DATE column. It relies on the session\'s date format and often fails (ORA-01861); write `DATE \'2024-01-01\'`.',
+    },
+
     /* ───────────── SQL languages ───────────── */
     {
       id: 'sql-languages',
@@ -91,26 +153,28 @@ FROM n;`;
       summary: '**CREATE** builds an object, **ALTER** changes it and **DROP** removes it, data included. DDL turns the logical model into real tables.',
       body: [
         'A `CREATE TABLE` lists the columns with their **types** and the **constraints** that every row must respect: primary key, foreign keys, NOT NULL, UNIQUE, CHECK. Writing them in the schema means the DBMS enforces them for every program that uses the data.',
-        '`ALTER TABLE` adds or removes columns and constraints on a table that already has data. `DROP TABLE` deletes the definition and all its rows. Run the example, then try `SELECT * FROM course;` after the DROP: the table is gone.',
+        '`ALTER TABLE` adds or removes columns and constraints on a table that already has data. `DROP TABLE` deletes the definition and all its rows. Run the example, then query `USER_TABLES` after the DROP: the table is gone.',
+        'In Oracle every DDL statement **commits** the open transaction before and after it, so a DDL cannot be rolled back.',
       ],
       points: [
-        'Types: `INTEGER`, `NUMERIC(p, s)`, `VARCHAR(n)` / `TEXT`, `DATE`, `TIMESTAMP`, `BOOLEAN`… (each DBMS has its own list).',
-        'Each DDL statement updates the data dictionary, which you can query: here, `sqlite_master`.',
+        'Oracle types: `VARCHAR2(n)` for text, `NUMBER(p, s)` for every number, `DATE` (it also stores the time), `TIMESTAMP`, `CLOB`, `BLOB`. From 23ai there is also `BOOLEAN`.',
+        'Auto-numbered keys use `GENERATED ALWAYS AS IDENTITY`; there is no AUTOINCREMENT.',
+        'Each DDL statement updates the data dictionary, which you can query: `USER_TABLES`, `USER_TAB_COLUMNS`, `USER_INDEXES`, `USER_CONSTRAINTS`.',
       ],
       mistake: 'Dropping and re-creating a table to change one column. `ALTER TABLE` keeps the rows; `DROP` loses them.',
       sql: {
         setup: '',
         query: `CREATE TABLE course (
-  course_id TEXT PRIMARY KEY,
-  title     TEXT NOT NULL,
-  credits   REAL NOT NULL
+  course_id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  title     VARCHAR2(40) NOT NULL,
+  credits   NUMBER(3,1) NOT NULL
 );
-ALTER TABLE course ADD COLUMN semester INTEGER;
-INSERT INTO course VALUES ('C10', 'Databases', 6, 1);
+ALTER TABLE course ADD (semester NUMBER(1));
+INSERT INTO course (title, credits, semester) VALUES ('Databases', 6, 1);
 SELECT * FROM course;
-SELECT name, sql FROM sqlite_master WHERE type = 'table';
+SELECT table_name FROM user_tables;
 DROP TABLE course;
-SELECT name FROM sqlite_master WHERE type = 'table';`,
+SELECT table_name FROM user_tables;`,
       },
     },
     {
@@ -122,10 +186,12 @@ SELECT name FROM sqlite_master WHERE type = 'table';`,
       body: [
         'A SELECT is evaluated in a fixed logical order: `FROM` and `JOIN` build the rows, `WHERE` filters them, `GROUP BY` groups them, `HAVING` filters the groups, `SELECT` picks the columns and `ORDER BY` sorts the result.',
         'UPDATE and DELETE without a WHERE change the whole table. Before running one, write the same WHERE in a SELECT and check which rows it returns.',
+        'In Oracle the changes of INSERT, UPDATE and DELETE stay **uncommitted** until you run `COMMIT`; other sessions do not see them yet.',
       ],
       points: [
         'Joins follow the foreign keys: `enrolment.course_id = course.course_id`.',
         'The runner shows how many rows each INSERT, UPDATE or DELETE changed.',
+        'To keep only the first rows of a result use `FETCH FIRST n ROWS ONLY`; Oracle has no `LIMIT`.',
       ],
       example: 'The average grade per course is `SELECT course_id, AVG(grade) FROM enrolment GROUP BY course_id`.',
       mistake: 'Filtering an aggregate with WHERE (`WHERE AVG(grade) > 7`). WHERE runs before grouping; use `HAVING AVG(grade) > 7`.',
@@ -154,19 +220,23 @@ HAVING COUNT(*) >= 2;`,
       body: [
         'Privileges are actions on objects: `SELECT`, `INSERT`, `UPDATE`, `DELETE` on a table or view, `EXECUTE` on a function, `CREATE` in a schema. Grant them to **roles** (teacher, secretary, reporting app) rather than to each person, then make users members of roles.',
         'A **view** plus GRANT is a classic way to hide data: the reporting role can read a view with averages per course, but not the table with each student\'s grades.',
-        'SQLite is a single-user, embedded database and has no users, so this example is PostgreSQL and cannot run here.',
+        'The browser sandbox has a single user, so this example is not runnable here. On FreeSQL you work in your own schema: try the GRANTs on your tables, but creating users needs an administrator account.',
       ],
       points: [
         '`WITH GRANT OPTION` lets the receiver grant the same privilege to others; use it sparingly.',
         'REVOKE removes the privilege from that role; members lose it unless another role still grants it.',
+        'Oracle names objects as `schema.table`: `GRANT SELECT ON hr.enrolment TO teacher` refers to the table of the schema `hr`.',
       ],
-      dialect: 'PostgreSQL · not runnable here',
+      dialect: 'Oracle · not runnable here',
       code: `CREATE ROLE teacher;
 CREATE ROLE reporting;
-CREATE USER ana PASSWORD 'change-me' IN ROLE teacher;
+CREATE USER ana IDENTIFIED BY "change-me";
+GRANT CREATE SESSION TO ana;
+GRANT teacher TO ana;
 
 GRANT SELECT, INSERT, UPDATE ON enrolment TO teacher;
-GRANT SELECT ON student, course TO teacher;
+GRANT SELECT ON student TO teacher;
+GRANT SELECT ON course  TO teacher;
 
 CREATE VIEW course_average AS
   SELECT course_id, AVG(grade) AS average FROM enrolment GROUP BY course_id;
@@ -183,26 +253,25 @@ REVOKE UPDATE ON enrolment FROM teacher;`,
       summary: 'A **transaction** groups statements that must succeed or fail together. **COMMIT** makes them permanent, **ROLLBACK** undoes them, and a **SAVEPOINT** marks a point you can roll back to.',
       body: [
         'Transactions give the ACID properties of the Theory section: atomicity (all or nothing), consistency (constraints hold at commit), isolation (others do not see half-done work) and durability (a committed change survives a crash).',
-        'Most clients run in **autocommit** mode: each statement is its own transaction. `BEGIN` opens an explicit one that lasts until COMMIT or ROLLBACK.',
+        'In Oracle there is **no BEGIN**: a transaction opens by itself with your first INSERT, UPDATE or DELETE and lasts until `COMMIT` or `ROLLBACK`. (In Oracle, `BEGIN` starts a PL/SQL block.) A DDL statement commits implicitly, and so does a normal exit from the client.',
         'In the example, moving a student from one course to another is a delete plus an insert: both must happen, or neither.',
       ],
       points: [
-        '`SAVEPOINT name` … `ROLLBACK TO name` undoes only the work after the savepoint.',
+        '`SAVEPOINT name` … `ROLLBACK TO SAVEPOINT name` undoes only the work after the savepoint.',
         'Keep transactions short: while one is open, it may hold locks that make others wait.',
+        'Oracle readers never block writers (it keeps old versions of rows), and by default a query sees the data committed when the query started.',
       ],
       example: 'The second block changes a grade by mistake and rolls back to the savepoint: the move between courses is kept, the wrong grade is not.',
-      mistake: 'Running a long script in autocommit mode. If it fails halfway, the first half stays applied and the database is left in a state nobody planned.',
+      mistake: 'Running DDL in the middle of a transaction and expecting to roll back. A DDL statement commits everything before it, so the earlier changes can no longer be undone.',
       sql: {
         setup: SCHOOL,
-        query: `BEGIN;
-DELETE FROM enrolment WHERE student_id = 'S03' AND course_id = 'C11';
+        query: `DELETE FROM enrolment WHERE student_id = 'S03' AND course_id = 'C11';
 INSERT INTO enrolment VALUES ('S03', 'C20', NULL);
 SAVEPOINT before_grades;
 UPDATE enrolment SET grade = 10;              -- oops: every row
-ROLLBACK TO before_grades;
+ROLLBACK TO SAVEPOINT before_grades;
 COMMIT;
 SELECT * FROM enrolment WHERE student_id = 'S03';
-BEGIN;
 DELETE FROM enrolment;
 SELECT COUNT(*) AS rows_inside_transaction FROM enrolment;
 ROLLBACK;
@@ -243,13 +312,14 @@ INSERT INTO student VALUES ('S05', 'Ana Ruiz', 'ana@uni.es');  -- duplicate e-ma
       summary: 'A **foreign key** only accepts values that exist in the referenced key. Its **referential action** says what happens to child rows when the parent row is deleted or its key changes.',
       body: [
         'The foreign key keeps references valid (**referential integrity**): an enrolment cannot point to a course that does not exist.',
-        'When the parent row is deleted, the action decides: `RESTRICT` / `NO ACTION` (the default) rejects the delete while children exist; `CASCADE` deletes the children too; `SET NULL` empties the FK in the children; `SET DEFAULT` sets its default. The same choices exist `ON UPDATE` of the parent key.',
+        'When the parent row is deleted, the action decides. In Oracle you choose between `ON DELETE CASCADE` (the children are deleted too), `ON DELETE SET NULL` (the FK of the children becomes NULL) and writing nothing, which rejects the delete while children exist (error ORA-02292).',
+        'Oracle has no `ON UPDATE` action and no `RESTRICT` or `SET DEFAULT` keywords: other DBMSs (PostgreSQL, MySQL) do. Primary keys should not change anyway.',
         'In the sample schema, deleting a student cascades to their enrolments, but a course with enrolments cannot be deleted.',
       ],
       points: [
         'CASCADE fits parts that make no sense alone (an enrolment without its student, an order line without its order).',
-        'RESTRICT protects reference data (a course, a department).',
-        'SQLite only checks foreign keys after `PRAGMA foreign_keys = ON`; the runner turns it on.',
+        'No action (the default) protects reference data (a course, a department).',
+        'Inserting a child with a missing parent fails with ORA-02291 (parent key not found); deleting a parent with children fails with ORA-02292 (child record found).',
       ],
       mistake: 'Using CASCADE everywhere. Deleting one department could then silently delete its courses and all their enrolments.',
       sql: {
@@ -268,7 +338,7 @@ DELETE FROM course WHERE course_id = 'C10';       -- C10 still has enrolments: r
       summary: '**CHECK** states a condition each row must meet, such as a grade between 0 and 10. **DEFAULT** gives a column its value when the INSERT does not say one.',
       body: [
         'CHECK constraints write business rules in the schema: `credits > 0`, `end_date >= start_date`, `status IN (\'open\', \'closed\')`. A CHECK can use several columns of the same row, but not other rows or other tables (that needs a trigger or a foreign key).',
-        'DEFAULT fills mandatory columns sensibly: the current date, a status of \'pending\', a counter starting at 0.',
+        'DEFAULT fills mandatory columns sensibly: the current date, a status of \'pending\', a counter starting at 0. In Oracle, DEFAULT goes **before** NOT NULL (`days NUMBER(2) DEFAULT 15 NOT NULL`).',
         'Give constraints a name (`CONSTRAINT grade_range CHECK (…)`): error messages then say which rule was broken.',
       ],
       points: [
@@ -279,11 +349,11 @@ DELETE FROM course WHERE course_id = 'C10';       -- C10 still has enrolments: r
         setup: '',
         expectError: true,
         query: `CREATE TABLE loan (
-  loan_id   INTEGER PRIMARY KEY,
-  book      TEXT NOT NULL,
-  loan_date TEXT NOT NULL DEFAULT (date('now')),
-  days      INTEGER NOT NULL DEFAULT 15,
-  status    TEXT NOT NULL DEFAULT 'open',
+  loan_id   NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  book      VARCHAR2(60) NOT NULL,
+  loan_date DATE DEFAULT SYSDATE NOT NULL,
+  days      NUMBER(2) DEFAULT 15 NOT NULL,
+  status    VARCHAR2(10) DEFAULT 'open' NOT NULL,
   CONSTRAINT days_range CHECK (days BETWEEN 1 AND 60),
   CONSTRAINT status_values CHECK (status IN ('open', 'returned', 'lost'))
 );
@@ -302,21 +372,23 @@ INSERT INTO loan (book, days) VALUES ('Hopscotch', 90);       -- breaks days_ran
       title: 'What an index is',
       summary: 'An **index** is a separate, sorted structure (usually a **B+ tree**) that maps the values of some columns to their rows. With it, the DBMS can **search** instead of **scanning** the whole table.',
       body: [
-        'Without an index on `email`, finding one customer means reading all 50,000 rows: the plan says **SCAN customer**. After `CREATE INDEX`, the plan says **SEARCH customer USING INDEX**, and the DBMS goes down the tree in a few steps (see the B+ tree card of the Theory section).',
+        'Without an index on `email`, finding one customer means reading all 50,000 rows: the plan says **TABLE ACCESS FULL**. After `CREATE INDEX`, the plan says **INDEX RANGE SCAN** followed by **TABLE ACCESS BY INDEX ROWID**, and the DBMS goes down the tree in a few steps (see the B+ tree card of the Theory section).',
         'The runner shows the time of each statement. Compare the two identical SELECTs, before and after the index.',
-        '`EXPLAIN QUERY PLAN` (SQLite) or `EXPLAIN` (PostgreSQL, MySQL) shows the plan without running the query.',
+        '`EXPLAIN PLAN FOR <query>` stores the plan without running the query, and `SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY)` prints it. (The sandbox words its own plan the same way; FreeSQL also shows the cost.)',
       ],
       points: [
         'The primary key and each UNIQUE constraint already have an index.',
-        'Foreign keys usually do **not** get one automatically; index them if you join or filter by them.',
+        'Foreign keys do **not** get one automatically in Oracle; index them if you join or filter by them.',
       ],
       mistake: 'Thinking an index changes the result. It only changes how fast the DBMS finds the rows; the query returns exactly the same data.',
       sql: {
         setup: SHOP,
-        query: `EXPLAIN QUERY PLAN SELECT * FROM customer WHERE email = 'user43210@mail.com';
+        query: `EXPLAIN PLAN FOR SELECT * FROM customer WHERE email = 'user43210@mail.com';
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
 SELECT * FROM customer WHERE email = 'user43210@mail.com';
 CREATE INDEX idx_customer_email ON customer (email);
-EXPLAIN QUERY PLAN SELECT * FROM customer WHERE email = 'user43210@mail.com';
+EXPLAIN PLAN FOR SELECT * FROM customer WHERE email = 'user43210@mail.com';
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
 SELECT * FROM customer WHERE email = 'user43210@mail.com';`,
       },
     },
@@ -329,7 +401,7 @@ SELECT * FROM customer WHERE email = 'user43210@mail.com';`,
       body: [
         'An index on `(city, signup_date)` is sorted like a phone book by surname, then name: it finds "Madrid, from 2023" fast, and also "Madrid" alone. It cannot help with "from 2023" alone, because those dates are spread across every city: that query scans.',
         'Put first the column compared with **equality**, then the one used for **ranges** or sorting.',
-        'When the query only uses columns that are in the index, the DBMS answers from the index: the plan says **USING COVERING INDEX**.',
+        'When the query only uses columns that are in the index, the DBMS answers from the index and never visits the table: the plan has an **INDEX RANGE SCAN** with no TABLE ACCESS step.',
       ],
       points: [
         'Leftmost-prefix rule: `(a, b, c)` serves filters on `a`, `a, b` and `a, b, c`.',
@@ -339,10 +411,13 @@ SELECT * FROM customer WHERE email = 'user43210@mail.com';`,
       sql: {
         setup: SHOP,
         query: `CREATE INDEX idx_city_date ON customer (city, signup_date);
-EXPLAIN QUERY PLAN SELECT * FROM customer WHERE city = 'Madrid' AND signup_date >= '2023-01-01';
-EXPLAIN QUERY PLAN SELECT * FROM customer WHERE signup_date >= '2023-01-01';
-EXPLAIN QUERY PLAN SELECT city, signup_date FROM customer WHERE city = 'Sevilla';
-SELECT COUNT(*) AS madrid_since_2023 FROM customer WHERE city = 'Madrid' AND signup_date >= '2023-01-01';`,
+EXPLAIN PLAN FOR SELECT * FROM customer WHERE city = 'Madrid' AND signup_date >= DATE '2023-01-01';
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
+EXPLAIN PLAN FOR SELECT * FROM customer WHERE signup_date >= DATE '2023-01-01';
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
+EXPLAIN PLAN FOR SELECT city, signup_date FROM customer WHERE city = 'Sevilla';
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
+SELECT COUNT(*) AS madrid_since_2023 FROM customer WHERE city = 'Madrid' AND signup_date >= DATE '2023-01-01';`,
       },
     },
     {
@@ -367,16 +442,18 @@ SELECT COUNT(*) AS madrid_since_2023 FROM customer WHERE city = 'Madrid' AND sig
       },
       mistake: 'Indexing every column "just in case". Each index slows every write and the optimizer still uses only the useful ones.',
       sql: {
-        setup: `CREATE TABLE plain_log (id INTEGER PRIMARY KEY, user_id INTEGER, action TEXT, at TEXT);
-CREATE TABLE indexed_log (id INTEGER PRIMARY KEY, user_id INTEGER, action TEXT, at TEXT);
+        setup: `CREATE TABLE plain_log (id NUMBER(6) PRIMARY KEY, user_id NUMBER(4), action VARCHAR2(12), at DATE);
+CREATE TABLE indexed_log (id NUMBER(6) PRIMARY KEY, user_id NUMBER(4), action VARCHAR2(12), at DATE);
 CREATE INDEX il_user ON indexed_log (user_id);
 CREATE INDEX il_action ON indexed_log (action);
 CREATE INDEX il_at ON indexed_log (at);`,
-        query: `WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 20000)
-INSERT INTO plain_log SELECT i, i % 997, 'action' || (i % 13), datetime('2024-01-01', '+' || i || ' minutes') FROM n;
-WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 20000)
-INSERT INTO indexed_log SELECT i, i % 997, 'action' || (i % 13), datetime('2024-01-01', '+' || i || ' minutes') FROM n;
-SELECT name AS indexes_on_indexed_log FROM sqlite_master WHERE type = 'index' AND tbl_name = 'indexed_log';`,
+        query: `INSERT INTO plain_log
+SELECT LEVEL, MOD(LEVEL, 997), 'action' || MOD(LEVEL, 13), DATE '2024-01-01' + MOD(LEVEL, 365)
+FROM dual CONNECT BY LEVEL <= 20000;
+INSERT INTO indexed_log
+SELECT LEVEL, MOD(LEVEL, 997), 'action' || MOD(LEVEL, 13), DATE '2024-01-01' + MOD(LEVEL, 365)
+FROM dual CONNECT BY LEVEL <= 20000;
+SELECT index_name AS indexes_on_indexed_log FROM user_indexes WHERE table_name = 'INDEXED_LOG';`,
       },
     },
     {
@@ -386,28 +463,28 @@ SELECT name AS indexes_on_indexed_log FROM sqlite_master WHERE type = 'index' AN
       title: 'Kinds of index',
       summary: 'The **B-tree** is the default and serves equality, ranges and sorting. Other kinds solve specific problems: **hash** for equality only, **bitmap** for few distinct values, **GIN** for values inside a document or array, **BRIN** for huge, naturally ordered tables.',
       body: [
-        'Indexes can also be **partial** (only the rows that match a WHERE, such as open orders) or built on an **expression** (`lower(email)`), so a query that uses the same expression can use the index.',
-        'Which kinds exist depends on the DBMS: PostgreSQL has all of those below except bitmap (it builds bitmaps at query time); Oracle has bitmap indexes; MySQL InnoDB uses B-trees almost exclusively.',
+        'Oracle calls an index built on an **expression** (`LOWER(email)`) a **function-based index**: a query that uses the same expression can use it. Oracle has no partial indexes with a WHERE clause (PostgreSQL does); a common trick is a function-based index that is NULL for the rows you do not want, because Oracle does not index rows whose key is entirely NULL.',
+        'Which kinds exist depends on the DBMS: Oracle has B-tree (the default), **bitmap** and **reverse-key** indexes and supports text and JSON search indexes; PostgreSQL adds hash, GIN and BRIN; MySQL InnoDB uses B-trees almost exclusively.',
       ],
       table: {
         caption: 'Main index kinds',
         head: ['Kind', 'Good for', 'Not for'],
         rows: [
           ['B-tree / B+ tree', '=, <, >, BETWEEN, ORDER BY, prefix LIKE \'abc%\'', 'Searching inside text or arrays'],
-          ['Hash', 'Equality only (=)', 'Ranges and sorting'],
+          ['Hash', 'Equality only (=) (PostgreSQL, MySQL MEMORY)', 'Ranges and sorting'],
           ['Bitmap', 'Columns with few distinct values in read-mostly tables (data warehouses)', 'Tables with many concurrent writes'],
+          ['Reverse key (Oracle)', 'Monotonic keys (sequence numbers) inserted by many sessions at once: spreads the hot right-hand leaf', 'Range scans: it destroys the key order'],
           ['GIN / inverted', 'Full-text search, JSON keys, array elements', 'Simple scalar columns'],
-          ['BRIN', 'Very large tables ordered by insertion (dates in a log)', 'Randomly ordered data'],
+          ['BRIN', 'Very large tables ordered by insertion (dates in a log) (PostgreSQL)', 'Randomly ordered data'],
         ],
       },
-      dialect: 'PostgreSQL · not runnable here',
-      code: `CREATE INDEX orders_customer_idx ON orders (customer_id);            -- B-tree (default)
-CREATE INDEX session_token_idx  ON session USING hash (token);        -- equality only
-CREATE INDEX product_tags_idx   ON product USING gin (tags);          -- tags is text[]
-CREATE INDEX log_at_brin        ON access_log USING brin (at);        -- huge, append-only
-CREATE INDEX open_orders_idx    ON orders (order_date) WHERE status = 'open';   -- partial
-CREATE INDEX customer_email_ci  ON customer (lower(email));           -- expression`,
-      mistake: 'Choosing a hash index for a column used in ranges or ORDER BY. It cannot answer either; only a B-tree can.',
+      dialect: 'Oracle · not runnable here',
+      code: `CREATE INDEX orders_customer_idx ON orders (customer_id);                -- B-tree (default)
+CREATE BITMAP INDEX customer_city_bix ON customer (city);                -- few distinct values, data warehouse
+CREATE INDEX orders_id_rev ON orders (order_id) REVERSE;                 -- reverse-key
+CREATE INDEX customer_email_ci ON customer (LOWER(email));               -- function-based
+CREATE UNIQUE INDEX open_order_uq ON orders (CASE WHEN status = 'OPEN' THEN customer_id END);  -- "partial" unique`,
+      mistake: 'Creating a bitmap index on a table that many sessions update at once. Each change locks a whole range of rows in the bitmap, so writers wait for each other.',
     },
 
     /* ───────────── Clustering ───────────── */
@@ -420,7 +497,7 @@ CREATE INDEX customer_email_ci  ON customer (lower(email));           -- express
       body: [
         'Because neighbouring keys are stored together, a clustered index is excellent for ranges on its key: all the enrolments of course C10 sit in the same few blocks. A non-clustered index finds each row, then jumps to wherever it is stored.',
         'MySQL InnoDB and SQL Server cluster each table by its primary key by default. In InnoDB every secondary index stores the PK value as its pointer, so a long PK makes every index bigger.',
-        'SQLite does it with `WITHOUT ROWID` tables: the rows are stored in the primary-key B-tree. In the example the plan searches `USING PRIMARY KEY`, with no extra lookup.',
+        'Oracle tables are heaps by default, but it offers the **index-organized table** (IOT): `ORGANIZATION INDEX` stores the rows in the primary-key B-tree. In the example the plan searches the primary key directly, with no extra lookup.',
       ],
       points: [
         'Choose a clustering key that is short, does not change, and matches frequent range queries.',
@@ -430,36 +507,46 @@ CREATE INDEX customer_email_ci  ON customer (lower(email));           -- express
       sql: {
         setup: '',
         query: `CREATE TABLE enrolment_by_course (
-  course_id  TEXT,
-  student_id TEXT,
-  grade      REAL,
+  course_id  VARCHAR2(3),
+  student_id VARCHAR2(3),
+  grade      NUMBER(4,2),
   PRIMARY KEY (course_id, student_id)
-) WITHOUT ROWID;
-INSERT INTO enrolment_by_course VALUES
-  ('C20', 'S01', 7.0), ('C10', 'S03', 5.0), ('C10', 'S01', 8.5), ('C11', 'S02', 9.0), ('C10', 'S02', 6.5);
-SELECT * FROM enrolment_by_course;           -- stored, and returned, in key order
-EXPLAIN QUERY PLAN SELECT * FROM enrolment_by_course WHERE course_id = 'C10';`,
+) ORGANIZATION INDEX;
+INSERT INTO enrolment_by_course VALUES ('C20', 'S01', 7.0);
+INSERT INTO enrolment_by_course VALUES ('C10', 'S03', 5.0);
+INSERT INTO enrolment_by_course VALUES ('C10', 'S01', 8.5);
+INSERT INTO enrolment_by_course VALUES ('C11', 'S02', 9.0);
+INSERT INTO enrolment_by_course VALUES ('C10', 'S02', 6.5);
+SELECT * FROM enrolment_by_course;           -- stored in key order (without ORDER BY the order is never guaranteed)
+EXPLAIN PLAN FOR SELECT * FROM enrolment_by_course WHERE course_id = 'C10';
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);`,
       },
     },
     {
       id: 'physical-order',
       hub: 'clustering',
       topic: 'clustering',
-      title: 'Physical order in PostgreSQL and Oracle',
-      summary: 'PostgreSQL stores tables as unordered **heaps**. Its `CLUSTER` command rewrites a table once in the order of an index, but new rows are not kept in that order. Oracle offers index-organized tables and **table clusters**.',
+      title: 'Table clusters in Oracle (and CLUSTER in PostgreSQL)',
+      summary: 'An Oracle **table cluster** stores the rows of several tables that share a key (a department and its employees) in the same blocks, which speeds up joins on that key. PostgreSQL has no such thing: its `CLUSTER` command rewrites a table once, in the order of an index.',
       body: [
-        'After `CLUSTER orders USING orders_date_idx`, rows of the same date sit together, so a date range reads few blocks. New and updated rows go wherever there is room, so the order decays; run CLUSTER again in a maintenance window. It locks the table while it rewrites it.',
-        'Oracle **index-organized tables** behave like a clustered index. Its **table clusters** go further: rows of several tables that share a key (a department and its employees) are stored in the same blocks, which speeds up joins on that key.',
+        'In a cluster, the **cluster key** value is stored once and all the rows of every table with that key sit together: reading a department and its courses touches few blocks. The price is slower inserts and full scans of one table, because its rows are spread among the other tables\' rows. Use it for tables that are almost always joined and rarely updated.',
+        'Oracle **index-organized tables** (previous card) behave like a clustered index. PostgreSQL tables are unordered heaps: after `CLUSTER orders USING orders_date_idx` rows of the same date sit together, but new rows go wherever there is room, so the order decays and the command, which locks the table, must be repeated.',
       ],
-      dialect: 'PostgreSQL · not runnable here',
-      code: `CREATE INDEX orders_date_idx ON orders (order_date);
-CLUSTER orders USING orders_date_idx;     -- rewrites the table in date order (locks it)
-ANALYZE orders;                           -- refresh statistics after the rewrite
+      dialect: 'Oracle · not runnable here',
+      code: `CREATE CLUSTER dept_cluster (dept_id VARCHAR2(3));
+CREATE INDEX dept_cluster_idx ON CLUSTER dept_cluster;      -- a cluster needs its index
 
--- How well the physical order follows a column (1 = perfectly sorted):
-SELECT attname, correlation FROM pg_stats
-WHERE tablename = 'orders' AND attname = 'order_date';`,
-      mistake: 'Expecting CLUSTER to keep the table sorted. It is a one-off rewrite; only a true clustered index keeps the order as rows arrive.',
+CREATE TABLE department (
+  dept_id VARCHAR2(3) PRIMARY KEY,
+  name    VARCHAR2(30) NOT NULL
+) CLUSTER dept_cluster (dept_id);
+
+CREATE TABLE course (
+  course_id VARCHAR2(3) PRIMARY KEY,
+  title     VARCHAR2(40) NOT NULL,
+  dept_id   VARCHAR2(3) NOT NULL REFERENCES department (dept_id)
+) CLUSTER dept_cluster (dept_id);                           -- same blocks as its department`,
+      mistake: 'Clustering tables that are updated all the time or often read alone. Clusters only pay off for stable data that is read together.',
     },
 
     /* ───────────── Partitioning ───────────── */
@@ -472,7 +559,7 @@ WHERE tablename = 'orders' AND attname = 'order_date';`,
       body: [
         '**Range** partitioning puts each interval of the key in a partition (one per month of orders). **List** partitioning uses explicit values (one per country). **Hash** partitioning spreads rows evenly by a hash of the key, when there is no natural range.',
         'Each partition is a real table with its own storage and indexes, so maintenance works on one piece at a time.',
-        'SQLite has no partitioning, so the example is PostgreSQL.',
+        'Partitioning is an Oracle option that the browser sandbox cannot simulate; FreeSQL does run it. Since Oracle 12c you can even use **interval** partitioning: the DBMS creates a new partition by itself when a row arrives outside the existing ones.',
       ],
       table: {
         caption: 'Choosing the method',
@@ -483,22 +570,23 @@ WHERE tablename = 'orders' AND attname = 'order_date';`,
           ['Hash', 'Customer id', 'You need even sizes and there is no natural range'],
         ],
       },
-      dialect: 'PostgreSQL · not runnable here',
+      dialect: 'Oracle · not runnable here',
       code: `CREATE TABLE orders (
-  order_id    bigint,
-  customer_id bigint NOT NULL,
-  order_date  date   NOT NULL,
-  total       numeric(10, 2) NOT NULL,
-  PRIMARY KEY (order_id, order_date)          -- the partition key must be part of it
-) PARTITION BY RANGE (order_date);
+  order_id    NUMBER(10),
+  customer_id NUMBER(10) NOT NULL,
+  order_date  DATE NOT NULL,
+  total       NUMBER(10,2) NOT NULL
+)
+PARTITION BY RANGE (order_date) (
+  PARTITION p2025_01 VALUES LESS THAN (DATE '2025-02-01'),
+  PARTITION p2025_02 VALUES LESS THAN (DATE '2025-03-01'),
+  PARTITION p_max    VALUES LESS THAN (MAXVALUE)             -- rows outside every range
+);
 
-CREATE TABLE orders_2025_01 PARTITION OF orders
-  FOR VALUES FROM ('2025-01-01') TO ('2025-02-01');
-CREATE TABLE orders_2025_02 PARTITION OF orders
-  FOR VALUES FROM ('2025-02-01') TO ('2025-03-01');
-CREATE TABLE orders_default PARTITION OF orders DEFAULT;   -- rows outside every range
+-- Oracle creates the monthly partitions by itself:
+-- PARTITION BY RANGE (order_date) INTERVAL (NUMTOYMINTERVAL(1, 'MONTH')) (PARTITION p_first VALUES LESS THAN (DATE '2025-01-01'))
 
-CREATE INDEX ON orders (customer_id);       -- created on every partition`,
+CREATE INDEX orders_customer_ix ON orders (customer_id) LOCAL;   -- one index segment per partition`,
       mistake: 'Partitioning a small table. Below many millions of rows, a good index is usually simpler and just as fast.',
     },
     {
@@ -508,21 +596,23 @@ CREATE INDEX ON orders (customer_id);       -- created on every partition`,
       title: 'Partition pruning and maintenance',
       summary: 'When the WHERE fixes the partition key, the optimizer reads only the matching partitions: **partition pruning**. Old data can then be removed by dropping a whole partition instead of deleting millions of rows.',
       body: [
-        'With monthly partitions, a query for February 2025 reads only `orders_2025_02`; the plan does not even mention the other months. A query that does not filter on `order_date` must visit every partition, which can be slower than one big indexed table.',
-        'Retention becomes cheap: `DETACH` or `DROP` the oldest partition. That takes milliseconds, while `DELETE … WHERE order_date < …` writes every deleted row to the log and leaves dead space behind.',
+        'With monthly partitions, a query for February 2025 reads only partition `p2025_02`: the Oracle plan shows `PARTITION RANGE SINGLE` with `Pstart = Pstop = 2`. A query that does not filter on `order_date` must visit every partition (`PARTITION RANGE ALL`), which can be slower than one big indexed table.',
+        'Retention becomes cheap: `ALTER TABLE … DROP PARTITION` or `EXCHANGE PARTITION` the oldest one. That takes milliseconds, while `DELETE … WHERE order_date < …` writes every deleted row to the undo and redo logs.',
       ],
       points: [
         'Choose the partition key from the most frequent filters.',
-        'Unique constraints and the primary key must include the partition key.',
+        'A **local** index has one segment per partition and is kept valid when you drop a partition; a unique index must include the partition key to be local.',
       ],
-      dialect: 'PostgreSQL · not runnable here',
-      code: `EXPLAIN SELECT SUM(total) FROM orders
-WHERE order_date >= '2025-02-01' AND order_date < '2025-03-01';
---  Aggregate
---    ->  Seq Scan on orders_2025_02 orders     <- only one partition is read
+      dialect: 'Oracle · not runnable here',
+      code: `EXPLAIN PLAN FOR SELECT SUM(total) FROM orders
+WHERE order_date >= DATE '2025-02-01' AND order_date < DATE '2025-03-01';
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
+-- | Id | Operation              | Name   | Pstart | Pstop |
+-- |  2 |  PARTITION RANGE SINGLE|        |      2 |     2 |    <- only one partition is read
+-- |  3 |   TABLE ACCESS FULL    | ORDERS |      2 |     2 |
 
-ALTER TABLE orders DETACH PARTITION orders_2025_01;   -- keep it as a normal table…
-DROP TABLE orders_2025_01;                            -- …or remove a whole month at once`,
+ALTER TABLE orders DROP PARTITION p2025_01 UPDATE INDEXES;   -- remove a whole month at once
+ALTER TABLE orders EXCHANGE PARTITION p2025_01 WITH TABLE orders_2025_01_archive;  -- …or swap it out as a table`,
       mistake: 'Partitioning by a column the queries rarely filter on. Without pruning, every query visits every partition.',
     },
     {
@@ -553,29 +643,31 @@ DROP TABLE orders_2025_01;                            -- …or remove a whole mo
       hub: 'efficiency',
       topic: 'efficiency',
       title: 'Reading a query plan',
-      summary: 'SQL says **what** you want; the **optimizer** decides **how**: which index, which join order, which algorithm. **EXPLAIN** shows that plan, and the plan is where slow queries are understood.',
+      summary: 'SQL says **what** you want; the **optimizer** decides **how**: which index, which join order, which algorithm. **EXPLAIN PLAN** shows that plan, and the plan is where slow queries are understood.',
       body: [
-        'The optimizer estimates the cost of several plans from **statistics** about the data (number of rows, distinct values) and picks the cheapest. Refresh them after big changes: `ANALYZE` in SQLite and PostgreSQL, `ANALYZE TABLE` in MySQL.',
-        'Look for a **SCAN** (full table read) on a big table inside a join or a selective filter: it usually means a missing index. In the example, the join of each customer with their orders scans `orders` until the foreign key is indexed.',
-        'PostgreSQL\'s `EXPLAIN ANALYZE` also runs the query and shows real times and row counts next to the estimates.',
+        'The optimizer estimates the cost of several plans from **statistics** about the data (number of rows, distinct values) and picks the cheapest. Oracle gathers them automatically at night; refresh them yourself after big changes with `EXEC DBMS_STATS.GATHER_TABLE_STATS(USER, \'ORDERS\')` (`ANALYZE` in PostgreSQL, `ANALYZE TABLE` in MySQL).',
+        'Look for a **TABLE ACCESS FULL** (full table read) on a big table inside a join or a selective filter: it usually means a missing index. In the example, the join of each customer with their orders reads all of `orders` until the foreign key is indexed.',
+        'To see real times and row counts next to the estimates, run the query with the hint `/*+ GATHER_PLAN_STATISTICS */` and print the plan with `DBMS_XPLAN.DISPLAY_CURSOR` (PostgreSQL: `EXPLAIN ANALYZE`).',
       ],
       points: [
-        'SCAN = read every row; SEARCH … USING INDEX = go down an index.',
-        'USE TEMP B-TREE FOR ORDER BY = an extra sort; an index in that order avoids it.',
+        'TABLE ACCESS FULL = read every row; INDEX RANGE SCAN / INDEX UNIQUE SCAN = go down an index.',
+        'SORT ORDER BY = an extra sort; an index in that order avoids it.',
       ],
       mistake: 'Optimizing by intuition. Read the plan first: the slow part is often not where you expect.',
       sql: {
         setup: SHOP,
-        query: `EXPLAIN QUERY PLAN
+        query: `EXPLAIN PLAN FOR
 SELECT c.city, SUM(o.total) FROM customer c JOIN orders o ON o.customer_id = c.customer_id
 WHERE c.customer_id BETWEEN 100 AND 200 GROUP BY c.city;
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
 SELECT c.city, ROUND(SUM(o.total), 2) AS spent FROM customer c JOIN orders o ON o.customer_id = c.customer_id
 WHERE c.customer_id BETWEEN 100 AND 200 GROUP BY c.city;
 CREATE INDEX idx_orders_customer ON orders (customer_id);
-ANALYZE;
-EXPLAIN QUERY PLAN
+EXEC DBMS_STATS.GATHER_TABLE_STATS(USER, 'ORDERS');
+EXPLAIN PLAN FOR
 SELECT c.city, SUM(o.total) FROM customer c JOIN orders o ON o.customer_id = c.customer_id
 WHERE c.customer_id BETWEEN 100 AND 200 GROUP BY c.city;
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
 SELECT c.city, ROUND(SUM(o.total), 2) AS spent FROM customer c JOIN orders o ON o.customer_id = c.customer_id
 WHERE c.customer_id BETWEEN 100 AND 200 GROUP BY c.city;`,
       },
@@ -587,9 +679,9 @@ WHERE c.customer_id BETWEEN 100 AND 200 GROUP BY c.city;`,
       title: 'Conditions that can use an index',
       summary: 'An index on a column only helps when the condition compares the **bare column**. Wrapping it in a function or calculation hides it from the index: the query scans.',
       body: [
-        'A condition that can use an index is called **sargable** (from search argument). `signup_date >= \'2024-01-01\'` is sargable; `substr(signup_date, 1, 4) = \'2024\'` is not, even though it means the same, because the index is sorted by `signup_date`, not by its first four characters.',
-        'Rewrite the condition on the column (a date range instead of extracting the year), or create an **expression index** on exactly the expression you query, as with `lower(email)` in the example.',
-        'Read the first plan carefully: it says **SCAN** … USING COVERING INDEX. The DBMS reads the whole index instead of the whole table, because the index is smaller, but it still visits every entry. Only **SEARCH** means it went straight to the matching part.',
+        'A condition that can use an index is called **sargable** (from search argument). `signup_date >= DATE \'2024-01-01\'` is sargable; `TO_CHAR(signup_date, \'YYYY\') = \'2024\'` is not, even though it means the same, because the index is sorted by `signup_date`, not by its first four characters.',
+        'Rewrite the condition on the column (a date range instead of extracting the year), or create an **expression index** on exactly the expression you query, as with `LOWER(email)` in the example (Oracle calls it a function-based index).',
+        'Read the first plan carefully: it may say **INDEX FAST FULL SCAN**. The DBMS reads the whole index instead of the whole table, because the index is smaller, but it still visits every entry. Only an **INDEX RANGE SCAN** means it went straight to the matching part.',
         'The same happens with `LIKE \'%text\'` (a leading wildcard) and with arithmetic on the column (`price * 1.21 > 100`).',
       ],
       mistake: 'Adding an index and assuming the query will use it. Check the plan; a function on the column is enough to make the index useless.',
@@ -597,11 +689,15 @@ WHERE c.customer_id BETWEEN 100 AND 200 GROUP BY c.city;`,
         setup: `${SHOP}
 CREATE INDEX idx_signup ON customer (signup_date);
 CREATE INDEX idx_email ON customer (email);`,
-        query: `EXPLAIN QUERY PLAN SELECT COUNT(*) FROM customer WHERE substr(signup_date, 1, 4) = '2023';
-EXPLAIN QUERY PLAN SELECT COUNT(*) FROM customer WHERE signup_date >= '2023-01-01' AND signup_date < '2024-01-01';
-EXPLAIN QUERY PLAN SELECT * FROM customer WHERE lower(email) = 'user77@mail.com';
-CREATE INDEX idx_email_lower ON customer (lower(email));
-EXPLAIN QUERY PLAN SELECT * FROM customer WHERE lower(email) = 'user77@mail.com';`,
+        query: `EXPLAIN PLAN FOR SELECT COUNT(*) FROM customer WHERE TO_CHAR(signup_date, 'YYYY') = '2023';
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
+EXPLAIN PLAN FOR SELECT COUNT(*) FROM customer WHERE signup_date >= DATE '2023-01-01' AND signup_date < DATE '2024-01-01';
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
+EXPLAIN PLAN FOR SELECT * FROM customer WHERE LOWER(email) = 'user77@mail.com';
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
+CREATE INDEX idx_email_lower ON customer (LOWER(email));
+EXPLAIN PLAN FOR SELECT * FROM customer WHERE LOWER(email) = 'user77@mail.com';
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);`,
       },
     },
     {
@@ -617,7 +713,7 @@ EXPLAIN QUERY PLAN SELECT * FROM customer WHERE lower(email) = 'user77@mail.com'
       points: [
         'Select only the columns you use; `SELECT *` reads and sends more data and stops covering indexes from helping.',
         'Use `EXISTS` to ask "is there any?" instead of `COUNT(*) > 0`: it can stop at the first match.',
-        'Paginate with `ORDER BY … LIMIT`, ideally on an indexed column.',
+        'Paginate with `ORDER BY … FETCH FIRST n ROWS ONLY` (`OFFSET m ROWS` to skip), ideally on an indexed column.',
         'Join and filter on indexed keys, and keep transactions short.',
       ],
       example: 'The last query of the example answers "top 5 cities by spending in 2024" with one statement, instead of reading every order into the program.',
@@ -626,21 +722,23 @@ EXPLAIN QUERY PLAN SELECT * FROM customer WHERE lower(email) = 'user77@mail.com'
         setup: `${SHOP}
 CREATE INDEX idx_orders_customer ON orders (customer_id);`,
         query: `-- "Has customer 42 ordered anything?": EXISTS can stop at the first order
-SELECT EXISTS (SELECT 1 FROM orders WHERE customer_id = 42) AS has_orders;
+SELECT CASE WHEN EXISTS (SELECT 1 FROM orders WHERE customer_id = 42) THEN 'yes' ELSE 'no' END AS has_orders FROM dual;
 -- One set-based statement instead of a loop over every order
-UPDATE orders SET total = round(total * 0.9, 2) WHERE order_date < '2023-02-01';
+UPDATE orders SET total = ROUND(total * 0.9, 2) WHERE order_date < DATE '2023-02-01';
+COMMIT;
 -- Only the columns and rows needed, aggregated in the database
 SELECT c.city, COUNT(*) AS orders, ROUND(SUM(o.total), 2) AS spent
 FROM orders o JOIN customer c ON c.customer_id = o.customer_id
-WHERE o.order_date BETWEEN '2024-01-01' AND '2024-12-31'
+WHERE o.order_date BETWEEN DATE '2024-01-01' AND DATE '2024-12-31'
 GROUP BY c.city
 ORDER BY spent DESC
-LIMIT 5;`,
+FETCH FIRST 5 ROWS ONLY;`,
       },
     },
   ];
 
   DATA.en.SQL_QUIZ_TOPICS = {
+    oracle: 'Oracle and FreeSQL',
     languages: 'SQL languages',
     constraints: 'Constraints',
     indexes: 'Indexes',
@@ -650,38 +748,51 @@ LIMIT 5;`,
   };
 
   DATA.en.SQL_QUIZ = [
+    { topic: 'oracle', type: 'mc', q: 'Which statement is valid Oracle for "the 3 best grades"?', choices: ['`… ORDER BY grade DESC LIMIT 3`', '`… ORDER BY grade DESC FETCH FIRST 3 ROWS ONLY`', '`SELECT TOP 3 … ORDER BY grade DESC`', '`… ORDER BY grade DESC LIMIT 0, 3`'], answer: 1, why: 'FETCH FIRST is the standard syntax that Oracle supports; LIMIT and TOP belong to other DBMSs.' },
+    { topic: 'oracle', type: 'fib', q: 'To run a query without a table in Oracle you select from the dummy table ___.', accept: ['dual', 'DUAL'], why: '`SELECT SYSDATE FROM dual`. (Oracle 23ai also accepts a SELECT without FROM.)' },
+    { topic: 'oracle', type: 'mc', q: 'What does `SELECT name FROM student WHERE email = \'\'` return in Oracle?', choices: ['The students with an empty e-mail', 'The students with a NULL e-mail', 'No rows at all', 'An error'], answer: 2, why: 'In Oracle \'\' is NULL, and a comparison with NULL is never true. Use IS NULL.' },
+    { topic: 'oracle', type: 'tf', q: 'FreeSQL runs your SQL on a real Oracle database in the cloud.', answer: true, why: 'It is Oracle\'s free online worksheet; nothing is installed.' },
+    { topic: 'oracle', type: 'mc', q: 'Which error does Oracle give when you query a table that does not exist?', choices: ['ORA-00904', 'ORA-00942', 'ORA-00001', 'ORA-02291'], answer: 1, why: 'ORA-00942: table or view does not exist. ORA-00904 is an invalid column name.' },
     { topic: 'languages', type: 'mc', q: 'Which sub-language does `ALTER TABLE` belong to?', choices: ['DDL', 'DML', 'DCL', 'TCL'], answer: 0, why: 'It changes the structure of a table, so it is data definition.' },
     { topic: 'languages', type: 'mc', q: 'Which statement is part of DCL?', choices: ['`COMMIT`', '`GRANT`', '`TRUNCATE`', '`MERGE`'], answer: 1, why: 'GRANT and REVOKE control privileges. COMMIT is TCL, TRUNCATE is DDL and MERGE is DML.' },
     { topic: 'languages', type: 'tf', q: 'A `DELETE` without a WHERE clause removes every row of the table.', answer: true, why: 'With no filter, every row matches.' },
-    { topic: 'languages', type: 'fib', q: 'To undo all the changes of the current transaction you run ___.', accept: ['ROLLBACK', 'rollback'], why: 'ROLLBACK undoes everything since BEGIN; ROLLBACK TO undoes only what came after a savepoint.' },
-    { topic: 'languages', type: 'mc', q: 'In autocommit mode…', choices: ['nothing is saved until COMMIT', 'each statement is a transaction of its own', 'only DDL is committed', 'savepoints are created automatically'], answer: 1, why: 'Every statement commits as soon as it succeeds; BEGIN opens a longer transaction.' },
+    { topic: 'languages', type: 'fib', q: 'To undo all the changes of the current transaction you run ___.', accept: ['ROLLBACK', 'rollback'], why: 'ROLLBACK undoes everything since the transaction started; ROLLBACK TO SAVEPOINT undoes only what came after the savepoint.' },
+    { topic: 'languages', type: 'mc', q: 'In Oracle, when does a transaction start?', choices: ['With the BEGIN statement', 'With your first INSERT, UPDATE or DELETE', 'With every SELECT', 'Only after SET TRANSACTION'], answer: 1, why: 'Oracle has no BEGIN for transactions (BEGIN starts a PL/SQL block): the first DML statement opens one, and COMMIT or ROLLBACK ends it.' },
+    { topic: 'languages', type: 'tf', q: 'In Oracle, a CREATE TABLE in the middle of a transaction can be undone with ROLLBACK.', answer: false, why: 'DDL commits the open transaction before and after it, so nothing before it can be rolled back any more.' },
+    { topic: 'languages', type: 'mc', q: 'Which query returns the first 5 rows in Oracle?', choices: ['`SELECT * FROM t LIMIT 5`', '`SELECT TOP 5 * FROM t`', '`SELECT * FROM t FETCH FIRST 5 ROWS ONLY`', '`SELECT * FROM t LIMIT 0, 5`'], answer: 2, why: 'LIMIT and TOP belong to other DBMSs. Oracle uses the standard FETCH FIRST … ROWS ONLY (12c onwards).' },
+    { topic: 'languages', type: 'fib', q: 'Oracle\'s name for the set operator that SQLite and PostgreSQL call EXCEPT is ___.', accept: ['MINUS', 'minus'], why: 'Oracle uses MINUS (newer versions also accept EXCEPT).' },
     { topic: 'languages', type: 'mc', q: 'Where must you filter groups by an aggregate, such as `AVG(grade) > 7`?', choices: ['WHERE', 'HAVING', 'ORDER BY', 'FROM'], answer: 1, why: 'WHERE runs before grouping; HAVING filters the groups after it.' },
     { topic: 'constraints', type: 'tf', q: 'A table can have several UNIQUE constraints but only one primary key.', answer: true, why: 'There is one primary key; any other candidate key is declared UNIQUE.' },
     { topic: 'constraints', type: 'mc', q: 'An enrolment references a student with `ON DELETE CASCADE`. What happens when that student is deleted?', choices: ['The delete is rejected', 'Their enrolments are deleted too', 'The FK in their enrolments becomes NULL', 'Nothing: enrolments keep the old id'], answer: 1, why: 'CASCADE propagates the delete to the child rows.' },
-    { topic: 'constraints', type: 'mc', q: 'Which referential action is the default in standard SQL?', choices: ['CASCADE', 'SET NULL', 'NO ACTION / RESTRICT', 'SET DEFAULT'], answer: 2, why: 'By default a parent row with children cannot be deleted.' },
+    { topic: 'constraints', type: 'mc', q: 'In Oracle, what happens when you delete a parent row that has children and the foreign key has no ON DELETE clause?', choices: ['The children are deleted', 'The children\'s FK becomes NULL', 'The delete fails with ORA-02292', 'The parent is marked as deleted'], answer: 2, why: 'With no action, Oracle rejects the delete while children exist: "child record found".' },
+    { topic: 'constraints', type: 'mc', q: 'Which ON DELETE actions does Oracle support?', choices: ['CASCADE, SET NULL and no action', 'CASCADE, RESTRICT and SET DEFAULT', 'Only CASCADE', 'It supports ON UPDATE CASCADE too'], answer: 0, why: 'Oracle has no RESTRICT, SET DEFAULT or ON UPDATE actions.' },
     { topic: 'constraints', type: 'tf', q: '`CHECK (grade BETWEEN 0 AND 10)` rejects a row whose grade is NULL.', answer: false, why: 'A CHECK fails only when the condition is false; with NULL it is unknown, so it passes. Add NOT NULL to require a value.' },
-    { topic: 'constraints', type: 'fib', q: 'The clause that gives a column its value when an INSERT does not mention it is ___.', accept: ['DEFAULT', 'default'], why: 'For example `status TEXT DEFAULT \'open\'`.' },
+    { topic: 'constraints', type: 'fib', q: 'The clause that gives a column its value when an INSERT does not mention it is ___.', accept: ['DEFAULT', 'default'], why: 'For example `status VARCHAR2(10) DEFAULT \'open\' NOT NULL`.' },
+    { topic: 'constraints', type: 'tf', q: 'In Oracle, an empty string \'\' is stored as NULL.', answer: true, why: 'Oracle does not distinguish the empty string from NULL: `WHERE name = \'\'` never matches any row.' },
     { topic: 'indexes', type: 'mc', q: 'Without any index on `email`, how does the DBMS find `WHERE email = \'x\'`?', choices: ['Binary search on the table', 'It reads every row (full scan)', 'It uses the primary key', 'It cannot answer the query'], answer: 1, why: 'The rows are not sorted by email, so every one must be checked.' },
-    { topic: 'indexes', type: 'mc', q: 'With an index on `(city, signup_date)`, which filter can NOT use it to narrow the search?', choices: ['`city = \'Madrid\'`', '`city = \'Madrid\' AND signup_date > \'2024-01-01\'`', '`signup_date > \'2024-01-01\'`', '`city IN (\'Madrid\', \'Bilbao\')`'], answer: 2, why: 'Leftmost-prefix rule: without the first column the dates are spread all over the index.' },
+    { topic: 'indexes', type: 'mc', q: 'With an index on `(city, signup_date)`, which filter can NOT use it to narrow the search?', choices: ['`city = \'Madrid\'`', '`city = \'Madrid\' AND signup_date > DATE \'2024-01-01\'`', '`signup_date > DATE \'2024-01-01\'`', '`city IN (\'Madrid\', \'Bilbao\')`'], answer: 2, why: 'Leftmost-prefix rule: without the first column the dates are spread all over the index.' },
     { topic: 'indexes', type: 'tf', q: 'Adding indexes makes INSERT and UPDATE faster.', answer: false, why: 'Each write must also update every index of the table, so writes get slower.' },
     { topic: 'indexes', type: 'mc', q: 'A query is answered from the index alone, without reading the table. That index is…', choices: ['clustered', 'covering for that query', 'a hash index', 'partial'], answer: 1, why: 'It contains every column the query needs.' },
+    { topic: 'indexes', type: 'mc', q: 'Which Oracle index suits a column with 3 distinct values in a read-mostly data warehouse?', choices: ['Bitmap', 'Reverse key', 'Unique B-tree', 'None: Oracle has no such index'], answer: 0, why: 'Bitmap indexes are compact for low-cardinality columns, but they hurt concurrent writes.' },
     { topic: 'indexes', type: 'mc', q: 'Which index kind can answer `WHERE price BETWEEN 10 AND 20 ORDER BY price`?', choices: ['Hash', 'B-tree', 'GIN', 'None'], answer: 1, why: 'Only a sorted structure such as a B-tree serves ranges and ordering.' },
     { topic: 'indexes', type: 'tf', q: 'An index on a yes/no column usually helps a query that returns half of the table.', answer: false, why: 'With such low selectivity, reading the table directly is as cheap as going through the index.' },
     { topic: 'clustering', type: 'mc', q: 'How many clustered indexes can a table have?', choices: ['None', 'One', 'One per column', 'As many as needed'], answer: 1, why: 'The rows can be stored in only one physical order.' },
     { topic: 'clustering', type: 'tf', q: 'In MySQL InnoDB each table is clustered by its primary key.', answer: true, why: 'InnoDB stores the rows inside the primary-key B+ tree; secondary indexes point to the PK.' },
+    { topic: 'clustering', type: 'mc', q: 'Which Oracle structure stores the rows of a table inside its primary-key B-tree?', choices: ['Table cluster', 'Index-organized table (ORGANIZATION INDEX)', 'Bitmap index', 'Partitioned table'], answer: 1, why: 'An IOT behaves like a clustered index.' },
     { topic: 'clustering', type: 'mc', q: 'After `CLUSTER orders USING orders_date_idx` in PostgreSQL, new rows…', choices: ['are kept in date order automatically', 'go wherever there is space, so the order decays', 'are rejected until CLUSTER runs again', 'go to a separate partition'], answer: 1, why: 'CLUSTER is a one-off rewrite; PostgreSQL tables are heaps.' },
     { topic: 'partitioning', type: 'mc', q: 'One partition per month of `order_date` is…', choices: ['range partitioning', 'list partitioning', 'hash partitioning', 'vertical partitioning'], answer: 0, why: 'Each partition holds an interval of the key.' },
     { topic: 'partitioning', type: 'fib', q: 'When the optimizer reads only the partitions that can match the WHERE, it is called partition ___.', accept: ['pruning'], why: 'Partition pruning skips every partition outside the filtered range.' },
     { topic: 'partitioning', type: 'tf', q: 'Dropping an old partition is usually much faster than deleting its rows with DELETE.', answer: true, why: 'Dropping removes a whole table at once; DELETE writes every row to the log.' },
     { topic: 'partitioning', type: 'mc', q: 'Spreading the rows of a table across several servers is…', choices: ['vertical partitioning', 'sharding', 'clustering', 'replication'], answer: 1, why: 'Sharding is horizontal partitioning across machines.' },
-    { topic: 'efficiency', type: 'mc', q: 'With an index on `signup_date`, which condition can use it?', choices: ['`substr(signup_date, 1, 4) = \'2024\'`', '`signup_date >= \'2024-01-01\' AND signup_date < \'2025-01-01\'`', '`signup_date || \'\' = \'2024-05-01\'`', '`strftime(\'%Y\', signup_date) = \'2024\'`'], answer: 1, why: 'Only the bare column can be searched in the index; functions on it force a scan.' },
+    { topic: 'efficiency', type: 'mc', q: 'With an index on `signup_date`, which condition can use it?', choices: ['`TO_CHAR(signup_date, \'YYYY\') = \'2024\'`', '`signup_date >= DATE \'2024-01-01\' AND signup_date < DATE \'2025-01-01\'`', '`TRUNC(signup_date, \'YYYY\') = DATE \'2024-01-01\'`', '`EXTRACT(YEAR FROM signup_date) = 2024`'], answer: 1, why: 'Only the bare column can be searched in the index; functions on it force a scan.' },
     { topic: 'efficiency', type: 'mc', q: 'A program reads 100 customers and then runs one query per customer for its orders. This is…', choices: ['a deadlock', 'the N+1 problem', 'partition pruning', 'a covering query'], answer: 1, why: '101 queries where one join would do.' },
     { topic: 'efficiency', type: 'tf', q: 'The optimizer chooses a plan using statistics about the data.', answer: true, why: 'It estimates costs from row counts and value distributions; ANALYZE refreshes them.' },
-    { topic: 'efficiency', type: 'fib', q: 'The statement that shows the plan of a query without running it is ___ (in PostgreSQL and MySQL).', accept: ['EXPLAIN', 'explain'], why: 'SQLite uses EXPLAIN QUERY PLAN; PostgreSQL adds EXPLAIN ANALYZE to also run it.' },
+    { topic: 'efficiency', type: 'fib', q: 'In Oracle, the statement that stores the plan of a query without running it is EXPLAIN ___ FOR.', accept: ['PLAN', 'plan'], why: 'Then SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY) prints it. PostgreSQL and MySQL use plain EXPLAIN.' },
+    { topic: 'efficiency', type: 'mc', q: 'An Oracle plan shows TABLE ACCESS FULL on a big table inside a selective join. The usual fix is…', choices: ['a bitmap index on every column', 'an index on the filtered or joined column', 'COMMIT before the query', 'SELECT *'], answer: 1, why: 'A full scan on a big table usually means a missing index on the filter or join column.' },
   ];
 
   DATA.en.SQL_SANDBOX = {
-    intro: 'Write any SQL against the sample tables of the course: `department`, `student`, `course` and `enrolment`. Open **Setup** to see how they are defined, or start from one of the examples.',
+    intro: 'Write Oracle SQL against the sample tables of the course: `department`, `student`, `course` and `enrolment`. Open **Setup** to see how they are defined, or start from one of the examples.',
     setup: SCHOOL,
     examples: [
       { label: 'Students and grades', sql: `SELECT s.name, c.title, e.grade
@@ -696,16 +807,24 @@ ORDER BY average DESC;` },
       { label: 'Courses with no students', sql: `SELECT c.course_id, c.title
 FROM course c
 WHERE NOT EXISTS (SELECT 1 FROM enrolment e WHERE e.course_id = c.course_id);` },
-      { label: 'A transaction', sql: `BEGIN;
-UPDATE enrolment SET grade = grade + 1 WHERE course_id = 'C10';
+      { label: 'A transaction', sql: `UPDATE enrolment SET grade = grade + 1 WHERE course_id = 'C10';
 SELECT * FROM enrolment WHERE course_id = 'C10';
 ROLLBACK;
 SELECT * FROM enrolment WHERE course_id = 'C10';` },
-      { label: 'A query plan', sql: `EXPLAIN QUERY PLAN
+      { label: 'A query plan', sql: `EXPLAIN PLAN FOR
 SELECT * FROM enrolment WHERE course_id = 'C10';
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
 CREATE INDEX idx_enrolment_course ON enrolment (course_id);
-EXPLAIN QUERY PLAN
-SELECT * FROM enrolment WHERE course_id = 'C10';` },
+EXPLAIN PLAN FOR
+SELECT * FROM enrolment WHERE course_id = 'C10';
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);` },
+      { label: 'Top 2 by grade', sql: `SELECT s.name, e.grade
+FROM enrolment e JOIN student s ON s.student_id = e.student_id
+ORDER BY e.grade DESC
+FETCH FIRST 2 ROWS ONLY;` },
+      { label: 'Set difference', sql: `SELECT student_id FROM student
+MINUS
+SELECT student_id FROM enrolment WHERE course_id = 'C20';` },
     ],
   };
 })();

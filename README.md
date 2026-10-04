@@ -64,6 +64,7 @@ js/normalization.js     normalization engine, exercises and diagnose quiz (drawn
 js/normalization-section.js  normalization theory cards and the course video
 js/sql.js               SQL concept cards, quiz and sandbox
 js/sql-runner.js        runnable SQL examples: loads sql.js (SQLite in WebAssembly) on first use, runs, shows plans, downloads .sql
+js/home.js              landing page (#/): resume, section cards, shortcuts
 js/progress.js          progress page (#/progress) and the app-bar ring
 js/nosql.js             non-relational overview
 js/main.js              router and start-up
@@ -87,6 +88,7 @@ Direct links, handy for sharing in class:
 - `#/relational/logical` (the transformation rules), `#/relational/logical/<ruleId>` (e.g. `#/relational/logical/weak`) and `#/relational/logical/practice/17` (exercise 17)
 - `#/relational/normalization` (theory), `#/relational/normalization/video`, `#/relational/normalization/practice/3`, `#/relational/normalization/diagnose` and `#/relational/normalization/diagnose/advanced`
 - `#/relational/sql`, `#/relational/sql/<cardId>` (e.g. `#/relational/sql/composite-index`), `#/relational/sql/quiz/indexes` and `#/relational/sql/practice` (the sandbox)
+- `#/` — landing page (default)
 - `#/progress`
 - `#/nosql`
 
@@ -282,6 +284,13 @@ If the attempt is correct but there are redundant tables (contained in another, 
 - The 4NF and 5NF checks work on the declared dependencies and their projections onto each table. They do not compute every embedded dependency that could be implied, so a new exercise should be tested with the console open and with some incorrect decompositions.
 - Every exercise starts from a table in 1NF: there is no 1NF step. 1NF is practiced in the quiz.
 - BCNF is an extra rung between 3NF and 4NF (4NF presupposes it). It sometimes requires losing a functional dependency; the step flags this with `allowLoss`.
+
+## SQL: Oracle first, challenges and site search
+
+- **Oracle, not SQLite.** The course practises on Oracle (freesql.com), so every runnable example is written in Oracle SQL (`VARCHAR2`, `NUMBER`, `FETCH FIRST`, `MINUS`, `DUAL`, `CONNECT BY LEVEL`, `EXPLAIN PLAN`…). `js/oracle-dialect.js` (no DOM, also loadable in Node) translates that subset to SQLite for the in-browser engine, emulates Oracle's implicit transactions (no `BEGIN`; DDL commits), maps engine errors to `ORA-xxxxx`, words query plans like Oracle, and **lints** what a student types (`LIMIT`, `EXCEPT`, `TEXT`, string dates…: "would not run on Oracle"). PL/SQL, partitions, sequences and privileges are reported as "not simulated: try it in FreeSQL". **Copy and open FreeSQL** copies the script (with a clean-slate `DROP TABLE IF EXISTS`) and opens freesql.com/worksheet; the generated DDL of the ER → Logical and Normalization sections is Oracle too (reserved words such as `DATE` are quoted).
+- **Challenges** (`js/sql-challenges.js`, `data/<lang>/sql-challenges.js`, route `#/relational/sql/practice/N`; the sandbox stays at `…/practice`): 16 goals in 3 levels. "Check" runs the student's SQL and the reference on the same fresh database and compares results (rows as a set unless `ordered`; for INSERT/UPDATE/DELETE/CREATE the `verify` SELECT is compared). Solved ids: `sql-challenges-v1`.
+- **Search** (`js/search.js`): an inverted index built in the browser from every card, quiz question, exercise and challenge, per language (accent- and case-insensitive, prefix matching on a sorted term list, TF×IDF with title/summary/body weights, phrase bonus, one-typo tolerance). `/` or Ctrl+K focuses the box; opening a result highlights the searched words in the page.
+- **Checks** (`cd tools && npm i`): `node check-oracle.mjs` (translator cases), `node check-cards.mjs [en|es]` (runs every SQL card, sandbox example and challenge solution, and the generated DDL, in headless Chromium; needs network for sql.js), `node check-search.mjs`.
 
 ## Notes
 

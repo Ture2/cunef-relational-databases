@@ -27,6 +27,8 @@ const SQL_CONCEPTS = langData('SQL_CONCEPTS');
 const SQL_QUIZ_TOPICS = langData('SQL_QUIZ_TOPICS');
 const SQL_QUIZ = langData('SQL_QUIZ');
 const SQL_SANDBOX = langData('SQL_SANDBOX');
+const SQL_CHALLENGES = langData('SQL_CHALLENGES');
+const SQL_CHALLENGES_LEVELS = langData('SQL_CHALLENGES_LEVELS');
 
 /* Storage key for work that depends on the language (tables built with translated names). */
 const langKey = (key) => (LANG === 'en' ? key : `${key}-${LANG}`);
@@ -59,6 +61,22 @@ function downloadText(filename, text, type = 'text/plain') {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* FreeSQL (Oracle's free online worksheet): copies the script and opens the worksheet in a new tab.
+   If the clipboard is blocked, the script is downloaded instead. The button label tells what happened. */
+const FREESQL_URL = 'https://freesql.com/worksheet';
+function copyToFreeSql(script, button, filename = 'script.sql') {
+  const label = button.textContent;
+  const copied = navigator.clipboard && navigator.clipboard.writeText
+    ? navigator.clipboard.writeText(script).then(() => true, () => false)
+    : Promise.resolve(false);
+  return copied.then((ok) => {
+    if (!ok) downloadText(filename, script, 'application/sql');
+    window.open(FREESQL_URL, '_blank', 'noopener');
+    button.textContent = ok ? t('Copied: paste it in FreeSQL') : t('Downloaded: open it in FreeSQL');
+    setTimeout(() => { button.textContent = label; }, 2400);
+  });
 }
 
 /* Runs author self-checks (console warnings only) after the page has painted. */

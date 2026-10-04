@@ -799,11 +799,11 @@ function sqlName(label, i, used) {
 function sqlType(ex, a) {
   const k = ex.attrs.indexOf(a);
   const vals = ex.rows.map((r) => r[k]).filter((v) => v !== null && v !== '');
-  if (vals.length && vals.every((v) => Number.isInteger(v))) return 'INTEGER';
-  if (vals.length && vals.every((v) => typeof v === 'number')) return 'DECIMAL(10, 2)';
+  if (vals.length && vals.every((v) => Number.isInteger(v))) return 'NUMBER(10)';
+  if (vals.length && vals.every((v) => typeof v === 'number')) return 'NUMBER(10, 2)';
   if (vals.length && vals.every((v) => /^\d{4}-\d{2}-\d{2}$/.test(v))) return 'DATE';
   const len = Math.max(1, ...vals.map((v) => String(v).length));
-  return `VARCHAR(${[20, 50, 100, 255].find((s) => len <= s) || 255})`;
+  return `VARCHAR2(${[20, 50, 100, 255].find((s) => len <= s) || 255})`;
 }
 
 function sqlFor(ex, w) {
@@ -820,21 +820,25 @@ function sqlFor(ex, w) {
     const i = rest.findIndex((x) => x.refs.every((r) => ordered.includes(r)));
     ordered.push(...rest.splice(i < 0 ? 0 : i, 1));
   }
+  const q = (n) => (OracleDialect.isReserved(n) ? `"${n.toUpperCase()}"` : n);
+  const qs = (list) => list.map(q).join(', ');
   const body = ordered.map(({ t, name, refs }) => {
     const cols = [...E.namesOf(t.pk), ...E.namesOf(t.attrs & ~t.pk)];
-    const lines = cols.map((c) => `  ${c} ${sqlType(ex, c)} NOT NULL`);
-    lines.push(`  PRIMARY KEY (${E.namesOf(t.pk).join(', ')})`);
-    refs.forEach((r) => lines.push(`  FOREIGN KEY (${E.namesOf(r.t.pk).join(', ')}) REFERENCES ${r.name} (${E.namesOf(r.t.pk).join(', ')})`));
-    return `CREATE TABLE ${name} (\n${lines.join(',\n')}\n);`;
+    const lines = cols.map((c) => `  ${q(c)} ${sqlType(ex, c)} NOT NULL`);
+    lines.push(`  PRIMARY KEY (${qs(E.namesOf(t.pk))})`);
+    refs.forEach((r) => lines.push(`  FOREIGN KEY (${qs(E.namesOf(r.t.pk))}) REFERENCES ${q(r.name)} (${qs(E.namesOf(r.t.pk))})`));
+    return `CREATE TABLE ${q(name)} (\n${lines.join(',\n')}\n);`;
   });
-  return `-- ${t('Standard SQL (works on PostgreSQL, MySQL and SQLite with few changes).')}\n-- ${t('Types were inferred from the sample rows: review them.')}\n\n${body.join('\n\n')}\n`;
+  const drops = OracleDialect.cleanup(body.join('\n'));
+  return `-- ${t('Oracle SQL: run it in FreeSQL (choose 23ai or 26ai).')}\n-- ${t('Types were inferred from the sample rows: review them.')}\n${drops ? `\n${drops}\n` : ''}\n${body.join('\n\n')}\n`;
 }
 
 function sqlHtml(ex, w) {
   return `<details class="sql">
       <summary>${t('SQL for this design')}</summary>
       <pre tabindex="0"><code>${esc(sqlFor(ex, w))}</code></pre>
-      <p class="actions"><button type="button" class="btn ghost" data-action="copy-sql" data-fid="copy-sql">${t('Copy SQL')}</button></p>
+      <p class="actions"><button type="button" class="btn ghost" data-action="copy-sql" data-fid="copy-sql">${t('Copy SQL')}</button>
+      <button type="button" class="btn ghost" data-action="freesql-sql" data-fid="freesql-sql">${t('Copy and open FreeSQL')}</button></p>
     </details>`;
 }
 
@@ -1016,6 +1020,11 @@ function handleExerciseAction(el) {
       announce(t('Progress cleared'));
       renderExercise();
       return;
+    case 'freesql-sql': {
+      const code = $('.sql code', view);
+      if (code) copyToFreeSql(code.textContent, el, 'normalized-schema.sql');
+      return;
+    }
     case 'copy-sql': {
       const code = $('.sql code', view);
       if (!code) return;

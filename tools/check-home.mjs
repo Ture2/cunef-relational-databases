@@ -1,0 +1,44 @@
+// Checks the landing page in both languages: cards, Continue target, links and missing translations.
+import { chromium } from 'playwright';
+import { createServer } from 'node:http';
+import { createReadStream, existsSync, statSync } from 'node:fs';
+import { dirname, extname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml' };
+const server = createServer((req, res) => {
+  let file = join(ROOT, decodeURIComponent(new URL(req.url, 'http://x').pathname));
+  if (existsSync(file) && statSync(file).isDirectory()) file = join(file, 'index.html');
+  if (!file.startsWith(ROOT) || !existsSync(file)) { res.writeHead(404); res.end(); return; }
+  res.writeHead(200, { 'Content-Type': TYPES[extname(file)] || 'application/octet-stream' });
+  createReadStream(file).pipe(res);
+});
+await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
+const base = `http://127.0.0.1:${server.address().port}/`;
+const candidates = [process.env.CHROME_PATH, 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'];
+const executablePath = candidates.find((p) => p && existsSync(p));
+const browser = await chromium.launch(executablePath ? { executablePath } : {});
+let bad = 0;
+const expect = (ok, what) => { if (!ok) bad++; console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); };
+for (const lang of ['en', 'es']) {
+  const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+  const problems = [];
+  page.on('pageerror', (e) => problems.push(e.message));
+  page.on('console', (m) => { if (/\[i18n\]/.test(m.text())) problems.push(m.text()); });
+  await page.addInitScript((l) => { if (!sessionStorage.getItem('seeded')) { localStorage.clear(); localStorage.setItem('lang', l); sessionStorage.setItem('seeded', '1'); } }, lang);
+  await page.goto(base);
+  await page.waitForSelector('.home');
+  expect((await page.$$('.home-card')).length === 5, `[${lang}] five section cards`);
+  expect((await page.getAttribute('.home-resume .btn', 'href')) === '#/relational/theory', `[${lang}] fresh Continue goes to theory`);
+  await page.click('.home-card a.btn.ghost >> nth=0');
+  expect(page.url().endsWith('#/relational/theory/quiz'), `[${lang}] quiz link opens`);
+  await page.click('.brand');
+  await page.waitForSelector('.home');
+  expect((await page.getAttribute('.home-resume .btn', 'href')) === '#/relational/theory/quiz', `[${lang}] Continue resumes last place`);
+  expect(problems.length === 0, `[${lang}] no errors/missing i18n ${problems.join('; ')}`);
+  await page.close();
+}
+await browser.close();
+server.close();
+process.exit(bad ? 1 : 0);

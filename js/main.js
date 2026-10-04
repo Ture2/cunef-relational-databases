@@ -7,6 +7,7 @@
      #/relational/logical[/rule | /practice[/N]]  ER → logical rules and exercises
      #/relational/normalization[/card | /practice[/N] | /diagnose[/advanced]]
      #/relational/sql[/card | /quiz[/topic] | /practice]  SQL concepts, quiz and sandbox
+     #/                                           Landing page: resume, sections, shortcuts
      #/progress                                   Progress across every section
      #/nosql                                      Non-relational overview
    Old links (#/normalize/N, #/diagnose..., …/logical/N, …/normalization/N) are redirected.
@@ -106,7 +107,7 @@
   }
 
   /* Pages outside any section: they keep the relational tabs, with none marked as current. */
-  const PAGES = { '#/progress': ProgressPage };
+  const PAGES = { '#/progress': ProgressPage, '#/': HomePage, '#': HomePage, '': HomePage };
 
   function parse() {
     const hash = location.hash;
@@ -123,8 +124,9 @@
   function header(route) {
     const course = COURSES[route.course];
     currentCourse = route.course;
+    const home = `<a href="#/"${route.module === HomePage ? ' aria-current="page"' : ''}>${esc(t('Home'))}</a>`;
     $('#section-nav').innerHTML = course.sections.length > 1
-      ? course.sections.map((s) => `<a href="${s.href}"${s.id === route.section ? ' aria-current="page"' : ''}>${esc(s.label)}</a>`).join('')
+      ? home + course.sections.map((s) => `<a href="${s.href}"${s.id === route.section ? ' aria-current="page"' : ''}>${esc(s.label)}</a>`).join('')
       : '';
     $('#section-nav').hidden = course.sections.length < 2;
     $('#section-nav').setAttribute('aria-label', t('{course}: sections', { course: course.title }));
@@ -132,7 +134,8 @@
 
   function render() {
     const route = parse();
-    if (!route) { history.replaceState(null, '', '#/relational/theory'); render(); return; }
+    if (!route) { history.replaceState(null, '', '#/'); render(); return; }
+    if (!route.module) HomePage.saveLast(location.hash);
     header(route);
     current = route.module || COURSES[route.course].sections.find((s) => s.id === route.section).module;
     // Modules that draw a full-height rail on the left edge (ConceptSection) use the full width.

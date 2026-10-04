@@ -63,7 +63,13 @@ const ProgressPage = (() => {
 
     const sqlCards = list(SQL_CONCEPTS);
     if (sqlCards.length) {
-      out.push({ id: 'sql', title: t('SQL'), base: '#/relational/sql', parts: [readPart('#/relational/sql', sqlCards), quizPart('#/relational/sql', 'sql-quiz-v1', SQL_QUIZ)] });
+      const chSolved = load('sql-challenges-v1').solved || {};
+      const cx = list(SQL_CHALLENGES).map((e, i) => ({ e, i }));
+      out.push({ id: 'sql', title: t('SQL'), base: '#/relational/sql', parts: [
+        readPart('#/relational/sql', sqlCards),
+        quizPart('#/relational/sql', 'sql-quiz-v1', SQL_QUIZ),
+        ...(cx.length ? [solvedPart(t('SQL challenges'), cx, chSolved, (i) => `#/relational/sql/practice/${i + 1}`)] : []),
+      ] });
     }
     return out;
   }
@@ -165,5 +171,5 @@ const ProgressPage = (() => {
   /* Only stores that count towards progress can change the ring (not saved work or layout). */
   window.addEventListener('progress-change', (e) => { if (PROGRESS_KEYS.includes(e.detail)) updateButton(); });
 
-  return { render, onClick, updateButton };
+  return { render, onClick, updateButton, summary, ring };
 })();

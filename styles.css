@@ -219,6 +219,32 @@ code { font: 500 .9em var(--mono); }
 .seg button:hover { background: var(--hover); }
 .seg button[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
 
+/* Site search: the box in the app bar, its results list and the highlighted words in the page. */
+.searchbar { position: relative; flex: 0 1 260px; min-width: 0; margin-left: auto; }
+.searchbar + .progress-btn { margin-left: 0; }
+.searchbar input {
+  width: 100%; min-height: 44px; padding: 0 34px 0 38px; border: 1.5px solid var(--rule-strong); border-radius: 22px;
+  background: var(--surface); color: var(--text); font: inherit; font-size: .92rem;
+}
+.searchbar input:hover { border-color: var(--ink); }
+.searchbar input:focus { outline: 3px solid var(--focus); outline-offset: 1px; border-color: var(--ink); }
+.search-icon { position: absolute; left: 13px; top: 12px; width: 20px; height: 20px; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; pointer-events: none; }
+.search-kbd { position: absolute; right: 12px; top: 11px; padding: 1px 7px; border: 1px solid var(--rule-strong); border-radius: 3px; color: var(--muted); font: 600 .78rem var(--mono); pointer-events: none; }
+.searchbar input:focus ~ .search-kbd, .searchbar input:not(:placeholder-shown) ~ .search-kbd { display: none; }
+.search-list {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 60; width: min(560px, calc(100vw - 32px)); max-height: min(70vh, 560px); overflow-y: auto;
+  margin: 0; padding: 6px; list-style: none; background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 3px; box-shadow: var(--shadow);
+}
+.search-list[hidden] { display: none; }
+.search-item { display: grid; gap: 2px; padding: 9px 12px; border-radius: 2px; cursor: pointer; }
+.search-item[aria-selected="true"], .search-item:hover { background: var(--hover); }
+.search-meta { color: var(--muted); font-size: .74rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.search-title { color: var(--ink); font-weight: 700; }
+.search-snip { color: var(--text); font-size: .86rem; line-height: 1.4; overflow-wrap: anywhere; }
+.search-snip mark, mark.search-hit { padding: 0 2px; border-radius: 2px; background: #FFE08A; color: #000; }
+mark.search-hit { box-shadow: 0 0 0 1px #E0A800; }
+.search-none { padding: 12px; color: var(--muted); }
+
 /* Sections of a course, in teaching order: underline tabs. */
 .modes { display: flex; align-self: stretch; gap: 22px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .modes[hidden] { display: none; }
@@ -905,7 +931,27 @@ main.is-wide { max-width: none; padding: 0; }
   color: var(--ink); text-decoration: none; font-weight: 700; font-size: .9rem;
 }
 .progress-btn:hover, .progress-btn[aria-current] { border-color: var(--ink); background: var(--hover); }
-.progress-btn + .settings { margin-left: -10px; }
+.progress-btn + .ask, .ask + .settings { margin-left: -10px; }
+
+/* Ask Claude: copies the page as a tutoring prompt and opens claude.ai (js/ask-claude.js).
+   A round icon button like Settings; the label shows only where the bar has room. The "copied"
+   note is a popover under the button, so the bar never changes width. */
+.ask { position: relative; flex: none; }
+.ask-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 44px; min-height: 44px; padding: 0 10px;
+  border: 1.5px solid var(--rule-strong); border-radius: 22px; background: var(--surface);
+  color: var(--ink); font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer;
+}
+.ask-btn:hover, .ask-btn.is-busy { border-color: var(--ink); background: var(--hover); }
+/* The Claude mark (Simple Icons, CC0) in Claude's own terracotta, so students recognise where the button goes. */
+.ask-btn svg { width: 20px; height: 20px; flex: none; fill: #D97757; }
+.ask-label { display: none; }
+@media (min-width: 1680px) { .ask-btn { padding: 0 14px 0 10px; } .ask-label { display: inline; } }
+.ask-note {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 50; width: max-content; max-width: min(280px, calc(100vw - 32px));
+  margin: 0; padding: 8px 12px; background: var(--ink); color: var(--on-ink); border-radius: 3px;
+  box-shadow: var(--shadow); font-size: .86rem; font-weight: 700; line-height: 1.3;
+}
 .progress-ring { display: grid; width: 28px; height: 28px; }
 .progress-pct { color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
 .pring { display: block; }
@@ -940,6 +986,34 @@ main.is-wide { max-width: none; padding: 0; }
 .pcard-done svg { width: 20px; height: 20px; }
 .progress-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--rule); }
 .progress-foot .meta { margin: 0; }
+
+/* ---- Landing page: resume, section cards, shortcuts ------------------------- */
+
+.home { padding: 32px 0 8px; }
+.home-hero { display: flex; align-items: center; gap: 24px; }
+.home-hero .pring { flex: none; }
+.home-hero h1 { margin: 0; font: 700 2rem/1.2 var(--serif); }
+.home-hero h1:focus { outline: none; }
+.home-hero .story { margin: 6px 0 0; color: var(--muted); }
+.home-resume { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 14px 0 0; }
+.home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 16px; margin-top: 28px; }
+.home-card { display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; background: var(--surface); border: 1px solid var(--rule); border-top: 3px solid var(--accent); }
+.home-card.is-done { border-top-color: var(--ok); }
+.home-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.home-card-head h2 { margin: 0; font: 700 1.25rem/1.25 var(--serif); }
+.home-card-head h2 a { color: var(--ink); text-decoration: none; }
+.home-card-head h2 a:hover { text-decoration: underline; }
+.home-card-text { margin: 0; color: var(--muted); font-size: .92rem; }
+.home-card-links { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: auto 0 0; padding-top: 6px; }
+.home-h2 { margin: 32px 0 12px; font: 700 1.25rem/1.25 var(--serif); }
+.home-quick { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.home-q {
+  display: flex; flex-direction: column; gap: 4px; width: 100%; height: 100%; min-height: 44px; padding: 12px 14px; text-align: left;
+  background: var(--surface); border: 1px solid var(--rule); color: var(--ink); text-decoration: none; font: inherit; cursor: pointer;
+}
+.home-q:hover { border-color: var(--ink); background: var(--hover); }
+.home-q span { color: var(--muted); font-size: .86rem; }
+@media (max-width: 560px) { .home-hero { flex-direction: column; align-items: flex-start; } }
 
 /* ---- SQL: runnable examples, downloadable code ----------------------------- */
 
@@ -1057,8 +1131,9 @@ main.is-wide { max-width: none; padding: 0; }
   .concept-fig { float: none; width: auto; max-width: 560px; margin: 4px 0 14px; }
 }
 
-/* Not enough room for everything on one row: the section tabs move to a second row. */
-@media (max-width: 1100px) {
+/* Not enough room for everything on one row: the section tabs move to a second row
+   (measured: the Spanish tabs, search, Progress, Ask Claude and Settings need about 1400px). */
+@media (max-width: 1400px) {
   :root { --appbar-h: 108px; }
   .appbar-row { flex-wrap: wrap; }
   .modes { order: 3; flex-basis: 100%; border-top: 1px solid var(--rule); }
@@ -1084,6 +1159,8 @@ main.is-wide { max-width: none; padding: 0; }
   .brand-name { display: none; }
   .modes { order: 3; flex-basis: 100%; gap: 20px; border-top: 1px solid var(--rule); }
   .modes a { min-height: 44px; font-size: .9rem; }
+  .searchbar { order: 2; flex: 1 1 100%; margin: 0 0 8px; }
+  .search-list { left: 0; right: 0; width: auto; }
   .appbar-row { column-gap: 10px; }
   .levels { display: flex; }
   .levels a { flex: 1; }

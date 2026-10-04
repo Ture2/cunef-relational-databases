@@ -202,7 +202,7 @@ const LogicalSection = (() => {
 
   function sqlFor(tables) {
     const clean = tables.filter((t) => t.name.trim()).map((t) => ({ name: t.name.trim(), cols: t.cols.filter((c) => c.name.trim()) }));
-    const ident = (s) => (/^[A-Za-z_][A-Za-z0-9_]*$/.test(s) ? s : `"${s.replace(/"/g, '""')}"`);
+    const ident = (s) => (/^[A-Za-z_][A-Za-z0-9_]*$/.test(s) ? (OracleDialect.isReserved(s) ? `"${s.toUpperCase()}"` : s) : `"${s.replace(/"/g, '""')}"`);
     // Referenced tables first.
     const out = [];
     const done = new Set();
@@ -214,8 +214,8 @@ const LogicalSection = (() => {
       out.push(t);
     };
     clean.forEach((t) => visit(t));
-    return `-- ${t('Column types are placeholders: choose the right type for each column.')}\n\n${out.map((t) => {
-      const lines = t.cols.map((c) => `  ${ident(c.name)} VARCHAR(100)${c.pk || c.nn ? ' NOT NULL' : ''}`);
+    const body = out.map((t) => {
+      const lines = t.cols.map((c) => `  ${ident(c.name)} VARCHAR2(100)${c.pk || c.nn ? ' NOT NULL' : ''}`);
       const pk = t.cols.filter((c) => c.pk).map((c) => ident(c.name));
       if (pk.length) lines.push(`  PRIMARY KEY (${pk.join(', ')})`);
       const groups = {};
@@ -229,7 +229,11 @@ const LogicalSection = (() => {
       });
       Object.entries(groups).forEach(([ref, list]) => list.forEach((g) => lines.push(`  FOREIGN KEY (${g.cols.join(', ')}) REFERENCES ${ident(ref)} (${g.refs.map(ident).join(', ')})`)));
       return `CREATE TABLE ${ident(t.name)} (\n${lines.join(',\n')}\n);`;
-    }).join('\n\n')}`;
+    }).join('\n\n');
+    const drops = OracleDialect.cleanup(body);
+    const quoted = [...new Set(body.match(/"[A-Z_]+"/g) || [])].filter((q) => OracleDialect.isReserved(q.slice(1, -1)));
+    const note = quoted.length ? `-- ${t('Quoted names are Oracle reserved words: rename them (for example DATE to SALE_DATE) to avoid quoting them in every query.')} ${quoted.join(', ')}\n` : '';
+    return `-- ${t('Oracle SQL: run it in FreeSQL (choose 23ai or 26ai).')}\n-- ${t('Column types are placeholders: choose the right type for each column.')}\n${note}${drops ? `\n${drops}\n` : ''}\n${body}\n`;
   }
 
   const toFix = (n) => (n === 1 ? t('1 thing to fix') : t('{n} things to fix', { n }));
@@ -245,7 +249,8 @@ const LogicalSection = (() => {
         <ul class="checks">${r.checks.map(checkItem).join('')}</ul>
         ${r.notes.map((n) => `<p class="insight">${md(n)}</p>`).join('')}
         ${r.ok ? `<details class="sql"><summary>${esc(t('SQL for this design'))}</summary><pre><code>${esc(sqlFor(w.tables))}</code></pre>
-          <p class="actions"><button type="button" class="btn ghost" data-action="copy-sql" data-fid="copy-sql">${esc(t('Copy SQL'))}</button></p></details>${next}` : ''}
+          <p class="actions"><button type="button" class="btn ghost" data-action="copy-sql" data-fid="copy-sql">${esc(t('Copy SQL'))}</button>
+          <button type="button" class="btn ghost" data-action="freesql-sql" data-fid="freesql-sql">${esc(t('Copy and open FreeSQL'))}</button></p></details>${next}` : ''}
       </section>`;
   }
 
@@ -411,6 +416,9 @@ const LogicalSection = (() => {
         progressStore.save(progress);
         renderExercise();
         announce(t('Progress cleared.'));
+        return;
+      case 'freesql-sql':
+        copyToFreeSql(sqlFor(w.tables), el, 'er-to-oracle.sql');
         return;
       case 'copy-sql': {
         const text = sqlFor(w.tables);

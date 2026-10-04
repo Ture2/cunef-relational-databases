@@ -13,6 +13,12 @@ const SqlSection = (() => {
   const SANDBOX = '#/relational/sql/practice';
   /* Cards and the sandbox both use the runner's editors. */
   const RUNNER_EVENTS = { onClick: SqlRunner.onClick, onInput: SqlRunner.onInput, onKeydown: SqlRunner.onKeydown };
+  /* The practice slot holds the sandbox (…/practice) and the challenges (…/practice/N); their events are told apart by name. */
+  const PRACTICE_EVENTS = {
+    onClick: (el) => (/^ch-/.test(el.dataset.action || '') ? SqlChallenges.onClick(el) : SqlRunner.onClick(el)),
+    onInput: (e) => (e.target.closest('textarea[data-ch]') ? SqlChallenges.onInput(e) : SqlRunner.onInput(e)),
+    onKeydown: (e) => (e.target.closest('textarea[data-ch]') ? SqlChallenges.onKeydown(e) : SqlRunner.onKeydown(e)),
+  };
 
   function sandboxPage() {
     const sb = SQL_SANDBOX;
@@ -40,6 +46,7 @@ const SqlSection = (() => {
       ? `<p class="ss-label">${esc(t('Example you can run on the website'))}</p><pre class="concept-code"><code>${esc(card.sql.query)}</code></pre>`
       : ''),
     groups: [
+      { key: 'oracle', label: 'Oracle and FreeSQL', icon: 'code' },
       { key: 'languages', label: 'SQL languages', icon: 'code' },
       { key: 'constraints', label: 'Constraints', icon: 'key' },
       { key: 'indexes', label: 'Indexes', icon: 'index' },
@@ -53,16 +60,19 @@ const SqlSection = (() => {
     quizKey: 'sql-quiz-v1',
     codeDownload: true,
     extra: (card) => SqlRunner.html(card),
-    perfectText: () => t('You did not miss any. Try your own queries in the SQL sandbox.'),
-    nextLink: { href: SANDBOX, label: () => t('Open the SQL sandbox') },
+    perfectText: () => t('You did not miss any. Try the SQL challenges or your own queries in the SQL sandbox.'),
+    nextLink: { href: `${SANDBOX}/1`, label: () => t('Try the SQL challenges') },
     ...RUNNER_EVENTS,
     practice: {
       label: 'Practice',
       icon: 'practice',
-      match: (r) => r === 'practice',
-      links: (rest) => [{ href: SANDBOX, label: t('SQL sandbox'), current: rest !== null }],
-      render: sandboxPage,
-      ...RUNNER_EVENTS,
+      match: (r) => /^practice(?:\/\d+)?$/.test(r),
+      links: (rest) => [
+        ...SqlChallenges.links(rest !== null && rest !== 'practice').map((l) => ({ ...l, current: l.current && rest !== 'practice' })),
+        { href: SANDBOX, label: t('SQL sandbox'), current: rest === 'practice' },
+      ],
+      render: (r) => (r === 'practice' ? sandboxPage() : SqlChallenges.render(r.replace(/^practice\/?/, ''))),
+      ...PRACTICE_EVENTS,
     },
   });
 })();
