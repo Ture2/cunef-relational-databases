@@ -1,8 +1,7 @@
 'use strict';
 
 /* ==========================================================================
-   Shared helpers for every section (ER concepts, ER → logical, NoSQL).
-   The normalization module keeps its own copies so it stays self-contained.
+   Shared helpers for every section.
    ========================================================================== */
 
 /* Course data in the current language (see js/i18n.js). English fills any gap, with a warning. */
@@ -61,6 +60,12 @@ function downloadText(filename, text, type = 'text/plain') {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/* Runs author self-checks (console warnings only) after the page has painted. */
+const whenIdle = (fn) => (typeof requestIdleCallback === 'function' ? requestIdleCallback(() => fn(), { timeout: 3000 }) : setTimeout(fn, 200));
+
+/* Path of a section's summary PDF in the current language (built by tools/build-pdfs.mjs). */
+const summaryPdf = (id) => `assets/pdf/${id}-${LANG}.pdf`;
 
 /* Tells the progress view (js/progress.js) that something saved changed. */
 const progressChanged = (key) => {

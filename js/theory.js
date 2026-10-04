@@ -13,6 +13,7 @@ const TheorySection = ConceptSection({
   base: '#/relational/theory',
   title: () => t('Theory'),
   badge: 'DB',
+  pdf: 'theory',
   /* Hubs in teaching order; each card names its hub in `hub`. */
   groups: [
     { key: 'info', label: 'Information systems', icon: 'pyramid' },

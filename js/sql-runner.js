@@ -17,6 +17,8 @@ const SqlRunner = (() => {
   const texts = {};                     // box id -> current editor text (this session)
   const boxes = {};                     // box id -> { setup, query, file }
   const sandboxStore = makeStore('sql-sandbox-v1');
+  const images = new Map();             // setup SQL -> its database image, built once (the 150k-row shop takes ~0.3 s)
+  const running = new Set();            // box ids with a run in progress
   let engine = null;                    // Promise<SQL>
 
   function load() {
@@ -35,10 +37,10 @@ const SqlRunner = (() => {
 
   const rowsFor = (text) => Math.min(Math.max(String(text).split('\n').length + 1, 4), 24);
 
-  function boxHtml(id, { setup, query, file, sandbox = false }) {
-    boxes[id] = { setup, query, file, sandbox };
+  function boxHtml(id, { setup, query, file }) {
+    boxes[id] = { setup, query, file };
     const text = texts[id] !== undefined ? texts[id] : query;
-    return `<section class="sql-runner${sandbox ? ' is-sandbox' : ''}" data-widget="sql-${esc(id)}" aria-label="${esc(t('SQL example you can run'))}">
+    return `<section class="sql-runner${id === 'sandbox' ? ' is-sandbox' : ''}" data-widget="sql-${esc(id)}" aria-label="${esc(t('SQL example you can run'))}">
         <p class="sql-tag">${esc(t('SQLite · runs in your browser'))}</p>
         ${setup ? `<details class="sql-setup"><summary>${esc(t('Setup: tables and sample rows'))}</summary><pre><code>${esc(setup)}</code></pre></details>` : ''}
         <label class="sr-only" for="sqled-${esc(id)}">${esc(t('SQL to run'))}</label>
@@ -59,7 +61,7 @@ const SqlRunner = (() => {
     const sb = SQL_SANDBOX;
     const saved = sandboxStore.load();
     if (texts.sandbox === undefined && typeof saved.text === 'string') texts.sandbox = saved.text;
-    return `${boxHtml('sandbox', { setup: sb.setup, query: sb.examples[0].sql, file: 'sql-sandbox.sql', sandbox: true })}`;
+    return boxHtml('sandbox', { setup: sb.setup, query: sb.examples[0].sql, file: 'sql-sandbox.sql' });
   }
 
   /* ---- Output ---------------------------------------------------------------- */
@@ -86,10 +88,27 @@ const SqlRunner = (() => {
     return line.length > 70 ? `${line.slice(0, 68)}…` : line;
   };
 
+  /* A fresh database with the setup already run: from a cached image after the first time. */
+  function freshDb(SQL, setup) {
+    if (setup && !images.has(setup)) {
+      const d = new SQL.Database();
+      d.run('PRAGMA foreign_keys = ON;');
+      try { d.exec(setup); images.set(setup, d.export()); } finally { d.close(); }
+    }
+    const db = setup ? new SQL.Database(images.get(setup)) : new SQL.Database();
+    db.run('PRAGMA foreign_keys = ON;');    // per connection: set it again on every copy
+    return db;
+  }
+
   async function run(id) {
     const box = document.querySelector(`[data-widget="sql-${CSS.escape(id)}"]`);
     const out = box && box.querySelector('[data-out]');
-    if (!out) return;
+    if (!out || running.has(id)) return;
+    running.add(id);
+    try { await runIn(id, out); } finally { running.delete(id); }
+  }
+
+  async function runIn(id, out) {
     out.innerHTML = `<p class="meta">${esc(t('Loading the SQL engine…'))}</p>`;
     let SQL;
     try { SQL = await load(); } catch (e) {
@@ -98,15 +117,11 @@ const SqlRunner = (() => {
     }
     const cfg = boxes[id];
     const text = texts[id] !== undefined ? texts[id] : cfg.query;
-    const db = new SQL.Database();
     const parts = [];
     let failed = false;
-    try {
-      db.run('PRAGMA foreign_keys = ON;');
-      if (cfg.setup) db.exec(cfg.setup);
-    } catch (e) {
+    let db;
+    try { db = freshDb(SQL, cfg.setup); } catch (e) {
       out.innerHTML = `<section class="feedback bad"><h4>${esc(t('The setup failed'))}</h4><p><code>${esc(e.message)}</code></p></section>`;
-      db.close();
       return;
     }
     const t0 = performance.now();
@@ -155,7 +170,7 @@ const SqlRunner = (() => {
       case 'sql-run': run(id); break;
       case 'sql-reset': {
         delete texts[id];
-        if (boxes[id] && boxes[id].sandbox) sandboxStore.save({});
+        if (id === 'sandbox') sandboxStore.save({});
         const ed = document.getElementById(`sqled-${id}`);
         if (ed) { ed.value = boxes[id].query; ed.rows = rowsFor(ed.value); ed.focus(); }
         const out = el.closest('.sql-runner')?.querySelector('[data-out]');
@@ -192,5 +207,5 @@ const SqlRunner = (() => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); run(ed.dataset.sql); }
   }
 
-  return { html, sandboxHtml, onClick, onInput, onKeydown, load };
+  return { html, sandboxHtml, onClick, onInput, onKeydown };
 })();

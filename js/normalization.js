@@ -15,58 +15,22 @@ const ROOT = '#/relational/normalization';
 const BASE = `${ROOT}/practice`;        // Normalize exercises; Diagnose lives at ROOT/diagnose
 /* Theory card of each normal form (data/<lang>/normalization-theory.js). */
 const NF_CARD = { '1NF': 'nf1', '2NF': 'nf2', '3NF': 'nf3', BCNF: 'bcnf', '4NF': 'nf4', '5NF': 'nf5' };
-const $ = (sel, root = document) => root.querySelector(sel);
-const esc = (s) =>
-  String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 const MAX_TABLES = 8;
 const LEVELS = ['2NF', '3NF', 'BCNF', '4NF', '5NF'];
 const levelIdx = (nf) => LEVELS.indexOf(nf);
 const OPTIONS = [t('Fails 1NF'), t('Meets 1NF, but not 2NF'), t('Meets 2NF, but not 3NF'), t('Meets 3NF')];
-const reduceMotion = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const ICON = {
-  ok: '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" style="fill:var(--ok)"/><path d="M5.5 10.5l3 3 6-6.5" fill="none" style="stroke:var(--on-status)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  bad: '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" style="fill:var(--bad)"/><path d="M6.6 6.6l6.8 6.8M13.4 6.6l-6.8 6.8" fill="none" style="stroke:var(--on-status)" stroke-width="2" stroke-linecap="round"/></svg>',
-  note: '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.2" fill="none" style="stroke:var(--muted)" stroke-width="1.6"/><path d="M10 9v5" style="stroke:var(--muted)" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="6.2" r="1.1" style="fill:var(--muted)"/></svg>',
-  key: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="5" cy="8" r="2.6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M7.6 8H14M11.6 8v2.6M14 8v2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
-};
-
-/* Progress saved in the browser (this device only). */
-const store = {
-  key: 'normalization-en-v1',
-  load() {
-    try { return JSON.parse(localStorage.getItem(this.key)) || {}; } catch (e) { return {}; }
-  },
-  save(data) {
-    try { localStorage.setItem(this.key, JSON.stringify(data)); } catch (e) { /* no storage available */ }
-    progressChanged(this.key);
-  },
-};
+/* Progress saved in the browser (this device only); shared by both languages. */
+const store = makeStore('normalization-en-v1');
 const progress = Object.assign({ solved: {}, quizBest: 0, quizBestAdv: 0 }, store.load());
 
 /* Intermediate exercise state (tables, current step and completed steps). It is saved with a
    signature of each exercise: if you change its attributes, dependencies or steps, the old state is discarded. */
-const workStore = {
-  key: langKey('normalization-en-work-v1'),
-  load() {
-    try { const d = JSON.parse(localStorage.getItem(this.key)); return d && typeof d === 'object' ? d : {}; } catch (e) { return {}; }
-  },
-  save(data) {
-    try { localStorage.setItem(this.key, JSON.stringify(data)); } catch (e) { /* no storage available */ }
-  },
-  clear() {
-    try { localStorage.removeItem(this.key); } catch (e) { /* no storage available */ }
-  },
-};
+const workStore = makeStore(langKey('normalization-en-work-v1'));
 const savedWork = workStore.load();
 
-const exSignature = (ex) => {
-  const s = JSON.stringify([ex.attrs, ex.fds, ex.mvds || [], ex.jds || [], ex.rows.length, ex.steps.map((st) => st.nf)]);
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
-  return h.toString(36);
-};
+const exSignature = (ex) => hashOf([ex.attrs, ex.fds, ex.mvds || [], ex.jds || [], ex.rows.length, ex.steps.map((st) => st.nf)]);
 
 /* ==========================================================================
    1. Dependency engine
@@ -644,11 +608,6 @@ function touch(w) {
   for (let j = w.step + 1; j < w.steps.length; j++) w.steps[j] = null;
 }
 
-function announce(text) {
-  const el = $('#sr-status');
-  if (el) el.textContent = text;
-}
-
 function doneCount(ex) {
   const w = work[ex.id];
   if (w) return w.steps.filter((s) => s && s.done).length;
@@ -816,7 +775,7 @@ function stepCardHtml(ex, w) {
       ${from ? `<p class="from">${t('You start from the tables you left in {nf}. Modify them: remove attributes from one table and put them in a new one.', { nf: nfLabel(from) })}</p>` : ''}
       <details class="how-step">
         <summary>${t('How to take this step')}</summary>
-        <ol>${info.how.map((h) => `<li>${esc(h)}</li>`).join('')}</ol>
+        <ol>${info.how.map((h) => `<li>${md(h)}</li>`).join('')}</ol>
       </details>
     </section>`;
 }
@@ -1009,23 +968,6 @@ function collectTables(ex, w) {
   return tables;
 }
 
-/* Moves focus to the message and scrolls it into view if needed. */
-function reveal(el) {
-  if (!el) return;
-  el.focus({ preventScroll: true });
-  if (el.scrollIntoView) el.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
-}
-
-function withFocus(fn) {
-  const active = document.activeElement;
-  const id = active && active.dataset ? active.dataset.fid : null;
-  fn();
-  if (id) {
-    const el = view.querySelector(`[data-fid="${id}"]`);
-    if (el && !el.disabled) el.focus({ preventScroll: true });
-  }
-}
-
 const sameTables = (a, b) => JSON.stringify(a.map((t) => [t.name, t.cells])) === JSON.stringify(b.map((t) => [t.name, t.cells]));
 
 function handleExerciseAction(el) {
@@ -1042,7 +984,7 @@ function handleExerciseAction(el) {
       if (v === 0) delete tb.cells[a]; else tb.cells[a] = v;
       touch(w);
       announce(t('{attr} in {table}: {state}', { attr: a, table: tableLabel(tb, ti), state: [t('removed'), t('included'), t('primary key')][v] }));
-      withFocus(renderExercise);
+      keepFocus(renderExercise);
       break;
     }
     case 'add-table':
@@ -1050,7 +992,7 @@ function handleExerciseAction(el) {
         s.tables.push(newTable());
         touch(w);
         announce(t('Table {n} added', { n: s.tables.length }));
-        withFocus(renderExercise);
+        keepFocus(renderExercise);
       }
       break;
     case 'remove-table':
@@ -1099,15 +1041,15 @@ function handleExerciseAction(el) {
     }
     case 'toggle-fds':
       w.fds = !w.fds;
-      withFocus(renderExercise);
+      keepFocus(renderExercise);
       break;
     case 'hint':
       if (s.hints < st.hints.length) s.hints++;
-      withFocus(renderExercise);
+      keepFocus(renderExercise);
       break;
     case 'solution':
       s.solution = !s.solution;
-      withFocus(renderExercise);
+      keepFocus(renderExercise);
       break;
     case 'use-solution': {
       s.tables = st.solution.map((tb) => ({
@@ -1178,15 +1120,6 @@ function handleExerciseAction(el) {
    ========================================================================== */
 
 const quiz = { adv: false, order: [], i: 0, score: 0, picked: null, missed: [], done: false };
-
-function shuffle(arr) {
-  const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
 
 const quizPool = () => QUESTIONS.map((qn, k) => k).filter((k) => !!QUESTIONS[k].adv === quiz.adv);
 const optionsOf = (qn) => (qn.adv ? ADV_OPTIONS : OPTIONS);
@@ -1356,7 +1289,7 @@ function onInput(e) {
   persist();
 }
 
-selfTest();
+whenIdle(selfTest);               // author checks: console warnings only, after the first paint
 
 return { render, links, hrefFor, onClick, onInput };
 })();

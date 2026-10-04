@@ -58,7 +58,6 @@ const NormalizationSection = (() => {
       const p = v.play();
       if (p && p.catch) p.catch(() => {});
     } catch (e) { /* metadata not loaded yet */ }
-    v.focus({ preventScroll: true });
     reveal(v);
   }
 
@@ -75,6 +74,8 @@ const NormalizationSection = (() => {
     base: '#/relational/normalization',
     title: () => t('Normalization'),
     badge: 'NF',
+    pdf: 'normalization',
+    summaryExtra: (card) => `${howHtml(card)}${card.video ? `<p class="meta">${esc(t('Watch it on the website, in the Normalization section.'))}</p>` : ''}`,
     groups: [
       { key: 'why', label: 'Why normalize', icon: 'why' },
       { key: 'deps', label: 'Dependencies', icon: 'arrow' },

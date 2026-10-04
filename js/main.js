@@ -40,7 +40,7 @@
     $('.progress-label').textContent = t('Progress');
     $('#footer-course').textContent = t('Databases · Escuela Politécnica Superior');
     const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute('content', t('Interactive databases practice: ER concepts, ER to logical model transformation with instant checking, and normalization up to 5NF.'));
+    if (meta) meta.setAttribute('content', t('Interactive databases practice: theory, ER concepts, ER to logical model transformation with instant checking, normalization up to 5NF and SQL you can run in the browser.'));
     $('#settings-label').textContent = t('Settings');
     $('#settings-btn').title = t('Settings');
     $('#settings-title').textContent = t('Settings');
@@ -105,11 +105,14 @@
     return null;
   }
 
+  /* Pages outside any section: they keep the relational tabs, with none marked as current. */
+  const PAGES = { '#/progress': ProgressPage };
+
   function parse() {
     const hash = location.hash;
     const old = legacy(hash);
     if (old) { history.replaceState(null, '', old); return parse(); }
-    if (hash === '#/progress') return { course: 'relational', section: 'progress', rest: '' };
+    if (PAGES[hash]) return { course: 'relational', section: null, rest: '', module: PAGES[hash] };
     let m = hash.match(/^#\/relational\/(theory|er|logical|normalization|sql)(?:\/(.*))?$/);
     if (m) return { course: 'relational', section: m[1], rest: m[2] || '' };
     m = hash.match(/^#\/nosql(?:\/(.*))?$/);
@@ -131,13 +134,10 @@
     const route = parse();
     if (!route) { history.replaceState(null, '', '#/relational/theory'); render(); return; }
     header(route);
-    // Every relational section draws a full-height rail on the left edge, so it uses the full width.
-    $('#main').classList.toggle('is-wide', route.course === 'relational' && route.section !== 'progress');
-    const section = route.section === 'progress'
-      ? { module: ProgressPage }
-      : COURSES[route.course].sections.find((s) => s.id === route.section);
-    current = section.module;
-    $('#progress-btn').toggleAttribute('aria-current', route.section === 'progress');
+    current = route.module || COURSES[route.course].sections.find((s) => s.id === route.section).module;
+    // Modules that draw a full-height rail on the left edge (ConceptSection) use the full width.
+    $('#main').classList.toggle('is-wide', !!current.wide);
+    $('#progress-btn').toggleAttribute('aria-current', current === ProgressPage);
     const title = current.render(route.rest);
     document.title = `${title} · ${t('Databases practice')}`;
     ProgressPage.updateButton();
@@ -167,5 +167,5 @@
   });
 
   render();
-  LogicalSection.selfTest();
+  whenIdle(LogicalSection.selfTest);     // author checks: console warnings only, after the first paint
 })();

@@ -82,6 +82,11 @@ const LogicalRulesSection = (() => {
     base: '#/relational/logical',
     title: () => t('ER → Logical'),
     badge: '1:N',
+    pdf: 'logical',
+    /* Summary sheet: the tables of the course-default design, without the per-table reasons. */
+    summaryExtra: (card) => (card.model
+      ? `<p class="ss-label">${esc(t('Resulting tables'))}</p>${LogicalSection.notationHtml(LogicalSection.variantToStudent(variantsOf(card)[0]))}`
+      : ''),
     groups: [
       { key: 'basics', label: 'Entities and attributes', icon: 'entity' },
       { key: 'binary', label: 'Binary relationships', icon: 'relationship' },

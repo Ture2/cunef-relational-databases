@@ -496,7 +496,7 @@ const LogicalSection = (() => {
         current: onPage && LOGICAL_EXERCISES[idx].level === lv,
         extra: `<span class="rail-count" title="${esc(t('{done} of {total} solved', { done, total: items.length }))}">${done}/${items.length}</span>`,
       };
-    }).filter((l) => l.href);
+    });
   }
 
   /* Index of an exercise by id, for links from the rule cards. */

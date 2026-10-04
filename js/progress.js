@@ -106,6 +106,7 @@ const ProgressPage = (() => {
     return `<article class="pcard" aria-labelledby="pc-${s.id}">
         <header class="pcard-head">
           <h2 id="pc-${s.id}"><a href="${s.base}">${esc(s.title)}</a></h2>
+          <a class="pcard-pdf" href="${summaryPdf(s.id)}" download title="${esc(t('Download the summary of {section} (PDF)', { section: s.title }))}">PDF</a>
           <span class="pcard-pct">${pct}%</span>
         </header>
         ${s.parts.map(bar).join('')}
@@ -136,8 +137,10 @@ const ProgressPage = (() => {
   }
 
   /* Progress and saved work of every section; the language, theme and rail layout stay. */
-  const KEYS = ['read-v1', 'theory-quiz-v1', 'er-quiz-v1', 'sql-quiz-v1', 'er-logical-v1', 'er-logical-work-v1', 'er-logical-work-v1-es',
-    'normalization-en-v1', 'normalization-en-work-v1', 'normalization-en-work-v1-es', 'sql-sandbox-v1'];
+  const PROGRESS_KEYS = ['read-v1', 'theory-quiz-v1', 'er-quiz-v1', 'sql-quiz-v1', 'er-logical-v1', 'normalization-en-v1'];
+  /* Saved work is kept per language: <key>-<lang> (langKey in js/core.js), and the plain key for English. */
+  const WORK_KEYS = ['er-logical-work-v1', 'normalization-en-work-v1'].flatMap((k) => [k, ...Object.keys(DATA).map((l) => `${k}-${l}`)]);
+  const KEYS = [...PROGRESS_KEYS, ...WORK_KEYS, 'sql-sandbox-v1'];
 
   function onClick(el) {
     if (el.dataset.action !== 'clear-progress') return;
@@ -147,16 +150,20 @@ const ProgressPage = (() => {
   }
 
   /* The app-bar button: a small ring and the overall percentage. */
+  let shownPct = null;
   function updateButton() {
     const btn = $('#progress-btn');
     if (!btn) return;
     const s = summary();
+    if (s.pct === shownPct) return;
+    shownPct = s.pct;
     btn.querySelector('.progress-ring').innerHTML = ring(s.pct, 28);
     btn.querySelector('.progress-pct').textContent = `${s.pct}%`;
     btn.setAttribute('aria-label', t('Your progress: {pct}%', { pct: s.pct }));
     btn.title = t('Your progress: {pct}%', { pct: s.pct });
   }
-  window.addEventListener('progress-change', () => { updateButton(); });
+  /* Only stores that count towards progress can change the ring (not saved work or layout). */
+  window.addEventListener('progress-change', (e) => { if (PROGRESS_KEYS.includes(e.detail)) updateButton(); });
 
-  return { render, onClick, updateButton, summary };
+  return { render, onClick, updateButton };
 })();

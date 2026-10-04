@@ -7,6 +7,7 @@ A static site (HTML, CSS and JavaScript, no build step and no server; the only e
   2. **ER → Logical**: the student reads an ER model (diagram plus a text version) and builds the relational tables. For each table they give its name and columns, mark the primary key, pick a foreign key's target, and mark NOT NULL on the foreign keys. The checker explains every mistake in terms of the course's transformation rules. There are 21 exercises: 9 at level 1 (one rule at a time) and 12 at level 2 (complete models from the lab sessions).
   3. **Normalization**: the existing normalization practice from 2NF to 5NF, in two modes, Normalize and Diagnose (described below).
   4. **SQL**: the sub-languages (DDL, DML, DCL, TCL), constraints, indexes, clustering, partitioning and efficiency, in 20 cards. Most examples run in the browser on SQLite (sql.js) and show results, timings and query plans; every snippet can be downloaded as a `.sql` file. A 28-question quiz and a free **SQL sandbox** on the course's sample tables follow.
+- **Summary PDFs**: each section's rail has a **Summary (PDF)** download (in the current language), with the key points, examples, diagrams and tables of every card.
 - **Progress** (the button next to the settings): cards read, exercises solved and best quiz scores of every section, with a Continue link to the next unfinished step.
 - **Non-relational databases**: for now an overview of the four NoSQL families. The route (`#/nosql`) is ready for practice once the course material exists.
 
@@ -74,6 +75,8 @@ data/en/, data/es/      course data, one folder per language, same files and sha
   normalization.js      NF_INFO, EXERCISES, ADV_OPTIONS, QUESTIONS
   normalization-theory.js  NORM_THEORY (normalization theory cards)
   sql.js                SQL_CONCEPTS, SQL_QUIZ, SQL_QUIZ_TOPICS, SQL_SANDBOX (runnable examples use the same SQL in both languages)
+assets/pdf/             summary PDF of each section and language (<section>-<lang>.pdf), built with tools/build-pdfs.mjs
+tools/                  build tools (Node, outside the site): build-pdfs.mjs
 assets/video/           rendered course video (MP4 and poster, no subtitles); built from video/ with npm run render:site
 .claude/skills/cunef-brand/  CUNEF brand skill (manual, logo, Word and PowerPoint templates)
 ```
@@ -98,6 +101,16 @@ Old links (`#/normalize/3`, `#/diagnose`, `#/diagnose/advanced`, `#/relational/l
 To try it locally, just open `index.html` in the browser.
 
 **The video** is a normal committed file (`assets/video/normalization.mp4`, about 18 MB), not Git LFS: GitHub Pages does not serve LFS files from a branch deploy, and git refuses files over 100 MB. Pages serves it as `video/mp4` with byte ranges, so the player can seek. To rebuild it after changing the Remotion project: `cd video && npm i && npm run render:site` (720p H.264 and the poster frame). The video has no subtitles of any kind: the narration is in English and the diagrams carry the on-screen text.
+
+## Summary PDFs
+
+Each section has a printable summary sheet at `#/relational/<section>/summary` (title, summary, key points, example, common mistake, figure, tables and code of every card). `tools/build-pdfs.mjs` prints those sheets with headless Chrome into `assets/pdf/<section>-<lang>.pdf` (5 sections × 2 languages, A4, about 200–450 KB each), and the rail links to them. **Re-run it after editing anything in `data/`**, so the PDFs match the site:
+
+```bash
+cd tools && npm i && npm run pdfs    # uses $CHROME_PATH, an installed Chrome/Edge, or `npx playwright install chromium`
+```
+
+The script fails if a page logs an error or a missing translation.
 
 ## Saved progress
 

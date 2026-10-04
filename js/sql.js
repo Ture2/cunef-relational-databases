@@ -11,6 +11,8 @@
 
 const SqlSection = (() => {
   const SANDBOX = '#/relational/sql/practice';
+  /* Cards and the sandbox both use the runner's editors. */
+  const RUNNER_EVENTS = { onClick: SqlRunner.onClick, onInput: SqlRunner.onInput, onKeydown: SqlRunner.onKeydown };
 
   function sandboxPage() {
     const sb = SQL_SANDBOX;
@@ -32,6 +34,11 @@ const SqlSection = (() => {
     base: '#/relational/sql',
     title: () => t('SQL'),
     badge: 'SQL',
+    pdf: 'sql',
+    /* Summary sheet: the example itself; its setup (tables and sample rows) stays on the website. */
+    summaryExtra: (card) => (card.sql
+      ? `<p class="ss-label">${esc(t('Example you can run on the website'))}</p><pre class="concept-code"><code>${esc(card.sql.query)}</code></pre>`
+      : ''),
     groups: [
       { key: 'languages', label: 'SQL languages', icon: 'code' },
       { key: 'constraints', label: 'Constraints', icon: 'key' },
@@ -48,18 +55,14 @@ const SqlSection = (() => {
     extra: (card) => SqlRunner.html(card),
     perfectText: () => t('You did not miss any. Try your own queries in the SQL sandbox.'),
     nextLink: { href: SANDBOX, label: () => t('Open the SQL sandbox') },
-    onClick: (el) => SqlRunner.onClick(el),
-    onInput: (e) => SqlRunner.onInput(e),
-    onKeydown: (e) => SqlRunner.onKeydown(e),
+    ...RUNNER_EVENTS,
     practice: {
       label: 'Practice',
       icon: 'practice',
       match: (r) => r === 'practice',
       links: (rest) => [{ href: SANDBOX, label: t('SQL sandbox'), current: rest !== null }],
       render: sandboxPage,
-      onClick: (el) => SqlRunner.onClick(el),
-      onInput: (e) => SqlRunner.onInput(e),
-      onKeydown: (e) => SqlRunner.onKeydown(e),
+      ...RUNNER_EVENTS,
     },
   });
 })();

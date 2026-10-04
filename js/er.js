@@ -11,6 +11,7 @@ const ErSection = ConceptSection({
   base: '#/relational/er',
   title: () => t('ER concepts'),
   badge: 'E/R',
+  pdf: 'er',
   /* Hubs in teaching order, each with an icon in Chen notation. */
   groups: [
     { key: 'basics', label: 'Basics', icon: 'entity', ids: ['entity', 'attributes', 'keys'] },

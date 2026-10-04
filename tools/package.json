@@ -1,0 +1,12 @@
+{
+  "name": "databases-practice-tools",
+  "private": true,
+  "type": "module",
+  "description": "Build tools for the static site: the summary PDF of each section.",
+  "scripts": {
+    "pdfs": "node build-pdfs.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.0"
+  }
+}
