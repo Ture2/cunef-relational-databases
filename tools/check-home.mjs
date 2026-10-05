@@ -39,6 +39,28 @@ for (const lang of ['en', 'es']) {
   expect(problems.length === 0, `[${lang}] no errors/missing i18n ${problems.join('; ')}`);
   await page.close();
 }
+// App bar layout: Progress, Ask Claude and Settings form one group at the right end, evenly spaced;
+// on narrow screens the summary PDF shares a row with the "Go to" menu.
+for (const width of [375, 768, 1280]) {
+  const page = await browser.newPage({ viewport: { width, height: 800 } });
+  await page.goto(`${base}?lang=en#/relational/er/cardinality`);
+  await page.waitForSelector('.concept');
+  const m = await page.evaluate(() => {
+    const r = (sel) => document.querySelector(sel).getBoundingClientRect();
+    const bar = r('.appbar .appbar-row');
+    const items = ['#progress-btn', '#ask-btn', '#settings-btn'].map(r);
+    const gaps = items.slice(1).map((b, i) => b.left - items[i].right);
+    const side = document.querySelector('#side-go');
+    const pdf = document.querySelector('.side-select .side-pdf');
+    const sameRow = side && pdf && side.offsetParent && Math.abs(side.getBoundingClientRect().top - pdf.getBoundingClientRect().top) < 4;
+    return { right: bar.right - items[2].right, gaps, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, sameRow, sideShown: !!(side && side.offsetParent) };
+  });
+  expect(m.right >= 0 && m.right <= 20, `[${width}px] the app bar actions sit at the right end (${Math.round(m.right)}px from it)`);
+  expect(m.gaps.every((g) => g >= 6 && g <= 12), `[${width}px] even gaps between Progress, Ask Claude and Settings (${m.gaps.map(Math.round).join(', ')}px)`);
+  expect(m.overflow <= 1, `[${width}px] no horizontal scroll`);
+  if (m.sideShown) expect(m.sameRow, `[${width}px] the summary PDF is on the same row as the "Go to" menu`);
+  await page.close();
+}
 await browser.close();
 server.close();
 process.exit(bad ? 1 : 0);

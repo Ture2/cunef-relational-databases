@@ -153,19 +153,21 @@ function ConceptSection(cfg) {
       </nav>
       <div class="side-select">
         <label for="side-go">${esc(t('Go to'))}</label>
+        <div class="side-row">
         <select id="side-go">
           <optgroup label="${esc(t('Concepts'))}">${options}</optgroup>
           ${PRACTICE ? `<optgroup label="${pLabel}">${pLinks.map((l) => `<option value="${l.href}"${l.current ? ' selected' : ''}>${esc(l.label)}</option>`).join('')}</optgroup>` : ''}
           ${HAS_QUIZ ? `<optgroup label="${esc(t('Test yourself'))}"><option value="${BASE}/quiz"${route.page === 'quiz' ? ' selected' : ''}>${quizOption}</option></optgroup>` : ''}
         </select>
-        ${pdfLink('side-pdf')}
+        ${pdfLink('side-pdf', t('PDF'))}
+        </div>
       </div>`;
   }
 
   /* Download link of the section's summary PDF, in the current language. */
-  function pdfLink(cls) {
+  function pdfLink(cls, short) {
     if (!cfg.pdf) return '';
-    const label = t('Summary (PDF)');
+    const label = short || t('Summary (PDF)');
     const title = t('Download the summary of {section} (PDF)', { section: cfg.title() });
     return `<a class="${cls}" href="${summaryPdf(cfg.pdf)}" download title="${esc(title)}" aria-label="${esc(title)}">${icon('pdf')}<span class="rail-label">${esc(label)}</span></a>`;
   }

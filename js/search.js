@@ -56,7 +56,7 @@ const SearchIndex = (() => {
     const L = (list) => (Array.isArray(list) ? list : []);
     const sections = [
       { id: 'theory', label: t('Theory'), base: '#/relational/theory', cards: L(THEORY_CONCEPTS), quiz: L(THEORY_QUIZ) },
-      { id: 'er', label: t('ER concepts'), base: '#/relational/er', cards: L(ER_CONCEPTS), quiz: L(ER_QUIZ) },
+      { id: 'er', label: t('ER concepts'), base: '#/relational/er', cards: L(ER_CONCEPTS), quiz: L(ER_QUIZ), exercises: L(ER_PRACTICE), exFields: ['statement', 'focus', 'hints', 'source'] },
       { id: 'logical', label: t('ER → Logical'), base: '#/relational/logical', cards: L(LOGICAL_RULES), exercises: L(LOGICAL_EXERCISES), exFields: ['statement', 'focus', 'hints', 'note'] },
       { id: 'normalization', label: t('Normalization'), base: '#/relational/normalization', cards: L(NORM_THEORY), exercises: L(EXERCISES), exFields: ['story'] },
       { id: 'sql', label: t('SQL'), base: '#/relational/sql', cards: L(SQL_CONCEPTS), quiz: L(SQL_QUIZ), exercises: L(SQL_CHALLENGES), exFields: ['statement', 'focus', 'hints'], exLabel: t('Challenge') },

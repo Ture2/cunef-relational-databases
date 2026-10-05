@@ -86,31 +86,6 @@ const LogicalSection = (() => {
       </div>`;
   }
 
-  function modelTextHtml(ex) {
-    const attrs = (e) => e.attrs.map((a) => {
-      const kind = { key: t('key'), partial: t('partial key'), multivalued: t('multivalued'), derived: t('derived'), composite: t('composite: {parts}', { parts: (a.parts || []).join(', ') }) }[a.kind];
-      return `<code>${esc(a.name)}</code>${kind ? ` <span class="muted">(${esc(kind)})</span>` : ''}`;
-    }).join(', ');
-    const ents = ex.entities.map((e) => `<li><strong>${esc(e.id)}</strong>${e.weak ? ` <span class="tag-sm">${esc(t('weak'))}</span>` : ''}: ${attrs(e) || `<span class="muted">${esc(t('no attributes of its own'))}</span>`}</li>`).join('');
-    const rels = ex.relationships.map((r) => {
-      const ratio = LogicalEngine.ratioOf(r);
-      const ends = r.ends.map((e) => `<code>${esc(e.entity)}</code>${e.role ? ` ${esc(t('as {role}', { role: e.role }))}` : ''} ${esc(e.card)}`).join(' — ');
-      const at = (r.attrs || []).length ? `; ${esc(t('attributes:'))} ${r.attrs.map((a) => `<code>${esc(a.name)}</code>`).join(', ')}` : '';
-      return `<li><strong>${esc(r.id)}</strong> <span class="tag-sm">${r.identifying ? esc(t('identifying')) : esc(ratio === 'ternary' ? t('ternary') : ratio)}</span>: ${ends}${at}</li>`;
-    }).join('');
-    const hier = (ex.hierarchies || []).map((h) => {
-      const props = [h.disjoint ? t('disjoint') : t('overlapping'), h.total ? t('total') : t('partial')];
-      if (h.discriminator) props.push(t('discriminator {name}', { name: h.discriminator }));
-      return `<li>${t('{super} is specialized into {subs}', { super: `<strong>${esc(h.super)}</strong>`, subs: h.subs.map((s) => `<code>${esc(s)}</code>`).join(', ') })} <span class="muted">(${esc(props.join(', '))})</span></li>`;
-    }).join('');
-    return `<details class="model-text"><summary>${esc(t('The model as text'))}</summary>
-        <div class="model-text-body">
-          <h4>${esc(t('Entities'))}</h4><ul class="plain">${ents}</ul>
-          <h4>${esc(t('Relationships'))}</h4><ul class="plain">${rels}</ul>
-          ${hier ? `<h4>${esc(t('Hierarchies'))}</h4><ul class="plain">${hier}</ul>` : ''}
-        </div></details>`;
-  }
-
   /* The rule cards (js/logical-section.js) this exercise practises, as links back to the theory. */
   function rulesLinkHtml(ex) {
     const cards = (typeof LOGICAL_RULES !== 'undefined' ? LOGICAL_RULES : []).filter((r) => r.exercise === ex.id);
@@ -280,7 +255,7 @@ const LogicalSection = (() => {
           <h3 id="er-h">${esc(t('ER model'))}</h3>
           <div class="scroll er-wrap">${ErDiagram.modelSvg(ex)}</div>
           ${ErDiagram.LEGEND}
-          ${modelTextHtml(ex)}
+          ${ErDiagram.modelTextHtml(ex)}
         </section>
 
         <section class="block" aria-labelledby="mine-h">

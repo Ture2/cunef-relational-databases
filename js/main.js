@@ -170,5 +170,6 @@
   });
 
   render();
+  whenIdle(ErPractice.selfTest);
   whenIdle(LogicalSection.selfTest);     // author checks: console warnings only, after the first paint
 })();

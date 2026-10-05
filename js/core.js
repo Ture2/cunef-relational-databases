@@ -18,6 +18,7 @@ const ER_CONCEPTS = langData('ER_CONCEPTS');
 const ER_QUIZ_TOPICS = langData('ER_QUIZ_TOPICS');
 const ER_QUIZ = langData('ER_QUIZ');
 const LOGICAL_EXERCISES = langData('LOGICAL_EXERCISES');
+const ER_PRACTICE = langData('ER_PRACTICE');
 const THEORY_CONCEPTS = langData('THEORY_CONCEPTS');
 const THEORY_QUIZ_TOPICS = langData('THEORY_QUIZ_TOPICS');
 const THEORY_QUIZ = langData('THEORY_QUIZ');

@@ -21,7 +21,7 @@ const HomePage = (() => {
   function meta(id) {
     return {
       theory: { text: t('What a database is, the relational model, keys and integrity.'), practice: '/quiz', action: t('Take the quiz') },
-      er: { text: t('Entities, relationships, cardinalities and how to read an ER diagram.'), practice: '/quiz', action: t('Take the quiz') },
+      er: { text: t('Entities, relationships, cardinalities, and modelling exercises compared with the official solution.'), practice: '/practice', action: t('Practice') },
       logical: { text: t('Turn an ER diagram into tables, with instant checking.'), practice: '/practice', action: t('Practice') },
       normalization: { text: t('Functional dependencies and normal forms up to 5NF.'), practice: '/practice', action: t('Practice') },
       sql: { text: t('Queries you can run in the browser, a quiz and challenges.'), practice: '/practice', action: t('Practice') },

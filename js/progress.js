@@ -40,7 +40,12 @@ const ProgressPage = (() => {
 
     const out = [];
     out.push({ id: 'theory', title: t('Theory'), base: '#/relational/theory', parts: [readPart('#/relational/theory', THEORY_CONCEPTS), quizPart('#/relational/theory', 'theory-quiz-v1', THEORY_QUIZ)] });
-    out.push({ id: 'er', title: t('ER concepts'), base: '#/relational/er', parts: [readPart('#/relational/er', ER_CONCEPTS), quizPart('#/relational/er', 'er-quiz-v1', ER_QUIZ)] });
+    const erSolved = load('er-practice-v1').solved || {};
+    out.push({ id: 'er', title: t('ER concepts'), base: '#/relational/er', parts: [
+      readPart('#/relational/er', ER_CONCEPTS),
+      solvedPart(t('Modelling exercises'), list(ER_PRACTICE).map((e, i) => ({ e, i })), erSolved, (i) => `#/relational/er/practice/${i + 1}`),
+      quizPart('#/relational/er', 'er-quiz-v1', ER_QUIZ),
+    ] });
 
     const logicalSolved = load('er-logical-v1').solved || {};
     const lx = LOGICAL_EXERCISES.map((e, i) => ({ e, i }));
@@ -143,9 +148,9 @@ const ProgressPage = (() => {
   }
 
   /* Progress and saved work of every section; the language, theme and rail layout stay. */
-  const PROGRESS_KEYS = ['read-v1', 'theory-quiz-v1', 'er-quiz-v1', 'sql-quiz-v1', 'er-logical-v1', 'normalization-en-v1'];
+  const PROGRESS_KEYS = ['read-v1', 'theory-quiz-v1', 'er-quiz-v1', 'sql-quiz-v1', 'er-practice-v1', 'er-logical-v1', 'normalization-en-v1', 'sql-challenges-v1'];
   /* Saved work is kept per language: <key>-<lang> (langKey in js/core.js), and the plain key for English. */
-  const WORK_KEYS = ['er-logical-work-v1', 'normalization-en-work-v1'].flatMap((k) => [k, ...Object.keys(DATA).map((l) => `${k}-${l}`)]);
+  const WORK_KEYS = ['er-practice-work-v1', 'er-logical-work-v1', 'normalization-en-work-v1', 'sql-challenges-work-v1'].flatMap((k) => [k, ...Object.keys(DATA).map((l) => `${k}-${l}`)]);
   const KEYS = [...PROGRESS_KEYS, ...WORK_KEYS, 'sql-sandbox-v1'];
 
   function onClick(el) {

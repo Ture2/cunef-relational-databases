@@ -232,14 +232,17 @@ const LogicalEngine = (() => {
         const oneEnd = r.ends[1 - manyIdx];
         const holder = tables[tableOf(holderEnd.entity)];
         if (!holder) return;
-        const nn = cards[1 - manyIdx].min >= 1;
+        // A subtype stored in its supertype's table shares it with the other subtypes, so its FK must allow NULL.
+        const folded = holder.name !== holderEnd.entity;
+        const nn = cards[1 - manyIdx].min >= 1 && !folded;
         const rule = ratio === '1:N'
           ? tr('`{rel}` is 1:N: rule 5, the key of the one side (`{one}`) goes to the many side (`{many}`).', { rel: r.id, one: oneEnd.entity, many: holderEnd.entity })
           : unary
             ? tr('`{rel}` is 1:1: the key of one side passes to the other (rules 6–7).', { rel: r.id })
             : tr('`{rel}` is 1:1: the key of one side passes to the other (rules 6–7; here `{holder}` holds it).', { rel: r.id, holder: holderEnd.entity });
-        const nnWhy = nn
-          ? tr('The min at `{one}`\'s end is 1: every `{holder}` must have one (NOT NULL).', { one: oneEnd.entity, holder: holderEnd.entity })
+        const nnWhy = folded && cards[1 - manyIdx].min >= 1
+          ? tr('`{holder}` is stored in the `{table}` table with the other subtypes, so the FK must allow NULL for the rows that are not `{holder}`.', { holder: holderEnd.entity, table: holder.name })
+          : nn ? tr('The min at `{one}`\'s end is 1: every `{holder}` must have one (NOT NULL).', { one: oneEnd.entity, holder: holderEnd.entity })
           : tr('The min at `{one}`\'s end is 0: a `{holder}` may have none (NULL allowed).', { one: oneEnd.entity, holder: holderEnd.entity });
         const baseName = (c) => (unary ? (pkCols(oneEnd.entity).length > 1 ? `${oneEnd.role || r.id} ${c.name}` : (oneEnd.role || `${r.id} ${c.name}`)) : c.name);
         const cols = fkColsTo(oneEnd.entity, { nn, why: `${rule} ${nnWhy}` }).map((c, i) => ({ ...c, name: uniqueName(holder, baseName(pkCols(oneEnd.entity)[i]), r.id), rel: r.id, nnWhy, sideWhy: `${rule} ${nnWhy}` }));

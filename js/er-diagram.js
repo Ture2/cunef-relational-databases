@@ -362,7 +362,41 @@ const ErDiagram = (() => {
     return svgWrap(maxX - minX, maxY - minY, body, t('ER model of “{title}”. The same model is described as text below the diagram.', { title: ex.title }));
   }
 
+  /* Ratio of a relationship from its look-across cards ('1:1', '1:N', 'M:N', 'ternary'). */
+  function ratioOf(r) {
+    if (r.ends.length > 2) return 'ternary';
+    const many = r.ends.map((e) => !/,\s*1\s*\)/.test(e.card));
+    if (many[0] && many[1]) return 'M:N';
+    return many[0] || many[1] ? '1:N' : '1:1';
+  }
+
+  /* The same model as text, for screen readers and for reading it closely (ER → Logical, ER practice). */
+  function modelTextHtml(ex) {
+    const attrs = (list) => list.map((a) => {
+      const kind = { key: t('key'), partial: t('partial key'), multivalued: t('multivalued'), derived: t('derived'), composite: t('composite: {parts}', { parts: (a.parts || []).join(', ') }) }[a.kind];
+      return `<code>${esc(a.name)}</code>${kind ? ` <span class="muted">(${esc(kind)})</span>` : ''}`;
+    }).join(', ');
+    const ents = ex.entities.map((e) => `<li><strong>${esc(e.id)}</strong>${e.weak ? ` <span class="tag-sm">${esc(t('weak'))}</span>` : ''}: ${attrs(e.attrs) || `<span class="muted">${esc(t('no attributes of its own'))}</span>`}</li>`).join('');
+    const rels = ex.relationships.map((r) => {
+      const ratio = ratioOf(r);
+      const ends = r.ends.map((e) => `<code>${esc(e.entity)}</code>${e.role ? ` ${esc(t('as {role}', { role: e.role }))}` : ''} ${esc(e.card)}`).join(' — ');
+      const at = (r.attrs || []).length ? `; ${esc(t('attributes:'))} ${attrs(r.attrs)}` : '';
+      return `<li><strong>${esc(r.id)}</strong> <span class="tag-sm">${r.identifying ? esc(t('identifying')) : esc(ratio === 'ternary' ? t('ternary') : ratio)}</span>: ${ends}${at}</li>`;
+    }).join('');
+    const hier = (ex.hierarchies || []).map((h) => {
+      const props = [h.disjoint ? t('disjoint') : t('overlapping'), h.total ? t('total') : t('partial')];
+      if (h.discriminator) props.push(t('discriminator {name}', { name: h.discriminator }));
+      return `<li>${t('{super} is specialized into {subs}', { super: `<strong>${esc(h.super)}</strong>`, subs: h.subs.map((s) => `<code>${esc(s)}</code>`).join(', ') })} <span class="muted">(${esc(props.join(', '))})</span></li>`;
+    }).join('');
+    return `<details class="model-text"><summary>${esc(t('The model as text'))}</summary>
+        <div class="model-text-body">
+          <h4>${esc(t('Entities'))}</h4><ul class="plain">${ents}</ul>
+          ${rels ? `<h4>${esc(t('Relationships'))}</h4><ul class="plain">${rels}</ul>` : ''}
+          ${hier ? `<h4>${esc(t('Hierarchies'))}</h4><ul class="plain">${hier}</ul>` : ''}
+        </div></details>`;
+  }
+
   const LEGEND = `<p class="er-legend"><span><u>${esc(t('key'))}</u></span><span><span class="dash-u">${esc(t('partial key'))}</span></span><span>{${esc(t('multivalued'))}}</span><span>/${esc(t('derived'))}</span><span>${esc(t('composite (parts)'))}</span><span>${esc(t('(min,max) look-across'))}</span></p>`;
 
-  return { chenSvg, modelSvg, attrText, LEGEND };
+  return { chenSvg, modelSvg, modelTextHtml, ratioOf, attrText, LEGEND };
 })();

@@ -1,0 +1,36 @@
+<mxfile host="app.diagrams.net"><diagram name="Page-1" id="p1"><mxGraphModel dx="1200" dy="800" grid="1" gridSize="10"><root>
+<mxCell id="0"/><mxCell id="1" parent="0"/>
+<!-- Banking (solved activities 6), drawn by hand: plain shapes, no er-* tags.
+     Cards are written three ways: as the line's value (Owns), as a label on the line (AtBranch)
+     and as free text boxes next to the entity end (HasTransaction). One ellipse is left unlinked. -->
+<mxCell id="cust" value="Customer" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="40" y="200" width="120" height="50" as="geometry"/></mxCell>
+<mxCell id="acc" value="Account" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="400" y="200" width="120" height="50" as="geometry"/></mxCell>
+<mxCell id="br" value="Branch" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="760" y="200" width="120" height="50" as="geometry"/></mxCell>
+<mxCell id="tr" value="Transaction" style="shape=ext;double=1;rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="400" y="520" width="120" height="50" as="geometry"/></mxCell>
+<mxCell id="a1" value="&lt;u&gt;customer id&lt;/u&gt;" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="30" y="100" width="110" height="36" as="geometry"/></mxCell>
+<mxCell id="a2" value="&lt;u&gt;account number&lt;/u&gt;" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="400" y="100" width="130" height="36" as="geometry"/></mxCell>
+<mxCell id="a3" value="&lt;u&gt;branch code&lt;/u&gt;" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="760" y="100" width="120" height="36" as="geometry"/></mxCell>
+<mxCell id="a4" value="&lt;span style=&quot;text-decoration: underline dashed&quot;&gt;transaction number&lt;/span&gt;" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="300" y="620" width="150" height="36" as="geometry"/></mxCell>
+<mxCell id="a5" value="date" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="460" y="620" width="80" height="36" as="geometry"/></mxCell>
+<mxCell id="a6" value="amount" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="560" y="620" width="90" height="36" as="geometry"/></mxCell>
+<mxCell id="stray" value="notes" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="900" y="600" width="80" height="36" as="geometry"/></mxCell>
+<mxCell id="r1" value="Owns" style="rhombus;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="220" y="195" width="110" height="60" as="geometry"/></mxCell>
+<mxCell id="r2" value="AtBranch" style="rhombus;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="580" y="195" width="120" height="60" as="geometry"/></mxCell>
+<mxCell id="r3" value="HasTransaction" style="rhombus;double=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="390" y="360" width="140" height="70" as="geometry"/></mxCell>
+<mxCell id="e1" style="endArrow=none;html=1;" edge="1" parent="1" source="a1" target="cust"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e2" style="endArrow=none;html=1;" edge="1" parent="1" source="a2" target="acc"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e3" style="endArrow=none;html=1;" edge="1" parent="1" source="a3" target="br"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e4" style="endArrow=none;html=1;" edge="1" parent="1" source="a4" target="tr"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e5" style="endArrow=none;html=1;" edge="1" parent="1" source="a5" target="tr"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e6" style="endArrow=none;html=1;" edge="1" parent="1" source="a6" target="tr"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="o1" value="(1,N)" style="endArrow=none;html=1;" edge="1" parent="1" source="cust" target="r1"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="o2" value="(0,N)" style="endArrow=none;html=1;" edge="1" parent="1" source="acc" target="r1"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="b1" style="endArrow=none;html=1;" edge="1" parent="1" source="acc" target="r2"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="b1l" value="(0,N)" style="edgeLabel;html=1;" vertex="1" connectable="0" parent="b1"><mxGeometry x="-0.6" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry></mxCell>
+<mxCell id="b2" style="endArrow=none;html=1;" edge="1" parent="1" source="br" target="r2"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="b2l" value="(1,1)" style="edgeLabel;html=1;" vertex="1" connectable="0" parent="b2"><mxGeometry x="-0.6" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry></mxCell>
+<mxCell id="h1" style="endArrow=none;html=1;" edge="1" parent="1" source="acc" target="r3"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="h2" style="endArrow=none;html=1;" edge="1" parent="1" source="tr" target="r3"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="t1" value="(1,1)" style="text;html=1;" vertex="1" parent="1"><mxGeometry x="470" y="258" width="40" height="20" as="geometry"/></mxCell>
+<mxCell id="t2" value="(1,N)" style="text;html=1;" vertex="1" parent="1"><mxGeometry x="470" y="495" width="40" height="20" as="geometry"/></mxCell>
+</root></mxGraphModel></diagram></mxfile>
