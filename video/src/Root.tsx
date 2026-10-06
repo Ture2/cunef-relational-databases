@@ -13,6 +13,8 @@ import {ThirdNFScene} from './scenes/S09ThirdNF';
 import {BCNFScene} from './scenes/S10BCNF';
 import {LosslessScene} from './scenes/S11Lossless';
 import {OutroScene} from './scenes/S12Outro';
+import {Ternary, TERNARY_SCENES} from './ternary/Ternary';
+import {TIMELINE as TERNARY_TIMELINE, TOTAL_FRAMES as TERNARY_FRAMES} from './ternary/timeline';
 import {TIMELINE, TOTAL_FRAMES} from './timeline';
 
 export const RemotionRoot: React.FC = () => {
@@ -123,6 +125,12 @@ export const RemotionRoot: React.FC = () => {
           width={1920}
           height={1080}
         />
+      </Folder>
+      <Composition id="Ternary" component={Ternary} durationInFrames={TERNARY_FRAMES} fps={30} width={1920} height={1080} />
+      <Folder name="Ternary-scenes">
+        {TERNARY_SCENES.map(({key, id, Component}) => (
+          <Composition key={id} id={id} component={Component} durationInFrames={TERNARY_TIMELINE[key].durationInFrames} fps={30} width={1920} height={1080} />
+        ))}
       </Folder>
     </>
   );

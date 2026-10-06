@@ -7,13 +7,14 @@ const BED = 0.12; // music level between narration
 const DUCKED = 0.05; // music level under the voice
 const RAMP_SEC = 0.3;
 
-/** Background music for the whole video, ducked smoothly under every voice segment. */
-export const Music: React.FC = () => {
+/** Background music for the whole video, ducked smoothly under every voice segment
+    (global [start, end] frames; the normalization video's by default). */
+export const Music: React.FC<{readonly speech?: readonly (readonly [number, number])[]}> = ({speech = SPEECH_INTERVALS}) => {
   const {fps} = useVideoConfig();
   const ramp = RAMP_SEC * fps;
   const volume = (f: number) => {
     let duck = 0;
-    for (const [start, end] of SPEECH_INTERVALS) {
+    for (const [start, end] of speech) {
       if (f < start - ramp || f > end + ramp) continue;
       const d = Math.min(
         interpolate(f, [start - ramp, start], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'}),

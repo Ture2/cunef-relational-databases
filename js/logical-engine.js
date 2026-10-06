@@ -257,7 +257,9 @@ const LogicalEngine = (() => {
       const t = {
         name: r.id, kind: ratio === 'ternary' ? 'ternary' : 'mn', element: r.id, cols: [],
         why: ratio === 'ternary'
-          ? tr('`{rel}` is a ternary relationship: it becomes a table with a FK to each of the three entities.', { rel: r.id })
+          ? (r.ends.length === 3
+            ? tr('`{rel}` is a ternary relationship: it becomes a table with a FK to each of the three entities.', { rel: r.id })
+            : tr('`{rel}` relates {n} entities: it becomes a table with a FK to each of them.', { rel: r.id, n: r.ends.length }))
           : tr('`{rel}` is M:N: rule 4, it becomes a table of its own.', { rel: r.id }),
         pkWhy: ratio === 'ternary'
           ? (choice[`ternaryKey:${r.id}`] === 'many'

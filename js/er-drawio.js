@@ -101,13 +101,12 @@ const ErDrawio = (() => {
     });
     const rels = model.relationships.map((r) => {
       const ats = r.ends.map((x) => ents[x.entity]).filter(Boolean);
-      const unary = new Set(r.ends.map((x) => x.entity)).size < r.ends.length;
       let fb;
       if (r.at) fb = { x: X(r.at[0]), y: Y(r.at[1]) };
-      else if (unary) fb = { x: ats[0].x + X(1), y: ats[0].y + Y(1) };
+      else if (new Set(r.ends.map((x) => x.entity)).size === 1) fb = { x: ats[0].x + X(1), y: ats[0].y + Y(1) };
       else fb = { x: ats.reduce((s, a) => s + a.x, 0) / ats.length, y: ats.reduce((s, a) => s + a.y, 0) / ats.length };
       const c = centre(r._uid, fb);
-      return { r, x: c.x, y: c.y, w: Math.max(110, textW(r.id, 110, 7.6) + 30), h: 64, dirs: [], unary };
+      return { r, x: c.x, y: c.y, w: Math.max(110, textW(r.id, 110, 7.6) + 30), h: 64, dirs: [] };
     });
     const hiers = (model.hierarchies || []).map((h) => {
       const sp = ents[h.super];
@@ -161,6 +160,12 @@ const ErDrawio = (() => {
     Object.values(ents).forEach((E) => ring(E, E.e.attrs, ids[E.e.id], [[110, 80], [190, 125], [270, 170]]));
     rels.forEach((R) => ring(R, R.r.attrs || [], R.cid, [[95, 70], [170, 110], [245, 150]]));
 
+    const UNARY_LEGS = [
+      'exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;',
+      'exitX=0.8;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;',
+      'exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0;entryDx=0;entryDy=0;',
+      'exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;',
+    ];
     /* Lines: (min,max) next to the entity; a double line at E when the other end has min ≥ 1 (contract). */
     rels.forEach((R) => {
       const cards = R.r.ends.map((x) => (x.card ? x.card.match(CARD_RE) : null));
@@ -169,8 +174,10 @@ const ErDrawio = (() => {
         const others = cards.filter((c, j) => j !== k);
         const total = R.r.ends.length === 2 && others[0] && +others[0][1] >= 1;
         let style = total ? STYLE.double : STYLE.line;
-        // The two lines of a unary relationship leave the entity's lower-right corner side by side.
-        if (R.unary) style += k === 0 ? 'exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;' : 'exitX=0.8;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;';
+        // The lines of an entity that appears at several ends leave its lower-right corner side by side.
+        const same = R.r.ends.filter((y) => y.entity === x.entity).length;
+        const idx = R.r.ends.slice(0, k).filter((y) => y.entity === x.entity).length;
+        if (same > 1) style += UNARY_LEGS[idx % UNARY_LEGS.length];
         const label = `${x.role ? `${x.role} ` : ''}${x.card || ''}`.trim();
         edge({ kind: 'end', card: x.card || '', role: x.role || '' }, ids[x.entity], R.cid, style, label);
       });

@@ -329,17 +329,31 @@ const ErPractice = (() => {
       </li>`;
   }
 
+  /* The ratio of a relationship as the editor knows it so far: '1:N' / 'M:N' / '1:1' once both maxima of a
+     binary are set, 'ternary · M:N:1' (with '?' for unset ends) for 3 or more participants. */
+  function relRatio(r) {
+    const ends = r.ends.map((x) => ({ card: x.max ? `(${x.min || 0},${x.max})` : '' }));
+    if (ends.length === 2 && ends.some((x) => !x.card)) return '';
+    return ErDiagram.ratioTag({ ends });
+  }
+  const relRatioHtml = (r) => {
+    const s = relRatio(r);
+    return s ? `<span class="tag-sm">${esc(s)}</span>` : '';
+  };
+
   function relCardHtml(m, r, i) {
     return `<section class="tcard erp-card erp-rel c3${r.identifying ? ' is-identifying' : ''}" aria-label="${esc(t('Relationship {name}', { name: r.name || i + 1 }))}">
         <header class="tcard-head">
           <span class="badge erp-diamond" aria-hidden="true">${i + 1}</span>
           <input class="tname" type="text" placeholder="${esc(t('Relationship name (a verb)'))}" aria-label="${esc(t('Name of relationship {n}', { n: i + 1 }))}" value="${esc(r.name)}" data-f="rel-name" data-r="${r.uid}" data-fid="rn-${r.uid}" maxlength="60" autocomplete="off" spellcheck="false">
+          <span class="erp-ratio" data-ratio="${r.uid}" aria-live="polite">${relRatioHtml(r)}</span>
           <button type="button" class="tog${r.identifying ? ' on' : ''}" aria-pressed="${r.identifying}" data-action="tog-ident" data-r="${r.uid}" data-fid="ri-${r.uid}" title="${esc(t('Identifying relationship: it gives a weak entity its identity'))}">${esc(t('Identifying'))}</button>
           <button type="button" class="rm" aria-label="${esc(t('Remove relationship {name}', { name: r.name || i + 1 }))}" data-action="rm-rel" data-r="${r.uid}" data-fid="rx-${r.uid}">×</button>
         </header>
         <p class="erp-sub">${esc(t('Participants, with the look-across (min,max) of each end'))}</p>
         <ol class="cols ends">${r.ends.map((_, k) => endRowHtml(m, r, k)).join('')}</ol>
-        <p class="tcard-foot"><button type="button" class="link" data-action="add-end" data-r="${r.uid}" data-fid="ra-${r.uid}"${r.ends.length >= MAX.ends ? ' disabled' : ''}>+ ${esc(t('Add a participant (ternary)'))}</button></p>
+        ${r.ends.length > 2 ? `<p class="erp-sub">${esc(t('With {n} participants, read each end with all the others fixed: "for one combination of the others, how many?"', { n: r.ends.length }))}</p>` : ''}
+        <p class="tcard-foot"><button type="button" class="link" data-action="add-end" data-r="${r.uid}" data-fid="ra-${r.uid}"${r.ends.length >= MAX.ends ? ' disabled' : ''}>+ ${esc(r.ends.length >= 3 ? t('Add a participant (quaternary)') : t('Add a participant (ternary)'))}</button></p>
         ${r.attrs.length ? `<p class="erp-sub">${esc(t('Attributes of the relationship'))}</p><ul class="cols">${r.attrs.map((a, k) => relAttrRowHtml(r, a, k)).join('')}</ul>` : ''}
         <p class="tcard-foot"><button type="button" class="link" data-action="add-rattr" data-r="${r.uid}" data-fid="raa-${r.uid}"${r.attrs.length >= MAX.rattrs ? ' disabled' : ''}>+ ${esc(t('Add an attribute of the relationship'))}</button></p>
       </section>`;
@@ -389,7 +403,8 @@ const ErPractice = (() => {
     const r = findRel(m, uid);
     if (r) {
       const ends = r.ends.filter((x) => x.entity).map((x) => `${entName(m, x.entity)} (${x.min || '?'},${x.max || '?'})`);
-      return { label: t('Relationship {name}', { name: relLabel(m, r) }), title: relLabel(m, r), detail: ends.join(t(' and ')) };
+      const ratio = r.ends.length > 2 ? relRatio(r) : '';
+      return { label: t('Relationship {name}', { name: relLabel(m, r) }), title: relLabel(m, r), detail: [ratio, ends.join(r.ends.length > 2 ? ' · ' : t(' and '))].filter(Boolean).join(' — ') };
     }
     const h = findHier(m, uid);
     if (!h) return null;
@@ -1533,10 +1548,14 @@ ${svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '')}
     m.entities.forEach((e) => {
       document.querySelectorAll(`#view [data-opt="${CSS.escape(e.uid)}"]`).forEach((o) => { o.textContent = entName(m, e.uid); });
     });
-    m.relationships.forEach((r) => r.ends.forEach((_, k) => {
-      const p = $(`#view [data-read="${CSS.escape(`${r.uid}-${k}`)}"]`);
-      if (p) p.innerHTML = endReading(m, r, k);
-    }));
+    m.relationships.forEach((r) => {
+      r.ends.forEach((_, k) => {
+        const p = $(`#view [data-read="${CSS.escape(`${r.uid}-${k}`)}"]`);
+        if (p) p.innerHTML = endReading(m, r, k);
+      });
+      const tag = $(`#view [data-ratio="${CSS.escape(r.uid)}"]`);
+      if (tag) tag.innerHTML = relRatioHtml(r);
+    });
     const fb = $('#feedback');
     if (fb) fb.innerHTML = '';
     schedulePreview(ex, w);

@@ -182,6 +182,43 @@ const clone = (v) => JSON.parse(JSON.stringify(v));
   const r2 = E.check(ex, half, ctxOf('en', ex));
   expect(!r2.ok && codes(r2).includes('formRelEnds'), 'a relationship with one end is reported');
 }
+{
+  // N-ary relationships: degree and ratio tags, a quaternary round trip, a wrong ternary end, repeated entities.
+  const rel = (...cards) => ({ ends: cards.map((card) => ({ card })) });
+  expect(ErDiagram.naryRatio(rel('(1,N)', '(0,N)', '(1,1)')) === 'M:N:1', 'naryRatio of (1,N) (0,N) (1,1) is M:N:1');
+  expect(ErDiagram.naryRatio(rel('(0,N)', '(0,N)', '(0,N)', '(1,N)')) === 'M:N:P:Q', 'naryRatio of four "many" ends is M:N:P:Q');
+  expect(ErDiagram.degreeName(rel('', '', '')) === 'ternary' && ErDiagram.degreeName(rel('', '', '', '')) === 'quaternary', 'degreeName: ternary, quaternary');
+  expect(ErDiagram.ratioTag(rel('(1,1)', '(0,N)')) === '1:N' && ErDiagram.ratioTag(rel('(1,1)', '(1,1)', '(0,N)')) === 'ternary · 1:1:M', 'ratioTag of a binary and a ternary');
+  const quad = {
+    entities: ['A', 'B', 'C', 'D'].map((id, i) => ({ id, at: [i * 2, 0], attrs: [{ name: `${id} id`, kind: 'key' }] })),
+    relationships: [{ id: 'Meets', ends: [{ entity: 'A', card: '(0,N)' }, { entity: 'B', card: '(0,N)' }, { entity: 'C', card: '(1,1)' }, { entity: 'D', card: '(0,N)' }], attrs: [] }],
+  };
+  const qw = E.fromModel(quad);
+  const back = E.toModel(qw);
+  expect(!E.validate(qw).some((c) => c.status === 'bad'), 'a quaternary relationship is a valid model');
+  expect(back.relationships[0].ends.map((x) => `${x.entity}${x.card}`).join() === quad.relationships[0].ends.map((x) => `${x.entity}${x.card}`).join(), 'a quaternary relationship survives fromModel → toModel');
+  expect(ErDiagram.modelTextHtml(quad).includes('quaternary · M:N:1:P'), 'the model text tags it "quaternary · M:N:1:P"');
+  // The electronics exercise has the ternary Supplies; a "many" at Manufacturer is reported at that end.
+  const ex = DATA.en.ER_PRACTICE.find((x) => x.id === 'electronics');
+  const c = ctxOf('en', ex);
+  const vars = E.variants(ex, c);
+  const w = E.fromModel(vars[0].model);
+  const ter = w.relationships.find((r) => r.ends.length === 3);
+  const man = ter.ends.find((x) => w.entities.find((e) => e.uid === x.entity).name === 'Manufacturer');
+  man.max = 'N';
+  const r = E.check(ex, w, { ...c, vars });
+  const hit = r.checks.find((x) => x.status === 'bad' && x.code === 'wrongMax');
+  expect(!r.ok && hit && /Manufacturer/.test(hit.text), `a wrong max at one end of a ternary is reported at that end${hit ? '' : `: ${codes(r).join()}`}`);
+  // An entity at two of three ends: the legs are drawn apart and the third end is a plain line.
+  const twice = {
+    entities: [{ id: 'Person', at: [0, 0], attrs: [] }, { id: 'Court', at: [2, 0], attrs: [] }],
+    relationships: [{ id: 'Sues', ends: [{ entity: 'Person', card: '(0,N)', role: 'plaintiff' }, { entity: 'Person', card: '(0,N)', role: 'defendant' }, { entity: 'Court', card: '(1,1)' }] }],
+  };
+  let svg = '';
+  try { svg = ErDiagram.modelSvg(twice); } catch (e) { svg = ''; }
+  const lines = [...svg.matchAll(/<line[^>]*x1="([\d.-]+)" y1="([\d.-]+)"/g)].map((m) => `${m[1]},${m[2]}`);
+  expect(svg.includes('<svg') && lines.length === 3 && new Set(lines).size === 3, 'a relationship with one entity at two of three ends draws three separate legs');
+}
 
 /* ---- 3. ER → Logical ------------------------------------------------------------------------------ */
 section('ER → Logical');

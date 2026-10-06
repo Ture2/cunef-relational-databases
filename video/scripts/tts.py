@@ -1,7 +1,8 @@
 """Regenerate the voice-over from src/narration.json.
 
-    python scripts/tts.py            # generate missing segments, normalise, measure, validate
-    python scripts/tts.py --force    # re-synthesise every segment
+    python scripts/tts.py                  # generate missing segments, normalise, measure, validate
+    python scripts/tts.py --force          # re-synthesise every segment
+    python scripts/tts.py --video ternary  # the same for another video (src/<video>/narration.json)
 
 Requires: pip install edge-tts   (sends the narration text to Microsoft's online TTS service)
 
@@ -25,8 +26,11 @@ from pathlib import Path
 import edge_tts
 
 ROOT = Path(__file__).resolve().parent.parent
-NARRATION = ROOT / "src" / "narration.json"
-TIMELINE = ROOT / "src" / "timeline.ts"
+# The normalization video lives in src/; every other video in src/<name>/ (--video <name>).
+VIDEO = sys.argv[sys.argv.index("--video") + 1] if "--video" in sys.argv else None
+SRC = ROOT / "src" / VIDEO if VIDEO else ROOT / "src"
+NARRATION = SRC / "narration.json"
+TIMELINE = SRC / "timeline.ts"
 CACHE = ROOT / "scripts" / ".cache"
 OUT = ROOT / "public" / "audio" / "vo"
 BIN = ROOT / "node_modules" / "@remotion" / "compositor-win32-x64-msvc"

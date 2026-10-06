@@ -190,6 +190,34 @@ DATA.es.ER_QUIZ = [
     answer: 1,
     why: 'El grado cuenta los tipos de entidad que conecta la relación; tres tipos de entidad ⇒ ternaria (en cada extremo se muestran las tuplas con lectura cruzada).' },
 
+  // Cardinalidad ternaria (tarjeta: ternary)
+  { type: 'mc', topic: 'relationships', extra: true,
+    q: 'ESTUDIANTE, ASIGNATURA y PROFESOR participan en la ternaria `cursa`. ¿Qué cuenta el (mín,máx) escrito junto a **ESTUDIANTE**?',
+    choices: [
+      'Cuántos estudiantes van con una asignatura **y** un profesor a la vez',
+      'Cuántas asignaturas cursa un estudiante',
+      'Cuántos estudiantes tiene un profesor, sea cual sea la asignatura',
+      'Cuántos profesores tiene un estudiante',
+    ],
+    answer: 0,
+    why: 'Lectura cruzada con los otros extremos fijos: en una ternaria, la tupla de una entidad cuenta sus ocurrencias para una combinación de las otras dos.' },
+
+  { type: 'mc', topic: 'relationships', extra: true,
+    q: 'La ternaria ESTUDIANTE (1,N) — ASIGNATURA (1,N) — PROFESOR (1,1) es M:N:1. ¿Qué combinación identifica una ocurrencia de la relación?',
+    choices: [
+      'El par (estudiante, asignatura)',
+      'El par (asignatura, profesor)',
+      'Solo el estudiante',
+      'Solo las tres juntas',
+    ],
+    answer: 0,
+    why: 'El máximo 1 está en PROFESOR: un estudiante y una asignatura determinan el profesor, así que (estudiante, asignatura) es la clave. Las tres solo hacen falta cuando todos los extremos son N (M:N:P).' },
+
+  { type: 'tf', topic: 'relationships', extra: true,
+    q: 'Una relación ternaria siempre puede sustituirse por tres relaciones binarias entre sus entidades sin perder información.',
+    answer: false,
+    why: 'Al reunir de nuevo las tres relaciones de pares pueden aparecer combinaciones que nunca ocurrieron (filas espurias). Mantén la ternaria salvo que una regla explícita permita separarla.' },
+
   // Q12 (figure: fig-weak-entity)
   { type: 'mc', topic: 'weak',
     q: 'En la figura, `CLASE` es un **rectángulo doble** al que se llega mediante el **rombo de doble contorno** `tiene`. ¿Qué te indica esto?',
@@ -240,7 +268,7 @@ DATA.es.ER_QUIZ = [
 
   // Q15
   { type: 'mc', topic: 'cardinality',
-    q: 'En la misma relación `Camionero (1,1) — Entrega — Paquete (0,N)`, ¿por qué `Paquete` lleva una **línea doble** (participación total)?',
+    q: 'En la relación `Camionero (1,1) — Entrega — Paquete (0,N)`, ¿por qué `Paquete` lleva una **línea doble** (participación total)?',
     choices: [
       'Porque su propia tupla es `(0,N)`',
       'Porque la tupla del extremo **opuesto** (`Camionero`) tiene `mín = 1`',

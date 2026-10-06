@@ -915,20 +915,23 @@ const ErPracticeEngine = (() => {
 
     const notWeakOwners = new Set(stu.entities.filter((s) => s._notWeak).map((s) => s.id));
     const endsAlign = (o, s) => {
-      // Pairs each official end with a student end: by entity, or by role for a unary relationship.
+      // Pairs each official end with a student end: by entity, or by role when an entity appears at several ends.
+      const sameEnt = (x, y) => back[y.entity] && (back[y.entity].id === x.entity || superOf[x.entity] === back[y.entity].id || superOf[back[y.entity].id] === x.entity);
       if (!isUnary(o)) {
         const pool = [...s.ends];
         return o.ends.map((x) => {
-          const i = pool.findIndex((y) => back[y.entity] && (back[y.entity].id === x.entity || superOf[x.entity] === back[y.entity].id || superOf[back[y.entity].id] === x.entity));
+          const i = pool.findIndex((y) => sameEnt(x, y));
           return i < 0 ? null : pool.splice(i, 1)[0];
         });
       }
       const byRole = o.ends.map((x) => s.ends.find((y) => y.role && bestScore(y.role, [x.role, ...meta.aliases(x._key), x._enRole].filter(Boolean)) >= MATCH));
-      if (byRole.every(Boolean) && byRole[0] !== byRole[1]) return byRole;
-      const straight = [s.ends[0], s.ends[1]];
-      const crossed = [s.ends[1], s.ends[0]];
-      const agree = (al) => o.ends.reduce((n, x, i) => n + (al[i] && sameCard(parseCard(x.card), al[i]._card) ? 1 : 0), 0);
-      return agree(crossed) > agree(straight) ? crossed : straight;
+      if (byRole.every(Boolean) && new Set(byRole).size === byRole.length) return byRole;
+      // Otherwise the arrangement of the student's ends (at most 4, so at most 24) that matches the most
+      // entities, then the most cards; ties keep the student's order.
+      const perms = (items, n) => (n === 0 ? [[]] : items.flatMap((y, i) => perms(items.filter((_, j) => j !== i), n - 1).map((p) => [y, ...p])));
+      const score = (al) => o.ends.reduce((n, x, i) => n + (al[i] && sameEnt(x, al[i]) ? 10 : 0) + (al[i] && sameCard(parseCard(x.card), al[i]._card) ? 1 : 0), 0);
+      const pad = [...s.ends, ...Array(Math.max(0, o.ends.length - s.ends.length)).fill(null)];
+      return perms(pad, o.ends.length).reduce((best, al) => (score(al) > score(best) ? al : best));
     };
 
     const cardChecks = (o, s) => {

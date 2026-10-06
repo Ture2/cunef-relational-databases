@@ -262,15 +262,17 @@ const ErDiagram = (() => {
     ex.relationships.forEach((r) => {
       const at = relAt(r);
       const d = sized({ type: 'relationship', label: labelOf(r), identifying: r.identifying, ...P(r, at) });
-      const unary = new Set(r.ends.map(endEntity)).size < r.ends.length;
       r.ends.forEach((end, k) => {
         const b = boxes[end.entity];
         if (!b) return;
+        const same = r.ends.filter((e) => endEntity(e) === endEntity(end)).length;
         let p;
-        if (unary) {
-          // The two legs of a recursive relationship leave side by side from the box side facing the diamond.
+        if (same > 1) {
+          // The legs of a recursive relationship leave side by side from the box side facing the diamond,
+          // spread from -1 to 1 (two legs: -1 and 1; three: -1, 0, 1).
           // A diamond clearly above or below a wide box takes the top / bottom side, near the diamond.
-          const off = k === 0 ? -1 : 1;
+          const idx = r.ends.slice(0, k).filter((e) => endEntity(e) === endEntity(end)).length;
+          const off = (2 * idx - (same - 1)) / (same - 1);
           const hGap = Math.abs(d.x - b.x) - b.w / 2;
           const vGap = Math.abs(d.y - b.y) - b.h / 2;
           if (hGap > vGap && !(b.w > d.w * 2.5 && vGap > 20 && hGap < d.w * 1.5)) {
@@ -380,13 +382,28 @@ const ErDiagram = (() => {
     return svgWrap(maxX - minX, maxY - minY, body, t('ER model of “{title}”. The same model is described as text below the diagram.', { title: ex.title }));
   }
 
-  /* Ratio of a relationship from its look-across cards ('1:1', '1:N', 'M:N', 'ternary'). */
+  /* Ratio of a relationship from its look-across cards ('1:1', '1:N', 'M:N', 'ternary' for any n-ary). */
+  const isMany = (card) => !/,\s*1\s*\)/.test(card || '');
   function ratioOf(r) {
     if (r.ends.length > 2) return 'ternary';
-    const many = r.ends.map((e) => !/,\s*1\s*\)/.test(e.card));
+    const many = r.ends.map((e) => isMany(e.card));
     if (many[0] && many[1]) return 'M:N';
     return many[0] || many[1] ? '1:N' : '1:1';
   }
+
+  /* Degree of an n-ary relationship, as a word: 'ternary', 'quaternary' (more ends: 'n-ary'). */
+  const degreeName = (r) => ({ 3: 'ternary', 4: 'quaternary' }[r.ends.length] || (r.ends.length > 4 ? 'n-ary' : ''));
+
+  /* Ratio of an n-ary relationship in end order, from the maxima: '1' or M, N, P, Q… for each "many" end ('M:N:1').
+     Ends without a card yet show '?'. */
+  function naryRatio(r) {
+    const letters = 'MNPQRS';
+    let k = 0;
+    return r.ends.map((e) => (!e.card ? '?' : isMany(e.card) ? letters[k++] || 'N' : '1')).join(':');
+  }
+
+  /* The tag of a relationship: '1:N', 'M:N'… for a binary one, 'ternary · M:N:1' for an n-ary one. */
+  const ratioTag = (r) => (r.ends.length > 2 ? `${t(degreeName(r))} · ${naryRatio(r)}` : ratioOf(r));
 
   /* The same model as text, for screen readers and for reading it closely (ER → Logical, ER practice). */
   function modelTextHtml(ex) {
@@ -396,10 +413,9 @@ const ErDiagram = (() => {
     }).join(', ');
     const ents = ex.entities.map((e) => `<li><strong>${esc(e.id)}</strong>${e.weak ? ` <span class="tag-sm">${esc(t('weak'))}</span>` : ''}: ${attrs(e.attrs) || `<span class="muted">${esc(t('no attributes of its own'))}</span>`}</li>`).join('');
     const rels = ex.relationships.map((r) => {
-      const ratio = ratioOf(r);
       const ends = r.ends.map((e) => `<code>${esc(e.entity)}</code>${e.role ? ` ${esc(t('as {role}', { role: e.role }))}` : ''} ${esc(e.card)}`).join(' — ');
       const at = (r.attrs || []).length ? `; ${esc(t('attributes:'))} ${attrs(r.attrs)}` : '';
-      return `<li><strong>${esc(r.id)}</strong> <span class="tag-sm">${r.identifying ? esc(t('identifying')) : esc(ratio === 'ternary' ? t('ternary') : ratio)}</span>: ${ends}${at}</li>`;
+      return `<li><strong>${esc(r.id)}</strong> <span class="tag-sm">${r.identifying ? esc(t('identifying')) : esc(ratioTag(r))}</span>: ${ends}${at}</li>`;
     }).join('');
     const hier = (ex.hierarchies || []).map((h) => {
       const props = [h.disjoint ? t('disjoint') : t('overlapping'), h.total ? t('total') : t('partial')];
@@ -416,5 +432,5 @@ const ErDiagram = (() => {
 
   const LEGEND = `<p class="er-legend"><span><u>${esc(t('key'))}</u></span><span><span class="dash-u">${esc(t('partial key'))}</span></span><span>{${esc(t('multivalued'))}}</span><span>/${esc(t('derived'))}</span><span>${esc(t('composite (parts)'))}</span><span>${esc(t('(min,max) look-across'))}</span></p>`;
 
-  return { chenSvg, modelSvg, modelTextHtml, ratioOf, attrText, LEGEND };
+  return { chenSvg, modelSvg, modelTextHtml, ratioOf, degreeName, naryRatio, ratioTag, attrText, LEGEND };
 })();

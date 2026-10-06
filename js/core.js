@@ -136,6 +136,38 @@ function reveal(el) {
   if (el.scrollIntoView) el.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
 }
 
+/* A course video (made with Remotion in video/) with chapter buttons that seek it.
+   v: { id, title, src, poster, chapters: [[seconds, label]], meta, download, chapterLabel? } */
+const videoClock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+function courseVideoHtml(v) {
+  const label = v.chapterLabel || t;
+  return `<section class="concept-video" data-widget="video" aria-label="${esc(v.title)}">
+        <div class="video-frame">
+          <video id="${v.id}" controls preload="metadata" playsinline poster="${v.poster}">
+            <source src="${v.src}" type="video/mp4">
+            <p>${esc(t('Your browser cannot play this video.'))} <a href="${v.src}">${esc(t('Download it (MP4)'))}</a></p>
+          </video>
+        </div>
+        <h3 class="video-ch-h">${esc(t('Chapters'))}</h3>
+        <ol class="video-chapters">${v.chapters.map(([s, name]) => `<li><button type="button" class="chapter" data-action="v-seek" data-video="${v.id}" data-t="${s}" data-fid="ch-${s}"><span class="ch-time">${videoClock(s)}</span><span>${esc(label(name))}</span></button></li>`).join('')}</ol>
+        <p class="meta">${esc(v.meta)} <a href="${v.src}" download>${esc(v.download)}</a></p>
+      </section>`;
+}
+
+/* Click handler for a chapter button of courseVideoHtml; true if it handled the click. */
+function seekCourseVideo(el) {
+  if (el.dataset.action !== 'v-seek') return false;
+  const v = document.getElementById(el.dataset.video);
+  if (!v) return true;
+  try {
+    v.currentTime = +el.dataset.t;
+    const p = v.play();
+    if (p && p.catch) p.catch(() => {});
+  } catch (e) { /* metadata not loaded yet */ }
+  reveal(v);
+  return true;
+}
+
 /* Runs a full re-render and gives focus back to the control that had it (matched by data-fid). */
 function keepFocus(fn) {
   const active = document.activeElement;

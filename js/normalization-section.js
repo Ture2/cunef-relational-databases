@@ -13,6 +13,7 @@
 
 const NormalizationSection = (() => {
   const VIDEO = {
+    id: 'norm-video',
     src: 'assets/video/normalization.mp4',
     poster: 'assets/video/normalization-poster.jpg',
     /* Chapter starts in seconds: the scene offsets of video/src/timeline.ts. */
@@ -22,22 +23,13 @@ const NormalizationSection = (() => {
       [200, '1NF'], [225, '2NF'], [265, '3NF'], [300, 'BCNF'], [325, 'Lossless join and recap'],
     ],
   };
-  const clock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-  const chapterLabel = (name) => (/^(\dNF|BCNF)$/.test(name) ? nfLabel(name) : t(name));
-
-  function videoHtml() {
-    return `<section class="concept-video" data-widget="video" aria-label="${esc(t('Video: normalization step by step'))}">
-        <div class="video-frame">
-          <video id="norm-video" controls preload="metadata" playsinline poster="${VIDEO.poster}">
-            <source src="${VIDEO.src}" type="video/mp4">
-            <p>${esc(t('Your browser cannot play this video.'))} <a href="${VIDEO.src}">${esc(t('Download it (MP4)'))}</a></p>
-          </video>
-        </div>
-        <h3 class="video-ch-h">${esc(t('Chapters'))}</h3>
-        <ol class="video-chapters">${VIDEO.chapters.map(([s, name]) => `<li><button type="button" class="chapter" data-action="v-seek" data-t="${s}" data-fid="ch-${s}"><span class="ch-time">${clock(s)}</span><span>${esc(chapterLabel(name))}</span></button></li>`).join('')}</ol>
-        <p class="meta">${esc(t('6 minutes · English narration.'))} <a href="${VIDEO.src}" download>${esc(t('Download (MP4, 18 MB)'))}</a></p>
-      </section>`;
-  }
+  const videoHtml = () => courseVideoHtml({
+    ...VIDEO,
+    title: t('Video: normalization step by step'),
+    chapterLabel: (name) => (/^(\dNF|BCNF)$/.test(name) ? nfLabel(name) : t(name)),
+    meta: t('6 minutes · English narration.'),
+    download: t('Download (MP4, 18 MB)'),
+  });
 
   /* The steps of a normal form, as in the exercises (NF_INFO[nf].how). */
   function howHtml(card) {
@@ -47,18 +39,6 @@ const NormalizationSection = (() => {
         <h3 id="how-${esc(card.id)}">${esc(t('How to reach {nf}', { nf: nfLabel(card.nf) }))}</h3>
         <ol>${info.how.map((h) => `<li>${md(h)}</li>`).join('')}</ol>
       </section>`;
-  }
-
-  function onClick(el) {
-    if (el.dataset.action !== 'v-seek') return;
-    const v = $('#norm-video');
-    if (!v) return;
-    try {
-      v.currentTime = +el.dataset.t;
-      const p = v.play();
-      if (p && p.catch) p.catch(() => {});
-    } catch (e) { /* metadata not loaded yet */ }
-    reveal(v);
   }
 
   /* Normal-form cards link to an exercise of that form; 1NF (no exercise of its own) to the basic quiz. */
@@ -84,7 +64,7 @@ const NormalizationSection = (() => {
     ],
     concepts: cards,
     extra: (card) => `${card.video ? videoHtml() : ''}${howHtml(card)}`,
-    onClick,
+    onClick: seekCourseVideo,
     practice: {
       label: 'Practice',
       icon: 'practice',

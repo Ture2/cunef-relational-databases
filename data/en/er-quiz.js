@@ -190,6 +190,34 @@ DATA.en.ER_QUIZ = [
     answer: 1,
     why: 'Degree counts the entity types the relationship connects; three entity types ⇒ ternary (look-across tuples are shown at each end).' },
 
+  // Ternary cardinality (card: ternary)
+  { type: 'mc', topic: 'relationships', extra: true,
+    q: 'STUDENT, COURSE and INSTRUCTOR take part in the ternary `takes`. What does the (min,max) written at **STUDENT** count?',
+    choices: [
+      'How many students go with one course **and** one instructor together',
+      'How many courses one student takes',
+      'How many students one instructor teaches, whatever the course',
+      'How many instructors one student has',
+    ],
+    answer: 0,
+    why: 'Look across with the other ends fixed: in a ternary, the tuple at an entity counts its occurrences for one combination of the other two.' },
+
+  { type: 'mc', topic: 'relationships', extra: true,
+    q: 'A ternary STUDENT (1,N) — COURSE (1,N) — INSTRUCTOR (1,1) is M:N:1. Which combination identifies one occurrence of the relationship?',
+    choices: [
+      'The pair (student, course)',
+      'The pair (course, instructor)',
+      'The student alone',
+      'Only the three together',
+    ],
+    answer: 0,
+    why: 'The max 1 sits at INSTRUCTOR: one student and one course determine the instructor, so (student, course) is the key. All three are needed only when every end is N (M:N:P).' },
+
+  { type: 'tf', topic: 'relationships', extra: true,
+    q: 'A ternary relationship can always be replaced by three binary relationships between its entities without losing information.',
+    answer: false,
+    why: 'Joining the three pair relationships back can produce combinations that never happened (spurious rows). Keep the ternary unless an explicit rule allows the split.' },
+
   // Q12 (figure: fig-weak-entity)
   { type: 'mc', topic: 'weak',
     q: 'In the figure, `CLASS` is a **double rectangle** reached through the **double-outline diamond** `has`. What does this tell you?',
@@ -240,7 +268,7 @@ DATA.en.ER_QUIZ = [
 
   // Q15
   { type: 'mc', topic: 'cardinality',
-    q: 'In the same relationship `TruckDriver (1,1) — Delivers — Package (0,N)`, why does `Package` carry a **double line** (total participation)?',
+    q: 'In the relationship `TruckDriver (1,1) — Delivers — Package (0,N)`, why does `Package` carry a **double line** (total participation)?',
     choices: [
       'Because its own tuple says `(0,N)`',
       'Because the tuple at the **opposite** end (`TruckDriver`) has `min = 1`',

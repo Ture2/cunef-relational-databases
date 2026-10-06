@@ -187,6 +187,45 @@ DATA.en.ER_CONCEPTS = [
     },
     caption: 'The (1,1) at TruckDriver makes Package total (double line); the (0,N) at Package leaves TruckDriver partial. Maxima 1 and N ⇒ 1:N.' },
 
+  { id: 'ternary', title: 'Ternary and higher-degree relationships', topic: 'relationships', video: true,
+    summary: 'One diamond, three (or more) entities: each occurrence is a single fact that needs all of them at once.',
+    body: [
+      'Use a ternary relationship when a fact only makes sense with **three** entities together. "Mike takes Physics **with Jones**" links a STUDENT, a COURSE and an INSTRUCTOR in one occurrence; knowing only two of them does not tell you the third.',
+      'The look-across rule still works: **fix the other two, then count**. The (min,max) at INSTRUCTOR answers "for one student **and** one course, how many instructors?". With four entities (quaternary) you fix the other three.',
+    ],
+    points: [
+      'The maxima give the ratio: **1:1:1**, **1:1:N**, **1:M:N** or **M:N:P**.',
+      'A max of **1** at an end means the other entities determine it: in M:N:1, the pair (student, course) is the key of the relationship.',
+      'Taken two by two, the entities are **M:N**. A rule about a pair ("each course has one instructor") is a different, explicit constraint.',
+      'In the logical model it becomes **one table** with a FK to each entity (see ER → Logical, "Ternary relationship").',
+    ],
+    example: 'STUDENT (1,N) — takes — COURSE (1,N) — INSTRUCTOR (1,1): for one student and one course there is exactly one instructor, so the ratio is M:N:1.',
+    mistake: 'Replacing the ternary with three binary relationships. Joining the pairs back invents facts: in the table above, Mike–Physics, Physics–Song and Mike–Song all exist as pairs, so the join adds "Mike takes Physics with Song", which never happened.',
+    table: {
+      caption: 'Takes, three real facts. Split into pairs and joined again, it gains a fourth, **spurious** row: Mike · Physics · Song.',
+      head: ['student', 'course', 'instructor'],
+      rows: [
+        ['Mike', 'Physics', 'Jones'],
+        ['Mike', 'Chemistry', 'Song'],
+        ['Anne', 'Physics', 'Song'],
+      ],
+    },
+    diagram: {
+      w: 560, h: 280,
+      nodes: [
+        { id: 'S', cx: 0.14, cy: 0.14, type: 'entity', label: 'STUDENT' },
+        { id: 'C', cx: 0.14, cy: 0.86, type: 'entity', label: 'COURSE' },
+        { id: 'I', cx: 0.86, cy: 0.5, type: 'entity', label: 'INSTRUCTOR' },
+        { id: 'R', cx: 0.5, cy: 0.5, type: 'relationship', label: 'takes' },
+      ],
+      edges: [
+        { from: 'S', to: 'R', card: '(1,N)' },
+        { from: 'C', to: 'R', card: '(1,N)' },
+        { from: 'I', to: 'R', card: '(1,1)' },
+      ],
+    },
+    caption: 'A ternary relationship. Read each end with the other two fixed: for one student and course, exactly one instructor (1,1); for one course and instructor, one or more students (1,N).' },
+
   { id: 'weak-entity', title: 'Weak entities', topic: 'weak',
     summary: 'An entity that depends on another (its owner) for its existence; drawn as a double rectangle.',
     body: [

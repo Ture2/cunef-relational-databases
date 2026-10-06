@@ -1,0 +1,146 @@
+{
+  "voice": "en-GB-SoniaNeural",
+  "rate": "+0%",
+  "segments": [
+    {
+      "id": "t01-01",
+      "scene": "title",
+      "startSec": 1.0,
+      "text": "Ternary relationships: when one fact needs three entities at once.",
+      "durationSec": 5.068
+    },
+    {
+      "id": "t02-01",
+      "scene": "fact",
+      "startSec": 0.8,
+      "text": "Most relationships link two entities. But some facts need three at the same time.",
+      "durationSec": 6.008
+    },
+    {
+      "id": "t02-02",
+      "scene": "fact",
+      "startSec": 7.4,
+      "text": "Mike takes Physics with Jones. Drop any one of the three, and the fact is no longer complete.",
+      "durationSec": 6.531
+    },
+    {
+      "id": "t02-03",
+      "scene": "fact",
+      "startSec": 15.3,
+      "text": "So we draw one diamond with three lines: a ternary relationship. With four entities, it would be quaternary.",
+      "durationSec": 7.68
+    },
+    {
+      "id": "t03-01",
+      "scene": "read",
+      "startSec": 0.8,
+      "text": "To read its cardinalities, fix the other two entities, then count.",
+      "durationSec": 4.963
+    },
+    {
+      "id": "t03-02",
+      "scene": "read",
+      "startSec": 6.4,
+      "text": "For one student and one course, how many instructors? Exactly one. So we write one, one at Instructor.",
+      "durationSec": 8.438
+    },
+    {
+      "id": "t03-03",
+      "scene": "read",
+      "startSec": 15.3,
+      "text": "For one course and one instructor, how many students? One or more: one, N at Student.",
+      "durationSec": 7.053
+    },
+    {
+      "id": "t03-04",
+      "scene": "read",
+      "startSec": 22.8,
+      "text": "Course works the same way. Read together, the maxima give the ratio: M to N to one.",
+      "durationSec": 6.452
+    },
+    {
+      "id": "t04-01",
+      "scene": "keys",
+      "startSec": 0.8,
+      "text": "A ternary ratio has one of four shapes: one one one, one one N, one M N, or M N P.",
+      "durationSec": 7.419
+    },
+    {
+      "id": "t04-02",
+      "scene": "keys",
+      "startSec": 8.7,
+      "text": "A one at an end means the other entities decide it, so together they form the key.",
+      "durationSec": 5.329
+    },
+    {
+      "id": "t04-03",
+      "scene": "keys",
+      "startSec": 15.5,
+      "text": "Here, student and course identify each row.",
+      "durationSec": 3.709
+    },
+    {
+      "id": "t05-01",
+      "scene": "pairs",
+      "startSec": 0.8,
+      "text": "Now look at the pairs inside it. Mike goes with two courses; Physics goes with two instructors.",
+      "durationSec": 6.818
+    },
+    {
+      "id": "t05-02",
+      "scene": "pairs",
+      "startSec": 8.5,
+      "text": "Two by two, the entities are many to many. A rule about a pair, like one instructor per course, must be stated on its own.",
+      "durationSec": 8.62
+    },
+    {
+      "id": "t06-01",
+      "scene": "split",
+      "startSec": 0.8,
+      "text": "Could three binary relationships replace the ternary? Let's try.",
+      "durationSec": 4.937
+    },
+    {
+      "id": "t06-02",
+      "scene": "split",
+      "startSec": 6.2,
+      "text": "Split the three facts into pairs: student and course, course and instructor, student and instructor.",
+      "durationSec": 6.949
+    },
+    {
+      "id": "t06-03",
+      "scene": "split",
+      "startSec": 14.0,
+      "text": "Now join the pairs back. Mike, Physics, Song: every pair exists, so the row appears.",
+      "durationSec": 7.131
+    },
+    {
+      "id": "t06-04",
+      "scene": "split",
+      "startSec": 22.5,
+      "text": "But Mike never took Physics with Song. The split invented a fact, so keep the ternary.",
+      "durationSec": 6.06
+    },
+    {
+      "id": "t07-01",
+      "scene": "tables",
+      "startSec": 0.8,
+      "text": "In the logical model, a ternary becomes one table, with a foreign key to each entity.",
+      "durationSec": 5.695
+    },
+    {
+      "id": "t07-02",
+      "scene": "tables",
+      "startSec": 8.0,
+      "text": "Its primary key is made of the ends with max N: student and course.",
+      "durationSec": 4.937
+    },
+    {
+      "id": "t08-01",
+      "scene": "outro",
+      "startSec": 0.6,
+      "text": "Practise it in the E R concepts section of the course site.",
+      "durationSec": 4.075
+    }
+  ]
+}

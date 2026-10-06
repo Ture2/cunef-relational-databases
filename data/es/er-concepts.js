@@ -188,6 +188,45 @@ DATA.es.ER_CONCEPTS = [
     },
     caption: 'El (1,1) junto a Camionero hace que Paquete sea total (línea doble); el (0,N) junto a Paquete deja a Camionero parcial. Máximos 1 y N ⇒ 1:N.' },
 
+  { id: 'ternary', title: 'Relaciones ternarias y de grado superior', topic: 'relationships', video: true,
+    summary: 'Un rombo, tres (o más) entidades: cada ocurrencia es un único hecho que las necesita a todas a la vez.',
+    body: [
+      'Usa una relación ternaria cuando un hecho solo tiene sentido con **tres** entidades juntas. “Mike cursa Física **con Jones**” une un ESTUDIANTE, una ASIGNATURA y un PROFESOR en una sola ocurrencia; conocer solo dos no te dice la tercera.',
+      'La lectura cruzada sigue funcionando: **fija las otras dos y cuenta**. El (mín,máx) junto a PROFESOR responde a “para un estudiante **y** una asignatura, ¿cuántos profesores?”. Con cuatro entidades (cuaternaria) fijas las otras tres.',
+    ],
+    points: [
+      'Los máximos dan la correspondencia: **1:1:1**, **1:1:N**, **1:M:N** o **M:N:P**.',
+      'Un máximo **1** en un extremo significa que las demás entidades lo determinan: en M:N:1, el par (estudiante, asignatura) es la clave de la relación.',
+      'Tomadas de dos en dos, las entidades son **M:N**. Una regla sobre un par (“cada asignatura tiene un solo profesor”) es otra restricción, explícita.',
+      'En el modelo lógico se convierte en **una tabla** con una FK a cada entidad (ver E/R → Lógico, «Relación ternaria»).',
+    ],
+    example: 'ESTUDIANTE (1,N) — cursa — ASIGNATURA (1,N) — PROFESOR (1,1): para un estudiante y una asignatura hay exactamente un profesor, así que la correspondencia es M:N:1.',
+    mistake: 'Sustituir la ternaria por tres relaciones binarias. Al reunir de nuevo los pares se inventan hechos: en la tabla de arriba existen los pares Mike–Física, Física–Song y Mike–Song, así que la reunión añade “Mike cursa Física con Song”, que nunca ocurrió.',
+    table: {
+      caption: 'Cursa, tres hechos reales. Separada en pares y reunida de nuevo, gana una cuarta fila **espuria**: Mike · Física · Song.',
+      head: ['estudiante', 'asignatura', 'profesor'],
+      rows: [
+        ['Mike', 'Física', 'Jones'],
+        ['Mike', 'Química', 'Song'],
+        ['Anne', 'Física', 'Song'],
+      ],
+    },
+    diagram: {
+      w: 560, h: 280,
+      nodes: [
+        { id: 'S', cx: 0.14, cy: 0.14, type: 'entity', label: 'ESTUDIANTE' },
+        { id: 'C', cx: 0.14, cy: 0.86, type: 'entity', label: 'ASIGNATURA' },
+        { id: 'I', cx: 0.86, cy: 0.5, type: 'entity', label: 'PROFESOR' },
+        { id: 'R', cx: 0.5, cy: 0.5, type: 'relationship', label: 'cursa' },
+      ],
+      edges: [
+        { from: 'S', to: 'R', card: '(1,N)' },
+        { from: 'C', to: 'R', card: '(1,N)' },
+        { from: 'I', to: 'R', card: '(1,1)' },
+      ],
+    },
+    caption: 'Una relación ternaria. Lee cada extremo con los otros dos fijos: para un estudiante y una asignatura, exactamente un profesor (1,1); para una asignatura y un profesor, uno o más estudiantes (1,N).' },
+
   { id: 'weak-entity', title: 'Entidades débiles', topic: 'weak',
     summary: 'Una entidad que depende de otra (su propietaria) para existir; se representa con un rectángulo doble.',
     body: [

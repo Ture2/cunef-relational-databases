@@ -3,12 +3,19 @@ import type React from 'react';
 import {staticFile, useVideoConfig} from 'remotion';
 import {segmentsOf, type SceneKey} from '../narration';
 
-/** The voice-over segments of one scene, each placed at its local start time. */
-export const SceneNarration: React.FC<{readonly scene: SceneKey}> = ({scene}) => {
+/** A voice-over segment: public/audio/vo/<id>.mp3, placed at a start time local to its scene. */
+export type VoiceSegment = {
+  readonly id: string;
+  readonly startSec: number;
+  readonly durationSec: number;
+};
+
+/** The given voice-over segments of one scene, each placed at its local start time. */
+export const VoiceOver: React.FC<{readonly segments: readonly VoiceSegment[]}> = ({segments}) => {
   const {fps} = useVideoConfig();
   return (
     <>
-      {segmentsOf(scene).map((seg) => (
+      {segments.map((seg) => (
         <Audio
           key={seg.id}
           name={`VO ${seg.id}`}
@@ -22,3 +29,8 @@ export const SceneNarration: React.FC<{readonly scene: SceneKey}> = ({scene}) =>
     </>
   );
 };
+
+/** The voice-over segments of one scene of the normalization video. */
+export const SceneNarration: React.FC<{readonly scene: SceneKey}> = ({scene}) => (
+  <VoiceOver segments={segmentsOf(scene)} />
+);
