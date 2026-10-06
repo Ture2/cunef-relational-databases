@@ -73,6 +73,7 @@ const SearchIndex = (() => {
         add({ section: s.label, kind: s.exLabel || t('Exercise'), href: `${s.base}/practice/${k + 1}`, title: plain(e.title || ''), summary: plain(e.short || ''), body: strings(s.exFields.map((f) => e[f])).join(' · ') });
       });
     });
+    add({ section: t('ER concepts'), kind: t('Tool'), href: '#/relational/er/practice/draw', title: t('Draw an ER diagram'), summary: t('Draw any ER model with the course notation and download it for diagrams.net or as an image.'), body: '' });
     docs.forEach((d) => { d.text = [d.summary, d.body].filter(Boolean).join(' · '); d.foldedTitle = fold(d.title); d.foldedText = fold(d.text); });
     avgLen = docs.reduce((s, d) => s + d.len, 0) / Math.max(docs.length, 1);
     terms = [...postings.keys()].sort();

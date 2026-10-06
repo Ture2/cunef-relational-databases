@@ -125,14 +125,113 @@
     const course = COURSES[route.course];
     currentCourse = route.course;
     const home = `<a href="#/"${route.module === HomePage ? ' aria-current="page"' : ''}>${esc(t('Home'))}</a>`;
+    // Each section with tools has a chevron that opens its menu (also on hover with a mouse).
+    const more = (s) => (s.module.tools && s.module.tools().length
+      ? `<button type="button" class="mode-more" data-menu="${s.id}" aria-expanded="false" aria-controls="section-menu" aria-label="${esc(t('{section} tools', { section: s.label }))}"><svg viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></button>`
+      : '');
     $('#section-nav').innerHTML = course.sections.length > 1
-      ? home + course.sections.map((s) => `<a href="${s.href}"${s.id === route.section ? ' aria-current="page"' : ''}>${esc(s.label)}</a>`).join('')
+      ? home + course.sections.map((s) => `<span class="mode" data-mode="${s.id}"><a href="${s.href}"${s.id === route.section ? ' aria-current="page"' : ''}>${esc(s.label)}</a>${more(s)}</span>`).join('')
       : '';
     $('#section-nav').hidden = course.sections.length < 2;
     $('#section-nav').setAttribute('aria-label', t('{course}: sections', { course: course.title }));
   }
 
+  /* ---- Section menu: the tools of a section, under its tab ----------------------
+     One panel for every section, outside the tabs (they scroll sideways on phones and would clip it).
+     It opens from the chevron (click, tap, ArrowDown) or after a short hover with a mouse. */
+
+  const menu = document.createElement('div');
+  menu.className = 'section-menu';
+  menu.id = 'section-menu';
+  menu.hidden = true;
+  $('.appbar').append(menu);
+  let menuFor = null;
+  let hoverTimer = 0;
+  let leaveTimer = 0;
+  const nav = $('#section-nav');
+  const menuBtn = (id) => nav.querySelector(`.mode-more[data-menu="${id}"]`);
+
+  function openMenu(id, focusFirst) {
+    const s = COURSES[currentCourse].sections.find((x) => x.id === id);
+    const btn = menuBtn(id);
+    if (!s || !btn) return;
+    if (menuFor && menuFor !== id) closeMenu();
+    const items = [{ href: s.href, label: t('Read the cards') }, ...s.module.tools()];
+    menu.setAttribute('aria-label', t('{section} tools', { section: s.label }));
+    menu.innerHTML = `<ul>${items.map((x) => `<li><a href="${x.href}"${x.href === location.hash ? ' aria-current="page"' : ''}>${esc(x.label)}</a></li>`).join('')}</ul>`;
+    menuFor = id;
+    btn.setAttribute('aria-expanded', 'true');
+    btn.closest('.mode').classList.add('is-open');
+    menu.hidden = false;
+    // Under its tab; on a phone, the full width under the tabs.
+    const r = btn.closest('.mode').getBoundingClientRect();
+    const phone = window.innerWidth <= 640;
+    menu.classList.toggle('is-sheet', phone);
+    menu.style.top = `${Math.round(r.bottom)}px`;
+    menu.style.left = phone ? '' : `${Math.round(Math.max(8, Math.min(r.left - 12, window.innerWidth - menu.offsetWidth - 8)))}px`;
+    if (focusFirst) menu.querySelector('a').focus();
+  }
+
+  function closeMenu(focusBtn) {
+    clearTimeout(hoverTimer);
+    clearTimeout(leaveTimer);
+    if (!menuFor) return;
+    const btn = menuBtn(menuFor);
+    if (btn) {
+      btn.setAttribute('aria-expanded', 'false');
+      btn.closest('.mode').classList.remove('is-open');
+      if (focusBtn) btn.focus();
+    }
+    menuFor = null;
+    menu.hidden = true;
+  }
+
+  nav.addEventListener('click', (e) => {
+    const btn = e.target.closest('.mode-more');
+    if (!btn) return;
+    if (menuFor === btn.dataset.menu) closeMenu(); else openMenu(btn.dataset.menu);
+  });
+  nav.addEventListener('keydown', (e) => {
+    const btn = e.target.closest('.mode-more');
+    if (btn && e.key === 'ArrowDown') { e.preventDefault(); openMenu(btn.dataset.menu, true); }
+    if (e.key === 'Escape' && menuFor) closeMenu(true);
+  });
+  // A mouse resting on a tab opens its menu; moving to another tab switches at once; leaving closes after a moment.
+  nav.addEventListener('pointerover', (e) => {
+    if (e.pointerType !== 'mouse') return;
+    const mode = e.target.closest('.mode');
+    clearTimeout(leaveTimer);
+    clearTimeout(hoverTimer);
+    if (!mode || !menuBtn(mode.dataset.mode)) return;
+    if (menuFor === mode.dataset.mode) return;
+    hoverTimer = setTimeout(() => openMenu(mode.dataset.mode), menuFor ? 0 : 150);
+  });
+  const leave = (e) => {
+    if (e.pointerType !== 'mouse') return;
+    clearTimeout(hoverTimer);
+    const to = e.relatedTarget;
+    if (to && (menu.contains(to) || (to.closest && menuFor && to.closest(`.mode[data-mode="${menuFor}"]`)))) return;
+    leaveTimer = setTimeout(() => closeMenu(), 250);
+  };
+  nav.addEventListener('pointerout', leave);
+  menu.addEventListener('pointerout', leave);
+  menu.addEventListener('pointerover', () => clearTimeout(leaveTimer));
+  menu.addEventListener('keydown', (e) => {
+    const links = [...menu.querySelectorAll('a')];
+    const i = links.indexOf(document.activeElement);
+    const j = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: links.length - 1 }[e.key];
+    if (j !== undefined) { e.preventDefault(); links[(j + links.length) % links.length].focus(); }
+    if (e.key === 'Escape') { e.preventDefault(); closeMenu(true); }
+  });
+  menu.addEventListener('focusout', (e) => {
+    if (!e.relatedTarget || (!menu.contains(e.relatedTarget) && !nav.contains(e.relatedTarget))) closeMenu();
+  });
+  document.addEventListener('pointerdown', (e) => { if (menuFor && !menu.contains(e.target) && !nav.contains(e.target)) closeMenu(); });
+  window.addEventListener('resize', () => closeMenu());
+  window.addEventListener('scroll', () => { if (menuFor && !menu.matches(':focus-within')) closeMenu(); }, { passive: true });
+
   function render() {
+    closeMenu();
     const route = parse();
     if (!route) { history.replaceState(null, '', '#/'); render(); return; }
     if (!route.module) HomePage.saveLast(location.hash);

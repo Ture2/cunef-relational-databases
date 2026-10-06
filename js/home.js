@@ -80,6 +80,7 @@ const HomePage = (() => {
         <h2 class="home-h2">${esc(t('Shortcuts'))}</h2>
         <ul class="home-quick">
           <li><button type="button" class="home-q" data-action="focus-search"><strong>${esc(t('Search the course'))}</strong><span>${esc(t('Press / or Ctrl+K from any page.'))}</span></button></li>
+          <li><a class="home-q" href="#/relational/er/practice/draw"><strong>${esc(t('Draw an ER diagram'))}</strong><span>${esc(t('Course notation; save it for diagrams.net.'))}</span></a></li>
           <li><a class="home-q" href="#/progress"><strong>${esc(t('Your progress'))}</strong><span>${esc(t('Every card, exercise and quiz in one place.'))}</span></a></li>
           <li><a class="home-q" href="#/relational/sql/practice"><strong>${esc(t('SQL sandbox'))}</strong><span>${esc(t('Needs an internet connection the first time it loads.'))}</span></a></li>
           <li><a class="home-q" href="#/nosql"><strong>${esc(t('Non-relational databases'))}</strong><span>${esc(t('Overview of the NoSQL families.'))}</span></a></li>

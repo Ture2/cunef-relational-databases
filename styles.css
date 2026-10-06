@@ -248,7 +248,7 @@ mark.search-hit { box-shadow: 0 0 0 1px #E0A800; }
 .search-none { padding: 12px; color: var(--muted); }
 
 /* Sections of a course, in teaching order: underline tabs. */
-.modes { display: flex; align-self: stretch; gap: 22px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.modes { display: flex; align-self: stretch; gap: 16px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .modes[hidden] { display: none; }
 .modes a {
   display: flex; align-items: center; white-space: nowrap;
@@ -257,6 +257,34 @@ mark.search-hit { box-shadow: 0 0 0 1px #E0A800; }
 }
 .modes a:hover { border-bottom-color: var(--rule); }
 .modes a[aria-current] { border-bottom-color: var(--accent); }
+/* A section's tab and the chevron of its tools menu. */
+.mode { display: flex; align-items: stretch; }
+.mode-more {
+  display: flex; align-items: center; justify-content: center; width: 20px; margin-left: 1px; padding: 0;
+  border: 0; border-bottom: 4px solid transparent; border-top: 4px solid transparent; background: none; color: var(--muted); cursor: pointer;
+}
+.mode-more svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.mode-more:hover, .mode.is-open .mode-more { color: var(--ink); }
+.mode.is-open .mode-more svg { transform: rotate(180deg); }
+.mode-more:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
+/* The menu: one panel for every section, under the open tab. */
+.section-menu {
+  position: fixed; z-index: 60; min-width: 220px; max-width: min(320px, calc(100vw - 16px));
+  background: var(--surface); border: 1px solid var(--rule-strong); border-top: 3px solid var(--accent); box-shadow: var(--shadow);
+}
+.section-menu[hidden] { display: none; }
+.section-menu ul { margin: 0; padding: 6px 0; list-style: none; }
+.section-menu a {
+  display: flex; align-items: center; min-height: 40px; padding: 6px 16px;
+  color: var(--ink); font-weight: 600; font-size: .92rem; text-decoration: none;
+}
+.section-menu li:first-child a { border-bottom: 1px solid var(--rule); }
+.section-menu a:hover { background: var(--hover); }
+.section-menu a:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
+.section-menu a[aria-current] { box-shadow: inset 4px 0 0 var(--accent); }
+.section-menu.is-sheet { left: 0; right: 0; max-width: none; border-left: 0; border-right: 0; }
+.section-menu.is-sheet a { min-height: 44px; }
+@media (hover: none) and (pointer: coarse) { .mode-more { width: 36px; } }
 
 /* Segmented choice (quiz level, exercise level). */
 .levels { display: inline-flex; flex-wrap: wrap; margin-top: 24px; border: 1.5px solid var(--ink); border-radius: 2px; background: var(--surface); }
@@ -865,11 +893,165 @@ main.is-wide { max-width: none; padding: 0; }
 .erp-props { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; }
 .erp-seg { display: inline-flex; }
 .erp-seg .tog + .tog { border-left: 0; }
-.er-preview { margin-top: 22px; background: var(--surface); border: 1px solid var(--rule); }
-.er-preview summary { padding: 10px 14px; font-weight: 600; cursor: pointer; }
-.er-preview #erp-preview, .er-preview .er-legend { padding: 0 12px; }
-.er-preview .er-legend { padding-bottom: 12px; }
-.er-preview .er-wrap { border: 0; }
+/* The canvas: the diagram is the editor. The list of the model (tabs, one line per item) sits on its
+   left and both fill about one screen; the list scrolls inside. The stage is moved and scaled by the
+   camera (js); the selected item's form floats over the canvas' right side ("Edit on the diagram")
+   or opens under its row ("Edit in the list"). Narrow screens stack the canvas, its form and the list. */
+.erp-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 16px 0 10px; }
+.erp-toolbar .spacer { flex: 1; }
+.erp-toolbar .btn { min-height: 40px; padding: 8px 14px; font-size: .9rem; }
+/* Each add button carries the Chen shape it adds. */
+.erp-add { display: inline-flex; align-items: center; gap: 8px; }
+.erp-add .erp-glyph { width: 18px; height: 18px; flex: none; fill: var(--surface); stroke: currentColor; stroke-width: 1.4; }
+/* Where forms open is a preference: a quiet pair of words, the chosen one underlined. */
+.erp-mode { display: inline-flex; gap: 2px; }
+.erp-mode .tog { min-height: 40px; padding: 4px 10px; border: 0; background: none; color: var(--muted); font-size: .86rem; font-weight: 600; letter-spacing: 0; }
+.erp-mode .tog:hover { color: var(--ink); }
+.erp-mode .tog.on { background: none; color: var(--ink); box-shadow: inset 0 -2px 0 var(--ink); }
+.erp-mode .tog:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+/* Zoom lives on the canvas, in its upper left corner (the form floats on the right), with the current scale between − and +. */
+.erp-zoom {
+  position: absolute; left: 10px; top: 10px; z-index: 1; display: flex; align-items: stretch;
+  background: var(--surface); border: 1px solid var(--rule-strong);
+}
+.erp-zoom button {
+  min-width: 36px; min-height: 36px; padding: 0 8px; border: 0; background: none;
+  font: 600 1rem var(--sans); color: var(--ink); cursor: pointer;
+}
+.erp-zoom button:hover { background: var(--tint); }
+.erp-zoom button:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
+.erp-zoom .erp-zoom-fit { border-left: 1px solid var(--rule); font-size: .84rem; }
+.erp-zoom-v { display: flex; align-items: center; justify-content: center; min-width: 3.4em; font-size: .8rem; font-variant-numeric: tabular-nums; color: var(--muted); }
+/* List | splitter | canvas. The list's width comes from the splitter (--erp-list), and never leaves the canvas under 320px. */
+.erp-board {
+  --erp-list: 340px;
+  display: grid; grid-template-columns: minmax(0, min(var(--erp-list), calc(100% - 332px))) 12px minmax(0, 1fr);
+  height: clamp(440px, calc(100vh - var(--appbar-h) - 130px), 860px);
+}
+.erp-board.is-list { --erp-list: 430px; }
+.erp-split { position: relative; cursor: col-resize; touch-action: none; }
+.erp-split::before { content: ""; position: absolute; top: 0; bottom: 0; left: 5px; width: 2px; background: transparent; }
+.erp-split::after {
+  content: ""; position: absolute; top: 50%; left: 3px; width: 6px; height: 36px; margin-top: -18px;
+  border-left: 2px solid var(--rule-strong); border-right: 2px solid var(--rule-strong);
+}
+.erp-split:hover::before, .erp-split.is-dragging::before { background: var(--ink); }
+.erp-split:focus { outline: none; }
+.erp-split:focus-visible::before { left: 3px; width: 6px; background: var(--focus); }
+body.erp-resizing { cursor: col-resize; user-select: none; -webkit-user-select: none; }
+.erp-view { position: relative; min-width: 0; min-height: 0; }
+.erp-canvas {
+  position: relative; height: 100%; overflow: hidden;
+  background: var(--tint); border: 1px solid var(--rule); touch-action: none; cursor: grab;
+  user-select: none; -webkit-user-select: none;
+}
+.erp-canvas.is-panning { cursor: grabbing; }
+.erp-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.erp-stage .er-svg { position: absolute; max-width: none; overflow: visible; }
+.erp-canvas [data-sel] { cursor: move; }
+.erp-canvas [data-sel]:focus { outline: none; }
+.erp-canvas [data-sel]:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
+.erp-canvas [aria-expanded="true"] :is(.er-ent, .er-rel, .er-isa) { stroke: var(--accent); stroke-width: 3; }
+.erp-canvas.is-connecting [data-kind="entity"] { cursor: copy; }
+.erp-canvas.is-connecting [data-kind="entity"] .er-ent { stroke-dasharray: 6 3; }
+.erp-insp {
+  position: absolute; top: 12px; right: 12px; z-index: 2; width: min(420px, 58%); max-height: calc(100% - 24px); overflow: auto;
+  background: var(--surface); border: 1px solid var(--rule-strong); box-shadow: var(--shadow);
+}
+.erp-insp .tcard, .erp-inline .tcard { border-width: 0; }
+.erp-insp-bar { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--rule); }
+.erp-insp-bar .spacer { flex: 1; }
+.erp-insp-bar .link { min-height: 36px; padding: 0 6px; color: var(--ink); font-weight: 600; }
+.erp-status { max-width: 90ch; margin: 8px 0 0; color: var(--muted); font-size: .88rem; }
+.erp-status.is-connecting { color: var(--ink); font-weight: 600; }
+.erp-keys { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 6px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: .82rem; }
+.erp-keys li { display: inline-flex; align-items: center; gap: 6px; }
+.erp-k { display: inline-flex; align-items: center; gap: 3px; color: var(--ink); }
+.erp-keys kbd {
+  min-width: 1.6em; padding: 0 5px; border: 1px solid var(--rule-strong); border-bottom-width: 2px; border-radius: 3px;
+  background: var(--surface); font: 600 .76rem/1.5 var(--sans); text-align: center; color: var(--ink);
+}
+.erp-gesture { font-weight: 600; }
+.erp-keys .is-touch { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .erp-keys .is-mouse { display: none; }
+  .erp-keys .is-touch { display: inline-flex; }
+}
+
+/* The list: tabs with counts and a mark when something is unfinished, one line per item. */
+.erp-work { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--surface); border: 1px solid var(--rule-strong); }
+.erp-tabs { display: flex; flex: none; border-bottom: 1.5px solid var(--ink); }
+.erp-tab {
+  display: inline-flex; flex: 1 1 auto; align-items: center; justify-content: center; gap: 5px; min-width: 0; min-height: 44px; padding: 6px;
+  border: 0; background: var(--surface); font: 600 .86rem var(--sans); color: var(--ink); white-space: nowrap; cursor: pointer;
+}
+.erp-tab + .erp-tab { border-left: 1px solid var(--rule); }
+.erp-tab:hover { background: var(--hover); }
+.erp-tab:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
+.erp-tab[aria-selected="true"] { background: var(--ink); color: var(--on-ink); }
+.erp-n { font-weight: 400; color: var(--muted); }
+.erp-tab[aria-selected="true"] .erp-n { color: var(--on-ink-muted); }
+.erp-dot { flex: none; width: 7px; height: 7px; border: 1.5px solid var(--accent); border-radius: 50%; }
+.erp-panel { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.erp-panel > .empty { padding: 14px; }
+.erp-items { list-style: none; margin: 0; padding: 0; }
+.erp-item { border-bottom: 1px solid var(--rule); }
+.erp-row {
+  display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  width: 100%; min-height: 42px; padding: 6px 12px 6px 10px; border: 0; border-left: 4px solid transparent;
+  background: transparent; font: .9rem var(--sans); color: var(--text); text-align: left; cursor: pointer;
+}
+.erp-row:hover { background: var(--hover); }
+.erp-row:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
+.erp-item.is-open > .erp-row { border-left-color: var(--h); background: var(--hs); }
+.erp-glyph { width: 14px; height: 14px; fill: var(--hs); stroke: var(--h); stroke-width: 1.6; }
+.erp-item.is-open .erp-glyph { fill: var(--h); }
+.erp-sum { display: flex; align-items: baseline; gap: 8px; min-width: 0; white-space: nowrap; }
+.erp-nm { flex: none; max-width: 55%; overflow: hidden; text-overflow: ellipsis; font-weight: 700; color: var(--ink); }
+.erp-nm.is-blank { font-weight: 400; font-style: italic; color: var(--muted); }
+.erp-sum .tag-sm { flex: none; font-size: .7rem; }
+.erp-det { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: .84rem; }
+.erp-det .pkc, .erp-det .dash-u { font: .8rem var(--mono); color: var(--text); }
+.erp-cd { font: 700 .78rem var(--mono); color: var(--h5); }
+.erp-todo { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: .78rem; font-style: italic; white-space: nowrap; }
+.erp-todo::before { content: ""; width: 7px; height: 7px; border: 1.5px solid var(--accent); border-radius: 50%; }
+.erp-inline { padding: 0 0 6px; border-left: 4px solid var(--h); background: var(--surface); }
+/* The form in a narrow column: the entity of each end on the first line, the role below. */
+:is(.erp-inline, .erp-insp) .end-row { grid-template-columns: minmax(0, 1fr) auto auto; }
+:is(.erp-inline, .erp-insp) .end-row .card-pick { grid-column: 2; grid-row: 1; }
+:is(.erp-inline, .erp-insp) .end-row .rm { grid-column: 3; grid-row: 1; }
+:is(.erp-inline, .erp-insp) .end-row .end-role { grid-column: 1 / 3; grid-row: 2; }
+:is(.erp-inline, .erp-insp) .erp-attr { grid-template-columns: minmax(0, 1fr) minmax(0, 7.5rem) auto; }
+
+/* The blank diagram page: its title is the heading, edited in place like an entity's name. */
+.erp-draw-h { margin: 0 0 12px; }
+.erp-draw-name {
+  width: min(100%, 32ch); padding: 2px 0; border: 0; border-bottom: 2px dashed var(--rule-strong); border-radius: 0;
+  background: transparent; font: inherit; color: inherit;
+}
+.erp-draw-name:hover { border-bottom-color: var(--ink); }
+.erp-draw-name:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.erp-draw-name::placeholder { color: var(--muted); }
+
+@media (max-width: 900px) {
+  .erp-board, .erp-board.is-list { display: flex; flex-direction: column; gap: 12px; height: auto; }
+  .erp-split { display: none; }
+  .erp-view { order: -1; }
+  .erp-canvas { height: clamp(360px, 62vh, 640px); }
+  .erp-panel { overflow: visible; }
+  .erp-insp { position: static; width: auto; max-height: none; margin-top: 12px; box-shadow: none; }
+}
+@media (max-width: 640px) {
+  .erp-canvas { height: 58vh; min-height: 320px; }
+  .erp-toolbar { gap: 6px; }
+  .erp-toolbar .btn { flex: 1 1 auto; min-height: 44px; padding: 6px 8px; font-size: .85rem; }
+  .erp-toolbar .spacer { display: none; }
+  .erp-mode { flex: 1 1 100%; }
+  .erp-mode .tog { flex: 1; min-height: 44px; }
+  .erp-zoom button { min-width: 44px; min-height: 44px; }
+  .erp-row { min-height: 44px; }
+  .erp-tab { flex-wrap: wrap; gap: 0 5px; padding: 4px; font-size: .84rem; white-space: normal; }
+}
 .score-text { white-space: nowrap; }
 .score-line { display: flex; align-items: center; gap: 12px; margin: 6px 0 0; color: var(--muted); font-weight: 600; }
 .score-meter { flex: 0 1 220px; height: 8px; background: var(--rule); border-radius: 4px; overflow: hidden; }
@@ -1079,7 +1261,7 @@ main.is-wide { max-width: none; padding: 0; }
 .home-card-text { margin: 0; color: var(--muted); font-size: .92rem; }
 .home-card-links { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: auto 0 0; padding-top: 6px; }
 .home-h2 { margin: 32px 0 12px; font: 700 1.25rem/1.25 var(--serif); }
-.home-quick { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.home-quick { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 196px), 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
 .home-q {
   display: flex; flex-direction: column; gap: 4px; width: 100%; height: 100%; min-height: 44px; padding: 12px 14px; text-align: left;
   background: var(--surface); border: 1px solid var(--rule); color: var(--ink); text-decoration: none; font: inherit; cursor: pointer;
@@ -1208,18 +1390,21 @@ main.is-wide { max-width: none; padding: 0; }
 }
 
 /* Not enough room for everything on one row: the section tabs move to a second row
-   (measured: the Spanish tabs, search, Progress, Ask Claude and Settings need about 1400px). */
-@media (max-width: 1400px) {
-  :root { --appbar-h: 108px; }
-  .appbar-row { flex-wrap: wrap; }
-  .modes { order: 3; flex-basis: 100%; border-top: 1px solid var(--rule); }
+   (measured: the Spanish tabs with their menu chevrons, search, Progress, Ask Claude and Settings need about 1480px). */
+@media (max-width: 1480px) {
+  :root { --appbar-h: 103px; }
+  /* Wrapped rows take the height of their content (with even spacing), not a stretched fixed height;
+     --appbar-h is that measured height, for the sticky rail below the bar. */
+  .appbar-row { flex-wrap: wrap; min-height: 0; padding-top: 8px; }
+  .modes { order: 3; flex-basis: 100%; margin-top: 8px; border-top: 1px solid var(--rule); }
   .modes a { min-height: 44px; }
 }
 
 @media (max-width: 900px) {
   /* The search box gets a row of its own, so the actions stay at the right end of the first row. */
-  :root { --appbar-h: 164px; }
-  .searchbar { order: 2; flex: 1 1 100%; margin: 0 0 8px; }
+  :root { --appbar-h: 161px; }
+  /* Wrapped, the bar keeps one rhythm: about 12px between the logo row, the search box and the tabs rule. */
+  .searchbar { order: 2; flex: 1 1 100%; margin: 10px 0 4px; }
   .searchbar + .appbar-actions { margin-left: auto; }
   main.is-wide { padding: 0 24px; }
   .er-layout, .er-layout.is-collapsed { grid-template-columns: 1fr; }
@@ -1239,7 +1424,8 @@ main.is-wide { max-width: none; padding: 0; }
   .brand-name { display: none; }
   .modes { order: 3; flex-basis: 100%; gap: 20px; border-top: 1px solid var(--rule); }
   .modes a { min-height: 44px; font-size: .9rem; }
-  .searchbar { order: 2; flex: 1 1 100%; margin: 0 0 8px; }
+  .appbar-row { padding-top: 10px; }   /* the round buttons keep clear of the screen's top edge */
+  .searchbar { order: 2; flex: 1 1 100%; margin: 12px 0 4px; }
   .searchbar + .appbar-actions { margin-left: auto; }   /* the search box wraps to its own row */
   .search-list { left: 0; right: 0; width: auto; }
   .appbar-row { column-gap: 10px; }

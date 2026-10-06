@@ -311,9 +311,78 @@ if (!process.argv.includes('--no-browser')) {
     await page.fill('[data-f="ent-name"]', lang === 'en' ? 'Customer' : 'Cliente');
     await page.waitForTimeout(500);
     expect(await page.$('#erp-preview svg'), `[${lang}] the preview draws the student's model`);
-    const before = await page.$$eval('.tcards .tcard', (l) => l.length);
+    // The builder is a canvas: every item has a shape and a row in the list, and the selected one a form.
+    const before = await page.$$eval('#erp-preview [data-sel]', (l) => l.length);
     await page.click('[data-action="add-rel"]');
-    expect((await page.$$eval('.tcards .tcard', (l) => l.length)) === before + 1, `[${lang}] a relationship card is added`);
+    expect((await page.$$eval('#erp-preview [data-sel]', (l) => l.length)) === before + 1 && await page.$('#erp-insp .erp-rel'), `[${lang}] a relationship is added to the canvas and its form opens`);
+    // The list beside the canvas and the canvas share one selection.
+    await page.keyboard.press('Escape');   // stops connecting
+    await page.keyboard.press('Escape');   // closes the form
+    const ent = await page.$eval('#erp-preview [data-kind="entity"]', (g) => g.dataset.sel);
+    const rel = await page.$eval('#erp-preview [data-kind="relationship"]', (g) => g.dataset.sel);
+    expect(!(await page.$('#erp-insp')), `[${lang}] Escape closes the form`);
+    await page.click('#erp-tab-ents');
+    await page.click(`.erp-row[data-sel="${ent}"]`);
+    expect(await page.$(`#erp-preview [data-sel="${ent}"][aria-expanded="true"]`) && await page.$('#erp-insp [data-f="ent-name"]'), `[${lang}] a row of the list selects its shape and opens its form`);
+    await page.click('[data-action="close-insp"]');
+    await page.click(`#erp-preview [data-sel="${rel}"]`);
+    expect(await page.$('#erp-tab-rels[aria-selected="true"]') && await page.$(`.erp-item.is-open .erp-row[data-sel="${rel}"][aria-expanded="true"]`), `[${lang}] a shape on the canvas marks its row in the list`);
+    // "Edit in the list": the form opens under the row, not over the canvas.
+    await page.click('[data-action="edit-mode"][data-mode="list"]');
+    expect(await page.$(`#erp-form-${rel} .erp-rel`) && !(await page.$('#erp-insp')), `[${lang}] in "Edit in the list" the form opens under its row and nothing floats over the canvas`);
+    await page.keyboard.press('Escape');
+    expect(!(await page.$(`#erp-form-${rel}`)) && await page.evaluate((r) => document.activeElement && document.activeElement.dataset.sel === r, rel), `[${lang}] Escape closes the form in the list and gives the focus back to its row`);
+    // The splitter widens the list by dragging and with the arrows; the width survives a redraw.
+    const listW = () => page.$eval('.erp-work', (p) => Math.round(p.getBoundingClientRect().width));
+    const w0 = await listW();
+    const bar = await page.$eval('.erp-split', (b) => { const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+    await page.mouse.move(bar.x, bar.y);
+    await page.mouse.down();
+    await page.mouse.move(bar.x + 120, bar.y, { steps: 4 });
+    await page.mouse.up();
+    const w1 = await listW();
+    await page.focus('.erp-split');
+    await page.keyboard.press('ArrowLeft');
+    const w2 = await listW();
+    await page.click('#erp-tab-ents');
+    expect(Math.abs(w1 - w0 - 120) <= 2 && w1 - w2 === 24 && await listW() === w2, `[${lang}] the splitter resizes the list by dragging (${w0} → ${w1}) and with the arrows (${w2}), and keeps it after a redraw`);
+    await page.dblclick('.erp-split');
+    expect(await listW() === w0, `[${lang}] a double click on the splitter resets the list's width`);
+    // + zooms in from the canvas; the legend lists the shortcuts.
+    const zoomOf = () => page.$eval('#erp-preview .erp-stage', (s) => +(/scale\(([\d.]+)\)/.exec(s.style.transform) || [0, 0])[1]);
+    const z0 = await zoomOf();
+    await page.focus(`#erp-preview [data-sel="${rel}"]`);
+    await page.keyboard.press('+');
+    expect(await zoomOf() > z0 && (await page.$$('.erp-keys li')).length >= 8, `[${lang}] + zooms the canvas in, and the shortcuts are listed under it`);
+    await page.click('[data-action="edit-mode"][data-mode="diagram"]');
+    // Delete removes the focused shape; Ctrl+Z puts it back.
+    await page.focus(`#erp-preview [data-sel="${ent}"]`);
+    await page.keyboard.press('Delete');
+    const gone = !(await page.$(`#erp-preview [data-sel="${ent}"]`));
+    await page.keyboard.press('Control+z');
+    const back = await page.$eval(`#erp-preview [data-sel="${ent}"]`, (g) => g.getAttribute('aria-label')).catch(() => '');
+    expect(gone && back.includes(lang === 'en' ? 'Customer' : 'Cliente'), `[${lang}] Delete removes an entity and Ctrl+Z restores it`);
+    await page.keyboard.press('Control+Shift+z');
+    expect(!(await page.$(`#erp-preview [data-sel="${ent}"]`)), `[${lang}] Ctrl+Shift+Z redoes the removal`);
+    expect(await page.$('.erp-draw-link a[href="#/relational/er/practice/draw"]'), `[${lang}] the exercise links to the blank diagram`);
+    // The blank diagram: the builder with no statement and nothing to check; the work is kept.
+    await page.goto(`${base}#/relational/er/practice/draw`);
+    await page.waitForSelector('#ex-title');
+    expect(!(await page.$('.statement')) && !(await page.$('[data-action="check"]')) && !(await page.$('[data-action="solution"]')) && await page.$('#erp-preview svg'), `[${lang}] the blank diagram has the builder, no statement and no Check`);
+    expect(await page.$('.rail-practice a[href="#/relational/er/practice/draw"][aria-current="page"]'), `[${lang}] the rail marks the blank diagram`);
+    await page.fill('[data-f="draw-title"]', 'Shop');
+    await page.fill('[data-f="ent-name"]', 'Supplier');
+    await page.waitForTimeout(500);
+    await page.reload();
+    await page.waitForSelector('#ex-title');
+    expect((await page.$eval('[data-f="draw-title"]', (i) => i.value)) === 'Shop' && (await page.$$eval('.erp-row', (l) => l.map((r) => r.textContent).join(' '))).includes('Supplier'), `[${lang}] the blank diagram keeps its title and a typed entity after a reload`);
+    const [drawDl] = await Promise.all([page.waitForEvent('download'), page.click('[data-action="dl-mine"]')]);
+    const drawXml = readFileSync(await drawDl.path(), 'utf8');
+    const drawRead = await page.evaluate(async (xml) => { const { work } = await ErDrawio.fromXml(xml); return work.entities.map((e) => e.name); }, drawXml);
+    expect(drawDl.suggestedFilename() === 'shop.drawio' && drawRead.join() === 'Supplier' && !/er-kind="statement"/.test(drawXml), `[${lang}] its .drawio download reads back with the import reader (${drawRead.join()})`);
+    const [svgDl] = await Promise.all([page.waitForEvent('download'), page.click('[data-action="dl-svg"]')]);
+    const svgText = readFileSync(await svgDl.path(), 'utf8');
+    expect(/^<\?xml[\s\S]*<svg xmlns=/.test(svgText) && /\.er-ent\s*\{[^}]*fill:\s*rgb|\.er-ent\s*\{[^}]*fill:\s*#/i.test(svgText) && svgText.includes('Supplier') && !/aria-expanded|tabindex|data-sel/.test(svgText), `[${lang}] its image download is a standalone SVG with the diagram styles`);
     await page.goto(`${base}#/relational/er/cardinality`);
     await page.waitForSelector('.concept-practice');
     expect(await page.$('.concept-practice a[href^="#/relational/er/practice/"]'), `[${lang}] the cardinality card links to an exercise`);
@@ -323,6 +392,15 @@ if (!process.argv.includes('--no-browser')) {
     await page.click('[data-action="solution"]');
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow <= 1, `[${lang}] no horizontal page scroll on a phone (${overflow}px)`);
+    await page.click('[data-action="edit-mode"][data-mode="list"]');
+    await page.click('#erp-preview [data-kind="relationship"]');
+    const overflowList = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflowList <= 1 && await page.$('.erp-inline .erp-rel'), `[${lang}] no horizontal page scroll on a phone with a form open in the list (${overflowList}px)`);
+    await page.click('[data-action="edit-mode"][data-mode="diagram"]');
+    await page.goto(`${base}#/relational/er/practice/draw`);
+    await page.waitForSelector('#ex-title');
+    const overflowDraw = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflowDraw <= 1, `[${lang}] no horizontal page scroll on the blank diagram on a phone (${overflowDraw}px)`);
     await page.waitForTimeout(3500);   // the author self-tests run when the page is idle
     expect(problems.length === 0, `[${lang}] no page errors, missing translations or author warnings${problems.length ? `: ${problems.slice(0, 5).join(' | ')}` : ''}`);
     await page.close();

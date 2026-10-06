@@ -5,7 +5,7 @@
    built on the shared engine in js/concept-section.js.
    Data: data/<lang>/er-concepts.js (ER_CONCEPTS) and data/<lang>/er-quiz.js (ER_QUIZ, ER_QUIZ_TOPICS).
    Routes: #/relational/er[/<conceptId>], #/relational/er/quiz[/<topic>],
-   #/relational/er/practice[/N] (modelling exercises, js/er-practice.js)
+   #/relational/er/practice[/N | /draw] (modelling exercises and a blank diagram, js/er-practice.js)
    ========================================================================== */
 
 /* Cards that end with a modelling exercise: card id -> exercise id (data/<lang>/er-practice.js). */
@@ -44,11 +44,12 @@ const ErSection = ConceptSection({
   practice: {
     label: 'Practice',
     icon: 'practice',
-    match: (r) => /^practice(?:\/\d+)?$/.test(r),
-    links: (rest) => ErPractice.links(rest !== null),
+    match: (r) => /^practice(?:\/(?:\d+|draw))?$/.test(r),
+    links: (rest) => ErPractice.links(rest),
     render: (r) => ErPractice.render(r.replace(/^practice\/?/, '')),
     onClick: (el) => ErPractice.onClick(el),
     onInput: (e) => ErPractice.onInput(e),
     onChange: (e) => ErPractice.onChange(e),
+    onKeydown: (e) => ErPractice.onKeydown(e),
   },
 });

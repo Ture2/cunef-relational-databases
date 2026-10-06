@@ -527,5 +527,12 @@ function ConceptSection(cfg) {
   const onInput = (e) => forward('onInput', e);
   const onKeydown = (e) => forward('onKeydown', e);
 
-  return { render, onClick, onChange, onInput, onKeydown, onSubmit, wide: true };
+  /* The section's tools for the top bar's menu: its practice pages (as in the rail's practice hub), then its quiz. */
+  function tools() {
+    const out = PRACTICE ? PRACTICE.links(null).map((l) => ({ href: l.href, label: l.label })) : [];
+    if (HAS_QUIZ) out.push({ href: `${BASE}/quiz`, label: t('Test yourself') });
+    return out;
+  }
+
+  return { render, onClick, onChange, onInput, onKeydown, onSubmit, tools, wide: true };
 }

@@ -10,6 +10,12 @@
    chenSvg(spec)   free layout with normalized centres (concept cards, quiz).
    modelSvg(ex)    an exercise's ER model on a grid; attributes are listed
                    inside each entity box so larger models stay readable.
+   modelSvg(ex, { tag, alt })  the same, as the editable canvas of the ER practice:
+                   items may carry `xy` (a centre in pixels, used instead of the
+                   grid cell `at`) and `label` (shown instead of the id); tag(kind, item)
+                   gives the attributes of the group of each entity, relationship and
+                   hierarchy, which also gets data-kind and its centre (data-cx / data-cy).
+                   The viewBox is in model pixels, with no shift.
    ========================================================================== */
 
 const ErDiagram = (() => {
@@ -162,13 +168,15 @@ const ErDiagram = (() => {
     return a.name;
   };
 
+  const labelOf = (o) => o.label || o.id;
+
   function entityBox(e, x, y) {
-    const w = Math.max(110, tw(e.id) + 34, ...e.attrs.map((a) => tw(attrText(a)) + 26));
+    const w = Math.max(110, tw(labelOf(e)) + 34, ...e.attrs.map((a) => tw(attrText(a)) + 26));
     const h = HEAD + e.attrs.length * ROW + (e.attrs.length ? 8 : 0);
     return { type: 'entity', id: e.id, e, x, y, w, h, shape: 'rect' };
   }
 
-  function entityBoxSvg(b) {
+  function entityBoxSvg(b, attrs = '') {
     const L = b.x - b.w / 2;
     const T = b.y - b.h / 2;
     const weak = b.e.weak ? `<rect class="er-line" x="${r1(L + 3.5)}" y="${r1(T + 3.5)}" width="${r1(b.w - 7)}" height="${r1(b.h - 7)}" fill="none"/>` : '';
@@ -181,9 +189,9 @@ const ErDiagram = (() => {
         : '';
       return `<text class="${cls}" x="${r1(L + 12)}" y="${r1(ty)}">${esc(text)}</text>${ul}`;
     }).join('');
-    return `<g class="er-box"><rect class="er-ent" x="${r1(L)}" y="${r1(T)}" width="${r1(b.w)}" height="${r1(b.h)}"/>
+    return `<g class="er-box"${attrs}><rect class="er-ent" x="${r1(L)}" y="${r1(T)}" width="${r1(b.w)}" height="${r1(b.h)}"/>
       <rect class="er-ent-head" x="${r1(L)}" y="${r1(T)}" width="${r1(b.w)}" height="${HEAD}"/>${weak}
-      <text class="er-name" x="${r1(b.x)}" y="${r1(T + 18.5)}" text-anchor="middle">${esc(b.e.id)}</text>${rows}</g>`;
+      <text class="er-name" x="${r1(b.x)}" y="${r1(T + 18.5)}" text-anchor="middle">${esc(labelOf(b.e))}</text>${rows}</g>`;
   }
 
   /* Centres of grid lines: each integer row/column is as big as its biggest item. */
@@ -210,8 +218,10 @@ const ErDiagram = (() => {
 
   const endEntity = (end) => end.entity;
 
-  function modelSvg(ex) {
+  function modelSvg(ex, opts = {}) {
     const hier = ex.hierarchies || [];
+    const tag = opts.tag;
+    const tagged = (kind, item, n) => ` data-kind="${kind}" data-cx="${r1(n.x)}" data-cy="${r1(n.y)}"${tag(kind, item)}`;
     const posOf = Object.fromEntries(ex.entities.map((e) => [e.id, e.at]));
     const relAt = (r) => {
       if (r.at) return r.at;
@@ -230,13 +240,15 @@ const ErDiagram = (() => {
     const probe = ex.entities.map((e) => entityBox(e, 0, 0));
     const items = [
       ...probe.map((b, i) => ({ at: ex.entities[i].at, w: b.w, h: b.h })),
-      ...ex.relationships.map((r) => ({ at: relAt(r), w: Math.max(92, tw(r.id) + 48), h: 52 })),
+      ...ex.relationships.map((r) => ({ at: relAt(r), w: Math.max(92, tw(labelOf(r)) + 48), h: 52 })),
       ...hier.map((hh) => ({ at: hierAt(hh), w: 44, h: 36 })),
     ];
     const X = gridAxis(items, 0, 'w', 56);
     const Y = gridAxis(items, 1, 'h', 40);
+    // Centre of an item: its own pixel position when it has one, else its grid cell.
+    const P = (it, at) => (it.xy ? { x: it.xy[0], y: it.xy[1] } : { x: X(at[0]), y: Y(at[1]) });
 
-    const boxes = Object.fromEntries(ex.entities.map((e) => [e.id, entityBox(e, X(e.at[0]), Y(e.at[1]))]));
+    const boxes = Object.fromEntries(ex.entities.map((e) => { const c = P(e, e.at); return [e.id, entityBox(e, c.x, c.y)]; }));
     const out = [];
     const labels = [];
     const shapes = [];
@@ -249,7 +261,7 @@ const ErDiagram = (() => {
 
     ex.relationships.forEach((r) => {
       const at = relAt(r);
-      const d = sized({ type: 'relationship', label: r.id, identifying: r.identifying, x: X(at[0]), y: Y(at[1]) });
+      const d = sized({ type: 'relationship', label: labelOf(r), identifying: r.identifying, ...P(r, at) });
       const unary = new Set(r.ends.map(endEntity)).size < r.ends.length;
       r.ends.forEach((end, k) => {
         const b = boxes[end.entity];
@@ -275,7 +287,7 @@ const ErDiagram = (() => {
         out.push(line(p, q, { total: false }));
         legs.push({ p, q, box: end.entity, text: end.role ? `${end.role} ${end.card}` : end.card });
       });
-      shapes.push(shapeSvg(d));
+      shapes.push(tag ? `<g${tagged('relationship', r, d)}>${shapeSvg(d)}</g>` : shapeSvg(d));
       solids.push(d);
       const atts = r.attrs || [];
       if (atts.length) {
@@ -329,35 +341,41 @@ const ErDiagram = (() => {
 
     hier.forEach((hh) => {
       const at = hierAt(hh);
-      const t = sized({ type: 'isa', label: hh.disjoint ? 'd' : 'o', x: X(at[0]), y: Y(at[1]) });
+      const t = sized({ type: 'isa', label: hh.disjoint ? 'd' : 'o', ...P(hh, at) });
       const sup = boxes[hh.super];
       const apex = { x: t.x, y: t.y - t.h / 2 };
-      const p = exitPoint(sup, apex.x, apex.y);
-      out.push(line(p, apex, { total: hh.total }));
-      if (hh.discriminator) labels.push(`<text class="er-card" x="${r1(apex.x + 8)}" y="${r1((p.y + apex.y) / 2 + 4)}">${esc(hh.discriminator)}</text>`);
+      const p = sup ? exitPoint(sup, apex.x, apex.y) : apex;   // the canvas draws a hierarchy before its supertype is chosen
+      if (sup) out.push(line(p, apex, { total: hh.total }));
+      if (sup && hh.discriminator) labels.push(`<text class="er-card" x="${r1(apex.x + 8)}" y="${r1((p.y + apex.y) / 2 + 4)}">${esc(hh.discriminator)}</text>`);
       hh.subs.forEach((s) => {
         const b = boxes[s];
         if (!b) return;
         const base = { x: t.x, y: t.y + t.h / 2 };
         out.push(line(base, exitPoint(b, base.x, base.y)));
       });
-      shapes.push(shapeSvg(t));
+      shapes.push(tag ? `<g${tagged('hierarchy', hh, t)}>${shapeSvg(t)}</g>` : shapeSvg(t));
     });
 
-    Object.values(boxes).forEach((b) => shapes.push(entityBoxSvg(b)));
+    // On the canvas the entities come first, so that Tab reaches them before the relationships.
+    if (tag) shapes.unshift(...Object.values(boxes).map((b) => entityBoxSvg(b, tagged('entity', b.e, b))));
+    else Object.values(boxes).forEach((b) => shapes.push(entityBoxSvg(b)));
 
     // Bounding box of everything drawn.
     const all = [
       ...Object.values(boxes),
-      ...ex.relationships.map((r) => { const at = relAt(r); return { x: X(at[0]), y: Y(at[1]), w: Math.max(92, tw(r.id) + 48), h: 52 }; }),
+      ...ex.relationships.map((r) => ({ ...P(r, relAt(r)), w: Math.max(92, tw(labelOf(r)) + 48), h: 52 })),
       ...extents,
-      ...hier.map((hh) => { const at = hierAt(hh); return { x: X(at[0]), y: Y(at[1]), w: 60, h: 40 }; }),
+      ...hier.map((hh) => ({ ...P(hh, hierAt(hh)), w: 60, h: 40 })),
     ];
     const pad = 34;
     const minX = Math.min(...all.map((b) => b.x - b.w / 2)) - pad;
     const minY = Math.min(...all.map((b) => b.y - b.h / 2)) - pad;
     const maxX = Math.max(...all.map((b) => b.x + b.w / 2)) + pad;
     const maxY = Math.max(...all.map((b) => b.y + b.h / 2)) + pad;
+    if (tag) {
+      const box = [minX, minY, maxX - minX, maxY - minY].map(Math.round);
+      return `<svg class="er-svg" viewBox="${box.join(' ')}" role="group" aria-label="${esc(opts.alt || '')}"><g>${out.join('')}</g><g>${shapes.join('')}</g><g>${labels.join('')}</g></svg>`;
+    }
     const body = `<g transform="translate(${r1(-minX)} ${r1(-minY)})"><g>${out.join('')}</g><g>${shapes.join('')}</g><g>${labels.join('')}</g></g>`;
     return svgWrap(maxX - minX, maxY - minY, body, t('ER model of “{title}”. The same model is described as text below the diagram.', { title: ex.title }));
   }

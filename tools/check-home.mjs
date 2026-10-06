@@ -36,7 +36,39 @@ for (const lang of ['en', 'es']) {
   await page.click('.brand');
   await page.waitForSelector('.home');
   expect((await page.getAttribute('.home-resume .btn', 'href')) === '#/relational/theory/quiz', `[${lang}] Continue resumes last place`);
+  // Section menus in the top bar: every section has one; ER lists the diagram editor, SQL the sandbox.
+  expect((await page.$$('#section-nav .mode-more')).length === 5, `[${lang}] every section in the top bar has a tools menu`);
+  const menuOf = async (id) => {
+    await page.click(`.mode-more[data-menu="${id}"]`);
+    return page.$$eval('#section-menu:not([hidden]) a', (l) => l.map((a) => a.getAttribute('href')));
+  };
+  const er = await menuOf('er');
+  const sql = await menuOf('sql');
+  expect(er.includes('#/relational/er/practice/draw') && er.includes('#/relational/er/quiz'), `[${lang}] the ER menu lists the diagram editor and the quiz (${er.length} links)`);
+  expect(sql.includes('#/relational/sql/practice') && await page.getAttribute('.mode-more[data-menu="er"]', 'aria-expanded') === 'false', `[${lang}] the SQL menu lists the sandbox, and opening it closes the ER menu`);
+  await page.keyboard.press('Escape');
+  expect(await page.$('#section-menu[hidden]') && await page.evaluate(() => document.activeElement.dataset.menu === 'sql'), `[${lang}] Escape closes the menu and gives the focus back to its button`);
+  await page.focus('.mode-more[data-menu="er"]');
+  await page.keyboard.press('ArrowDown');
+  expect(await page.evaluate(() => document.activeElement.closest('#section-menu') !== null), `[${lang}] ArrowDown opens the menu and focuses its first link`);
+  await page.hover('#section-nav .mode[data-mode="logical"] a');
+  await page.waitForTimeout(250);
+  expect(await page.getAttribute('.mode-more[data-menu="logical"]', 'aria-expanded') === 'true', `[${lang}] a mouse resting on a tab opens its menu`);
+  await page.click('#section-menu li:last-child a');
+  await page.waitForFunction(() => location.hash.startsWith('#/relational/logical/practice'));
+  const hidden = await page.waitForSelector('#section-menu', { state: 'hidden', timeout: 1000 }).then(() => true, () => false);
+  expect(hidden, `[${lang}] choosing a link opens it and closes the menu`);
   expect(problems.length === 0, `[${lang}] no errors/missing i18n ${problems.join('; ')}`);
+  await page.close();
+}
+// On a phone the menu is a sheet across the width, without horizontal scroll.
+{
+  const page = await browser.newPage({ viewport: { width: 375, height: 800 } });
+  await page.goto(`${base}#/relational/er`);
+  await page.waitForSelector('.concept');
+  await page.click('.mode-more[data-menu="er"]');
+  const m = await page.evaluate(() => ({ w: document.querySelector('#section-menu').getBoundingClientRect().width, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth }));
+  expect(m.w >= 370 && m.overflow <= 1, `[375px] the section menu spans the screen (${Math.round(m.w)}px) without horizontal scroll`);
   await page.close();
 }
 // App bar layout: Progress, Ask Claude and Settings form one group at the right end, evenly spaced;
