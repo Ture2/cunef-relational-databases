@@ -9,7 +9,7 @@
 // (`npx playwright install chromium`).
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
-import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -42,6 +42,9 @@ function browserPath() {
   ];
   return candidates.find((p) => p && existsSync(p));
 }
+
+// The site's light palette (the first :root block of styles.css), so the card follows the brand tokens.
+const PALETTE = readFileSync(join(ROOT, 'styles.css'), 'utf8').match(/^:root \{[\s\S]*?^\}/m)[0];
 
 const dataUri = (buf) => `data:image/png;base64,${buf.toString('base64')}`;
 
@@ -84,25 +87,27 @@ await context.close();
 const card = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
 await card.setContent(`<!doctype html><html lang="es"><head><meta charset="utf-8"><style>
   * { box-sizing: border-box; margin: 0; }
-  body { width: 1200px; height: 630px; overflow: hidden; position: relative; background: #f0ece8; font-family: Arial, Helvetica, sans-serif; color: #1a1f6c; }
+  ${PALETTE}
+  body { width: 1200px; height: 630px; overflow: hidden; position: relative; background: var(--paper); font-family: Arial, Helvetica, sans-serif; color: var(--ink); }
   /* One row, centred: the text column takes the capture's height, so the title's cap line meets the
      capture's top edge and the address's baseline its bottom edge. Same 64px margin on both sides. */
   .row { position: absolute; left: 64px; right: 64px; top: 50%; transform: translateY(-50%); display: flex; gap: 44px; align-items: stretch; }
   .text { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; }
-  h1 { margin: -6px 0 0; font-size: 54px; line-height: 1.05; letter-spacing: -0.5px; }
-  .sub { margin: 20px 0 0; font-size: 23px; line-height: 1.35; color: #3a3f7e; }
-  .en { margin: 14px 0 0; font-size: 19px; color: #5b5f8f; }
-  .bar { width: 56px; height: 6px; background: #ff5700; margin-bottom: 14px; }
+  /* Sizes for a thumbnail: the title still reads at a quarter of the width. */
+  h1 { margin: -9px 0 0; font-size: 76px; line-height: 1.02; letter-spacing: -1px; }
+  .sub { margin: 22px 0 0; font-size: 28px; line-height: 1.3; }
+  .en { margin: 14px 0 0; font-size: 20px; color: var(--muted); }
+  .bar { width: 56px; height: 6px; background: var(--accent); margin-bottom: 14px; }
   .url { margin-bottom: -4px; font-size: 19px; font-weight: 700; }
-  .shot { flex: 0 0 612px; align-self: center; border: 1px solid #d6d1c4; border-radius: 10px; background: #fff; overflow: hidden;
+  .shot { flex: 0 0 612px; align-self: center; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); overflow: hidden;
           box-shadow: 0 22px 50px rgba(26, 31, 108, .18), 0 3px 10px rgba(26, 31, 108, .08); }
   .shot img { display: block; width: 100%; height: auto; }
 </style></head><body>
   <div class="row">
     <div class="text">
       <div>
-        <h1>Práctica de bases de datos</h1>
-        <p class="sub">Diagramas E/R, paso a tablas, normalización y SQL, con corrección al instante.</p>
+        <h1>Bases de datos</h1>
+        <p class="sub">Diagramas E-R, paso a lógico, normalización y SQL</p>
         <p class="en">Databases practice · Español / English</p>
       </div>
       <div><div class="bar"></div><p class="url">ture2.github.io/cunef-relational-databases</p></div>
