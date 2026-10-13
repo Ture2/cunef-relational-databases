@@ -98,17 +98,23 @@ const SqlRunner = (() => {
     return `<section class="feedback mixed sql-warn"><h4>${esc(t('This would not run on Oracle as written'))}</h4><ul>${items.map((i) => `<li>${esc(t(i.msg))} ${esc(t(i.fix))}</li>`).join('')}</ul></section>`;
   }
 
+  /* Oracle functions SQLite lacks (INITCAP, LPAD, RPAD), per connection: see OracleDialect.functions. */
+  const withFunctions = (db) => {
+    Object.entries(OracleDialect.functions).forEach(([name, fn]) => db.create_function(name, fn));
+    return db;
+  };
+
   /* A fresh database with the setup already run: from a cached image after the first time. */
   function freshDb(SQL, setup) {
     if (setup && !images.has(setup)) {
-      const d = new SQL.Database();
+      const d = withFunctions(new SQL.Database());
       d.run('PRAGMA foreign_keys = ON;');
       try {
         OracleDialect.script(setup, { finish: true }).forEach((u) => u.sqls.forEach((q) => d.run(q)));
         images.set(setup, d.export());
       } finally { d.close(); }
     }
-    const db = setup ? new SQL.Database(images.get(setup)) : new SQL.Database();
+    const db = withFunctions(setup ? new SQL.Database(images.get(setup)) : new SQL.Database());
     db.run('PRAGMA foreign_keys = ON;');    // per connection: set it again on every copy
     return db;
   }

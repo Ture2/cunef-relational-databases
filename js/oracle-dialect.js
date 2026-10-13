@@ -81,6 +81,48 @@ const OracleDialect = (() => {
     return j;
   }
 
+  /* Start index of the operand that ends just before i: a number, a name, or name(...) / (...). */
+  function operandStart(s, i) {
+    let j = i;
+    while (j > 0 && /\s/.test(s[j - 1])) j--;
+    if (s[j - 1] === ')') {
+      let d = 0;
+      for (let k = j - 1; k >= 0; k--) {
+        if (s[k] === ')') d++;
+        else if (s[k] === '(') { d--; if (d === 0) { j = k; break; } }
+      }
+      const name = /[\w.]+$/.exec(s.slice(0, j));
+      return name ? j - name[0].length : j;
+    }
+    const m = /[\w.§]+$/.exec(s.slice(0, j));
+    return m ? j - m[0].length : j;
+  }
+
+  /* x op ALL (subquery | list)  →  NOT EXISTS (… WHERE NOT (x op v) …);  x op ANY / SOME (…)  →  EXISTS (… WHERE x op v).
+     SQLite has no quantified comparisons. A NULL in the set (or a NULL x) makes ALL fail, as in Oracle's WHERE. */
+  function quantified(text) {
+    const re = /(<>|!=|>=|<=|=|>|<)\s*(ALL|ANY|SOME)\s*\(/i;
+    for (let n = 0; n < 50; n++) {
+      const m = re.exec(text);
+      if (!m) break;
+      const open = m.index + m[0].length - 1;
+      const close = findClose(text, open);
+      if (close < 0) break;
+      const start = operandStart(text, m.index);
+      const x = text.slice(start, m.index).trim();
+      const inner = text.slice(open + 1, close).trim();
+      const set = /^(SELECT|WITH)\b/i.test(inner) ? inner : `VALUES ${splitArgs(inner).map((v) => `(${v})`).join(', ')}`;
+      const q = `ora_q${n}`;
+      const cte = `WITH ${q}(ora_v) AS (${set}) SELECT 1 FROM ${q}`;
+      const op = m[1] === '!=' ? '<>' : m[1];
+      const out = /^ALL$/i.test(m[2])
+        ? `NOT EXISTS (${cte} WHERE NOT ((${x}) ${op} ${q}.ora_v) OR ${q}.ora_v IS NULL OR (${x}) IS NULL)`
+        : `EXISTS (${cte} WHERE (${x}) ${op} ${q}.ora_v)`;
+      text = text.slice(0, start) + out + text.slice(close + 1);
+    }
+    return text;
+  }
+
   /* <base> ± <days>  →  date(base, '±' || (days) || ' days') */
   function dateArithmetic(text, baseRe, baseOf) {
     const re = new RegExp(`${baseRe}\\s*([+-])\\s*`, 'i');
@@ -121,6 +163,7 @@ const OracleDialect = (() => {
       return done([], { unsupported: 'this statement (privileges, sequences, bitmap indexes, MODIFY or ADD CONSTRAINT)' });
     }
     if (/\bPARTITION\s+BY\b/i.test(s)) return done([], { unsupported: 'partitioned tables' });
+    if (/\bWITH\s+(CHECK\s+OPTION|READ\s+ONLY)\b/i.test(s)) return done([], { unsupported: 'views WITH CHECK OPTION or WITH READ ONLY' });
     if (/\bROWNUM\b|\(\+\)|\bCONNECT\s+BY\b(?!\s+LEVEL\s*<=)|\bSTART\s+WITH\b|\bPIVOT\b|\bXMLTABLE\b|\bJSON_TABLE\b|\.NEXTVAL\b|\.CURRVAL\b/i.test(s)) {
       return done([], { unsupported: 'ROWNUM, (+) joins, hierarchical queries or sequences' });
     }
@@ -156,6 +199,11 @@ const OracleDialect = (() => {
     s = rewriteCalls(s, 'TO_CHAR', ([x, f]) => {
       if (!f) return `CAST(${x} AS TEXT)`;
       const fmt = /^§(\d+)§$/.test(f) ? lits[+f.slice(1, -1)] : null;
+      const num = fmt && /^'(FM)?([09]+)(?:\.([09]+))?'$/i.exec(fmt);   // number format model: 990.00, FM9990.0
+      if (num) {
+        const dec = num[3] ? num[3].length : 0;
+        return num[1] ? `printf('%.${dec}f', ${x})` : `printf('%${num[2].length + (num[3] ? dec + 1 : 0) + 1}.${dec}f', ${x})`;
+      }
       return fmt && /[YMDH]/i.test(fmt) ? `strftime('${sqliteFormat(fmt.slice(1, -1))}', ${x})` : `CAST(${x} AS TEXT)`;
     });
     s = rewriteCalls(s, 'TO_DATE', ([x, f]) => {
@@ -170,8 +218,22 @@ const OracleDialect = (() => {
     });
     s = rewriteCalls(s, 'LISTAGG', ([x, sep]) => `group_concat(${x}${sep ? `, ${sep}` : ''})`);
     s = s.replace(/\bWITHIN\s+GROUP\s*\([^)]*\)/gi, '');
+    // Text functions SQLite lacks: JavaScript versions (FUNCTIONS below) registered by js/sql-runner.js.
+    s = rewriteCalls(s, 'INITCAP', ([x]) => `ora_initcap(${x})`);
+    s = rewriteCalls(s, 'LPAD', ([x, n, p]) => `ora_lpad(${x}, ${n}, ${p || "' '"})`);
+    s = rewriteCalls(s, 'RPAD', ([x, n, p]) => `ora_rpad(${x}, ${n}, ${p || "' '"})`);
+    s = rewriteCalls(s, 'CEIL', ([x]) => `(CAST(${x} AS INTEGER) + ((${x}) > CAST(${x} AS INTEGER)))`);
+    s = rewriteCalls(s, 'FLOOR', ([x]) => `(CAST(${x} AS INTEGER) - ((${x}) < CAST(${x} AS INTEGER)))`);
+    // Months: the 'floor' modifier keeps Oracle's end-of-month rule (31 Jan + 1 month = 28/29 Feb).
+    s = rewriteCalls(s, 'ADD_MONTHS', ([d, n]) => `date(${d}, (${n}) || ' months', 'floor')`);
+    s = rewriteCalls(s, 'MONTHS_BETWEEN', ([a, b]) => {
+      const part = (f, x) => `CAST(strftime('${f}', ${x}) AS INTEGER)`;
+      return `((${part('%Y', a)} - ${part('%Y', b)}) * 12 + ${part('%m', a)} - ${part('%m', b)} + (${part('%d', a)} - ${part('%d', b)}) / 31.0)`;
+    });
 
     // Dates
+    // date - date = the days between them (when the right-hand side is a date literal or SYSDATE)
+    s = s.replace(/(\bDATE\s+§\d+§|\b(?:SYSDATE|CURRENT_DATE)\b|\b[A-Za-z_][\w.]*)\s*-\s*(DATE\s+§\d+§|\b(?:SYSDATE|CURRENT_DATE)\b)/gi, '(julianday($1) - julianday($2))');
     s = dateArithmetic(s, '\\bDATE\\s+(§\\d+§)', (m) => m[1]);
     s = dateArithmetic(s, '\\b(SYSDATE|CURRENT_DATE)\\b', () => "'now'");
     s = s.replace(/\bDEFAULT\s+(SYSDATE|CURRENT_DATE)\b/gi, 'DEFAULT CURRENT_DATE');
@@ -179,8 +241,16 @@ const OracleDialect = (() => {
     s = s.replace(/\b(?:DATE|TIMESTAMP)\s+(§\d+§)/gi, '$1');
     s = s.replace(/(?<!DEFAULT\s+)\b(SYSDATE|CURRENT_DATE)\b/gi, "date('now')").replace(/(?<!DEFAULT\s+)\b(SYSTIMESTAMP|CURRENT_TIMESTAMP)\b/gi, "datetime('now')");
     s = s.replace(/(?<!\b(?:BEGIN|SET)\s+)\bTRANSACTION\b/gi, '"transaction"');   // a keyword in SQLite, a plain name in Oracle
+    // TRUNC: of a date (stored as text here) to the day, month or year; of a number to n decimals
+    s = rewriteCalls(s, 'TRUNC', ([x, f]) => {
+      const fmt = f && /^§(\d+)§$/.test(f) ? lits[+f.slice(1, -1)].slice(1, -1).toUpperCase() : null;
+      if (fmt !== null) return `date(${x}${/^(MM|MON|MONTH)$/.test(fmt) ? ", 'start of month'" : /^(Y+|YEAR)$/.test(fmt) ? ", 'start of year'" : ''})`;
+      if (f && /^-?\d+$/.test(f)) return `(CAST(round((${x}) * 1e${f}, 9) AS INTEGER) / 1e${f})`;
+      return `(CASE WHEN typeof(${x}) = 'text' THEN date(${x}) ELSE CAST(${x} AS INTEGER) END)`;
+    });
 
-    // Row limiting and set operators
+    // Row limiting, quantified comparisons and set operators
+    s = quantified(s);
     s = s.replace(/\bOFFSET\s+(\d+)\s+ROWS?\s+FETCH\s+(?:FIRST|NEXT)\s+(\d+)\s+ROWS?\s+ONLY\b/gi, 'LIMIT $2 OFFSET $1');
     s = s.replace(/\bFETCH\s+(?:FIRST|NEXT)\s+(\d+)\s+ROWS?\s+ONLY\b/gi, 'LIMIT $1');
     s = s.replace(/\bOFFSET\s+(\d+)\s+ROWS?\b/gi, 'LIMIT -1 OFFSET $1');
@@ -205,6 +275,10 @@ const OracleDialect = (() => {
     if (m) return done(splitArgs(m[2]).map((c) => `ALTER TABLE ${m[1]} ADD COLUMN ${c}`));
     m = /^ALTER\s+TABLE\s+(\w+)\s+ADD\s+(?!COLUMN\b|CONSTRAINT\b|PRIMARY\b|FOREIGN\b|UNIQUE\b|CHECK\b)(.+)$/is.exec(s);
     if (m) s = `ALTER TABLE ${m[1]} ADD COLUMN ${m[2]}`;
+
+    // CREATE OR REPLACE VIEW  →  DROP VIEW IF EXISTS + CREATE VIEW
+    m = /^CREATE\s+OR\s+REPLACE\s+(?:(?:NO)?FORCE\s+)?VIEW\s+(\w+)/i.exec(s);
+    if (m) return done([`DROP VIEW IF EXISTS ${m[1]}`, s.replace(/^CREATE\s+OR\s+REPLACE\s+(?:(?:NO)?FORCE\s+)?VIEW/i, 'CREATE VIEW')]);
 
     return done(cte + s.trim());
   }
@@ -326,7 +400,23 @@ const OracleDialect = (() => {
   const RESERVED = new Set(('ACCESS ADD ALL ALTER AND ANY AS ASC AUDIT BETWEEN BY CHAR CHECK CLUSTER COLUMN COMMENT COMPRESS CONNECT CREATE CURRENT DATE DECIMAL DEFAULT DELETE DESC DISTINCT DROP ELSE EXCLUSIVE EXISTS FILE FLOAT FOR FROM GRANT GROUP HAVING IDENTIFIED IMMEDIATE IN INCREMENT INDEX INITIAL INSERT INTEGER INTERSECT INTO IS LEVEL LIKE LOCK LONG MAXEXTENTS MINUS MODE MODIFY NOAUDIT NOCOMPRESS NOT NOWAIT NULL NUMBER OF OFFLINE ON ONLINE OPTION OR ORDER PCTFREE PRIOR PUBLIC RAW RENAME RESOURCE REVOKE ROW ROWID ROWNUM ROWS SELECT SESSION SET SHARE SIZE SMALLINT START SUCCESSFUL SYNONYM SYSDATE TABLE THEN TO TRIGGER UID UNION UNIQUE UPDATE USER VALIDATE VALUES VARCHAR VARCHAR2 VIEW WHENEVER WHERE WITH').split(' '));
   const isReserved = (name) => RESERVED.has(String(name).toUpperCase());
 
-  return { script, lint, oraError, planLine, cleanup, mask, unmask, isReserved };
+  /* Oracle text functions SQLite lacks, as plain JavaScript; js/sql-runner.js registers them on every
+     connection (db.create_function) and translate() rewrites INITCAP / LPAD / RPAD to these names. */
+  const pad = (left) => (x, n, p) => {
+    if (x === null || n === null || p === null || n < 1 || p === '') return null;
+    const s = String(x);
+    const len = Math.trunc(n);
+    if (s.length >= len) return s.slice(0, len);
+    const fill = String(p).repeat(Math.ceil((len - s.length) / String(p).length)).slice(0, len - s.length);
+    return left ? fill + s : s + fill;
+  };
+  const FUNCTIONS = {
+    ora_initcap: (x) => (x === null ? null : String(x).toLowerCase().replace(/(^|[^\p{L}\p{N}])(\p{L})/gu, (m, a, b) => a + b.toUpperCase())),
+    ora_lpad: pad(true),
+    ora_rpad: pad(false),
+  };
+
+  return { script, lint, oraError, planLine, cleanup, mask, unmask, isReserved, functions: FUNCTIONS };
 })();
 
 if (typeof module !== 'undefined') module.exports = OracleDialect;
