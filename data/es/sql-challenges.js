@@ -3,7 +3,7 @@
    (department, student, course, enrolment: SQL_SANDBOX.setup). Mismos ids, orden, soluciones y comprobaciones
    que data/en/sql-challenges.js; solo se traducen los textos. */
 (() => {
-  DATA.es.SQL_CHALLENGES_LEVELS = { 1: 'consultas', 2: 'combinaciones y grupos', 3: 'modificar datos' };
+  DATA.es.SQL_CHALLENGES_LEVELS = { 1: 'consultas', 2: 'combinaciones y grupos', 3: 'modificar datos', 4: 'subconsultas, conjuntos y funciones' };
 
   DATA.es.SQL_CHALLENGES = [
     /* ───────────── Nivel 1: consultas ───────────── */
@@ -252,6 +252,125 @@ ROLLBACK;`,
       hints: [
         'El DELETE inicia una transacción que no es permanente hasta que haces COMMIT.',
         'Un `ROLLBACK;` después del DELETE deja la tabla como estaba.',
+      ],
+    },
+
+    /* ───────────── Nivel 4: subconsultas, conjuntos y funciones ───────────── */
+    {
+      id: 'students-per-course',
+      level: 4,
+      title: 'Estudiantes por asignatura, ceros incluidos',
+      short: 'Contar con ceros',
+      focus: ['LEFT JOIN', 'COUNT'],
+      statement: 'Muestra el **título** de **todas** las asignaturas y su **número de estudiantes matriculados**. Una asignatura sin estudiantes debe aparecer con `0`.',
+      solution: `SELECT c.title, COUNT(e.student_id)
+FROM course c LEFT JOIN enrolment e ON e.course_id = c.course_id
+GROUP BY c.title;`,
+      hints: [
+        'Una combinación interna descarta la asignatura que nadie cursa; un LEFT JOIN la conserva, con NULL en el lado de la matrícula.',
+        '`COUNT(*)` cuenta esa fila rellena de NULL como 1. Cuenta mejor una columna de la matrícula: `COUNT(e.student_id)` ignora los NULL.',
+        '`FROM course c LEFT JOIN enrolment e ON e.course_id = c.course_id GROUP BY c.title`.',
+      ],
+    },
+    {
+      id: 'best-per-course',
+      level: 4,
+      title: 'La mejor nota de cada asignatura',
+      short: 'Máximo por grupo',
+      focus: ['subconsulta correlacionada', 'MAX'],
+      statement: 'Para cada asignatura que tiene notas, muestra el **título de la asignatura**, el **nombre del estudiante** con la nota más alta en ella y esa **nota**.',
+      solution: `SELECT c.title, s.name, e.grade
+FROM enrolment e
+JOIN student s ON s.student_id = e.student_id
+JOIN course  c ON c.course_id  = e.course_id
+WHERE e.grade = (SELECT MAX(e2.grade)
+                 FROM enrolment e2
+                 WHERE e2.course_id = e.course_id);`,
+      hints: [
+        'Quédate con una matrícula cuando su nota es igual a la nota más alta **de su propia asignatura**, no de toda la tabla.',
+        'Una subconsulta correlacionada se recalcula para cada fila exterior: dentro de ella, `e2.course_id = e.course_id` la enlaza con la matrícula que se está comprobando.',
+        '`WHERE e.grade = (SELECT MAX(e2.grade) FROM enrolment e2 WHERE e2.course_id = e.course_id)`.',
+      ],
+    },
+    {
+      id: 'beat-eva',
+      level: 4,
+      title: 'Mejor que todas las notas de Eva',
+      short: '> ALL',
+      focus: ['ALL', 'subconsulta'],
+      statement: 'Muestra el **nombre del estudiante**, el **título de la asignatura** y la **nota** de las matrículas cuya nota es mayor que **todas** las notas de la estudiante `S03` (Eva Sanz). Compara con `> ALL`.',
+      requires: ['ALL'],
+      solution: `SELECT s.name, c.title, e.grade
+FROM enrolment e
+JOIN student s ON s.student_id = e.student_id
+JOIN course  c ON c.course_id  = e.course_id
+WHERE e.grade > ALL (SELECT grade FROM enrolment WHERE student_id = 'S03');`,
+      hints: [
+        'La subconsulta devuelve varias filas (todas las notas de Eva), así que un `>` sin más no basta.',
+        '`> ALL (…)` es verdadero cuando el valor supera a todas las filas de la subconsulta; con `> ANY (…)` bastaría con superar a una.',
+        '`WHERE e.grade > ALL (SELECT grade FROM enrolment WHERE student_id = \'S03\')`.',
+      ],
+    },
+    {
+      id: 'databases-and-python',
+      level: 4,
+      title: 'Estudiantes que cursan Databases y Python',
+      short: 'INTERSECT',
+      focus: ['INTERSECT', 'operadores de conjuntos'],
+      statement: 'Muestra los **identificadores** de los estudiantes matriculados en la asignatura `C10` **y también** en la `C11`. Usa un operador de conjuntos.',
+      solution: `SELECT student_id FROM enrolment WHERE course_id = 'C10'
+INTERSECT
+SELECT student_id FROM enrolment WHERE course_id = 'C11';`,
+      hints: [
+        '`WHERE course_id = \'C10\' AND course_id = \'C11\'` no devuelve nada: una misma fila nunca tiene los dos valores.',
+        'Escribe una consulta para cada asignatura y quédate con los identificadores que aparecen en los dos resultados.',
+        'El operador que conserva las filas comunes de dos consultas es `INTERSECT`.',
+      ],
+    },
+    {
+      id: 'grade-bands',
+      level: 4,
+      title: 'Tramos de nota por departamento',
+      short: 'CASE',
+      focus: ['CASE', 'UPPER', 'GROUP BY'],
+      statement: 'Para cada departamento, muestra su **nombre en mayúsculas**, un **tramo** (`high` cuando la nota es 7 o más, `low` en otro caso) y el **número de matrículas** de ese tramo.',
+      solution: `SELECT UPPER(d.name),
+       CASE WHEN e.grade >= 7 THEN 'high' ELSE 'low' END,
+       COUNT(*)
+FROM enrolment e
+JOIN course     c ON c.course_id = e.course_id
+JOIN department d ON d.dept_id   = c.dept_id
+GROUP BY UPPER(d.name), CASE WHEN e.grade >= 7 THEN 'high' ELSE 'low' END;`,
+      hints: [
+        'Tres tablas: la nota está en `enrolment` y al departamento se llega a través de `course`.',
+        '`CASE WHEN e.grade >= 7 THEN \'high\' ELSE \'low\' END` convierte cada nota en su tramo; `UPPER(d.name)` da las mayúsculas.',
+        'Agrupa por las dos expresiones, escritas completas: los alias de columna en el GROUP BY solo funcionan desde Oracle 23ai.',
+      ],
+    },
+    {
+      id: 'best-average',
+      level: 4,
+      title: 'La mejor media, paso a paso',
+      short: 'WITH',
+      focus: ['WITH', 'CTE'],
+      statement: 'Muestra el **nombre** y la **nota media** del estudiante o los estudiantes con la media más alta (puede haber empate). Constrúyelo con `WITH`: una consulta con nombre con la media de cada estudiante y otra con la más alta de esas medias.',
+      requires: ['WITH'],
+      solution: `WITH student_avg AS (
+  SELECT student_id, AVG(grade) AS avg_grade
+  FROM enrolment
+  GROUP BY student_id
+),
+best AS (
+  SELECT MAX(avg_grade) AS best_avg FROM student_avg
+)
+SELECT s.name, a.avg_grade
+FROM student_avg a
+JOIN best    b ON a.avg_grade = b.best_avg
+JOIN student s ON s.student_id = a.student_id;`,
+      hints: [
+        '`WITH nombre AS (SELECT …)` define una consulta que después usas como una tabla; si hay varias, se separan con comas.',
+        '`ORDER BY … FETCH FIRST 1 ROW ONLY` se quedaría con un solo estudiante si hay empate: compara con el máximo.',
+        '`student_avg` agrupa `enrolment` por estudiante; `best` es `SELECT MAX(avg_grade) FROM student_avg`; combina las dos (y `student`, para el nombre).',
       ],
     },
   ];

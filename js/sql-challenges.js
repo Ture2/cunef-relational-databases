@@ -241,6 +241,9 @@ const SqlChallenges = (() => {
   /* Rail links of the practice hub, one per level; `current` marks the level being shown. */
   function links(onPage) {
     const L = levels();
+    // The rail is drawn before render() runs, so the challenge on show comes from the address, not from idx.
+    const m = /\/practice\/(\d+)$/.exec(location.hash);
+    const cur = m ? Math.min(Math.max(+m[1] - 1, 0), SQL_CHALLENGES.length - 1) : idx;
     return Object.keys(L).map(Number).map((lv) => {
       const items = SQL_CHALLENGES.map((c, i) => ({ c, i })).filter((x) => x.c.level === lv);
       const target = (items.find((x) => !solved(x.c)) || items[0]).i;
@@ -248,7 +251,7 @@ const SqlChallenges = (() => {
       return {
         href: `${BASE}/${target + 1}`,
         label: t('Challenges · level {n}', { n: lv }),
-        current: onPage && SQL_CHALLENGES[idx].level === lv,
+        current: onPage && SQL_CHALLENGES[cur].level === lv,
         extra: `<span class="rail-count" title="${esc(t('{done} of {total} solved', { done, total: items.length }))}">${done}/${items.length}</span>`,
       };
     });

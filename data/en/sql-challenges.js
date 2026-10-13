@@ -1,14 +1,14 @@
 'use strict';
 /* SQL challenges (js/sql-challenges.js), in Oracle SQL, over the sample tables of the SQL sandbox
    (department, student, course, enrolment: SQL_SANDBOX.setup).
-   Fields: id, level 1–3, title, short, focus [], statement (md),
+   Fields: id, level 1–4, title, short, focus [], statement (md),
      solution   the reference Oracle statement(s); the student's result is compared with the one it returns
      verify     (optional) a SELECT run after the student's statements and after the reference, to compare the
                 final state of the tables (for INSERT / UPDATE / DELETE / CREATE TABLE challenges)
      ordered    true when the order of the rows is part of the answer
      hints [].  The checker also rejects anything that would not run on Oracle (LIMIT, EXCEPT…). */
 (() => {
-  DATA.en.SQL_CHALLENGES_LEVELS = { 1: 'queries', 2: 'joins and groups', 3: 'changing data' };
+  DATA.en.SQL_CHALLENGES_LEVELS = { 1: 'queries', 2: 'joins and groups', 3: 'changing data', 4: 'subqueries, sets and functions' };
 
   DATA.en.SQL_CHALLENGES = [
     /* ───────────── Level 1: queries ───────────── */
@@ -257,6 +257,125 @@ ROLLBACK;`,
       hints: [
         'The DELETE starts a transaction that is not permanent until you COMMIT.',
         'A `ROLLBACK;` after the DELETE leaves the table as it was.',
+      ],
+    },
+
+    /* ───────────── Level 4: subqueries, sets and functions ───────────── */
+    {
+      id: 'students-per-course',
+      level: 4,
+      title: 'Students per course, zeros included',
+      short: 'Count with zeros',
+      focus: ['LEFT JOIN', 'COUNT'],
+      statement: 'Show the **title** of **every** course and its **number of enrolled students**. A course with no students must appear with `0`.',
+      solution: `SELECT c.title, COUNT(e.student_id)
+FROM course c LEFT JOIN enrolment e ON e.course_id = c.course_id
+GROUP BY c.title;`,
+      hints: [
+        'An inner join drops the course nobody takes; a LEFT JOIN keeps it, with NULL on the enrolment side.',
+        '`COUNT(*)` counts that NULL-filled row as 1. Count a column of the enrolment instead: `COUNT(e.student_id)` skips NULLs.',
+        '`FROM course c LEFT JOIN enrolment e ON e.course_id = c.course_id GROUP BY c.title`.',
+      ],
+    },
+    {
+      id: 'best-per-course',
+      level: 4,
+      title: 'The best grade of each course',
+      short: 'Top per group',
+      focus: ['correlated subquery', 'MAX'],
+      statement: 'For each course that has grades, show the **course title**, the **name of the student** with the highest grade in it and that **grade**.',
+      solution: `SELECT c.title, s.name, e.grade
+FROM enrolment e
+JOIN student s ON s.student_id = e.student_id
+JOIN course  c ON c.course_id  = e.course_id
+WHERE e.grade = (SELECT MAX(e2.grade)
+                 FROM enrolment e2
+                 WHERE e2.course_id = e.course_id);`,
+      hints: [
+        'Keep an enrolment when its grade equals the highest grade **of its own course**, not of the whole table.',
+        'A correlated subquery is recalculated for each outer row: inside it, `e2.course_id = e.course_id` links it to the enrolment being checked.',
+        '`WHERE e.grade = (SELECT MAX(e2.grade) FROM enrolment e2 WHERE e2.course_id = e.course_id)`.',
+      ],
+    },
+    {
+      id: 'beat-eva',
+      level: 4,
+      title: 'Better than all of Eva\'s grades',
+      short: '> ALL',
+      focus: ['ALL', 'subquery'],
+      statement: 'Show the **student name**, the **course title** and the **grade** of the enrolments whose grade is higher than **every** grade of student `S03` (Eva Sanz). Compare with `> ALL`.',
+      requires: ['ALL'],
+      solution: `SELECT s.name, c.title, e.grade
+FROM enrolment e
+JOIN student s ON s.student_id = e.student_id
+JOIN course  c ON c.course_id  = e.course_id
+WHERE e.grade > ALL (SELECT grade FROM enrolment WHERE student_id = 'S03');`,
+      hints: [
+        'The subquery returns several rows (all of Eva\'s grades), so a plain `>` is not enough.',
+        '`> ALL (…)` is true when the value beats every row of the subquery; `> ANY (…)` would only need to beat one.',
+        '`WHERE e.grade > ALL (SELECT grade FROM enrolment WHERE student_id = \'S03\')`.',
+      ],
+    },
+    {
+      id: 'databases-and-python',
+      level: 4,
+      title: 'Students taking both Databases and Python',
+      short: 'INTERSECT',
+      focus: ['INTERSECT', 'set operators'],
+      statement: 'List the **ids** of the students enrolled in course `C10` **and also** in course `C11`. Use a set operator.',
+      solution: `SELECT student_id FROM enrolment WHERE course_id = 'C10'
+INTERSECT
+SELECT student_id FROM enrolment WHERE course_id = 'C11';`,
+      hints: [
+        '`WHERE course_id = \'C10\' AND course_id = \'C11\'` returns nothing: a single row can never hold both values.',
+        'Write one query for each course and keep the ids that appear in both results.',
+        'The operator that keeps the common rows of two queries is `INTERSECT`.',
+      ],
+    },
+    {
+      id: 'grade-bands',
+      level: 4,
+      title: 'Grade bands per department',
+      short: 'CASE',
+      focus: ['CASE', 'UPPER', 'GROUP BY'],
+      statement: 'For each department, show its **name in capital letters**, a **band** (`high` when the grade is 7 or more, `low` otherwise) and the **number of enrolments** in that band.',
+      solution: `SELECT UPPER(d.name),
+       CASE WHEN e.grade >= 7 THEN 'high' ELSE 'low' END,
+       COUNT(*)
+FROM enrolment e
+JOIN course     c ON c.course_id = e.course_id
+JOIN department d ON d.dept_id   = c.dept_id
+GROUP BY UPPER(d.name), CASE WHEN e.grade >= 7 THEN 'high' ELSE 'low' END;`,
+      hints: [
+        'Three tables: the grade is in `enrolment`, and you reach the department through `course`.',
+        '`CASE WHEN e.grade >= 7 THEN \'high\' ELSE \'low\' END` turns each grade into its band; `UPPER(d.name)` gives the capitals.',
+        'Group by both expressions, written in full: column aliases in GROUP BY only work from Oracle 23ai on.',
+      ],
+    },
+    {
+      id: 'best-average',
+      level: 4,
+      title: 'The best average, step by step',
+      short: 'WITH',
+      focus: ['WITH', 'CTE'],
+      statement: 'Show the **name** and the **average grade** of the student or students with the highest average (there may be a tie). Build it with `WITH`: one named query with the average of each student, and another with the highest of those averages.',
+      requires: ['WITH'],
+      solution: `WITH student_avg AS (
+  SELECT student_id, AVG(grade) AS avg_grade
+  FROM enrolment
+  GROUP BY student_id
+),
+best AS (
+  SELECT MAX(avg_grade) AS best_avg FROM student_avg
+)
+SELECT s.name, a.avg_grade
+FROM student_avg a
+JOIN best    b ON a.avg_grade = b.best_avg
+JOIN student s ON s.student_id = a.student_id;`,
+      hints: [
+        '`WITH name AS (SELECT …)` defines a query you can then use like a table; several are separated by commas.',
+        '`ORDER BY … FETCH FIRST 1 ROW ONLY` would keep only one student when there is a tie: compare with the maximum instead.',
+        '`student_avg` groups `enrolment` by student; `best` is `SELECT MAX(avg_grade) FROM student_avg`; join the two (and `student`, for the name).',
       ],
     },
   ];
