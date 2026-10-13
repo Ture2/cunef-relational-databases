@@ -1,10 +1,11 @@
 'use strict';
 
 /* ==========================================================================
-   Relational databases › SQL: the sub-languages (DDL, DML, DCL, TCL),
-   constraints, indexes, clustering, partitioning and efficiency, as concept
-   cards with runnable examples (js/sql-runner.js), a quiz, and a free SQL
-   sandbox in the practice slot.
+   Relational databases › SQL: querying (joins, aggregation, subqueries and
+   functions), the sub-languages (DDL, DML, DCL, TCL), constraints, views and
+   schema objects, PL/SQL, indexes, clustering, partitioning and efficiency, as
+   concept cards with runnable examples (js/sql-runner.js; PL/SQL is static
+   code for FreeSQL), a quiz, and a free SQL sandbox in the practice slot.
    Data: data/<lang>/sql.js (SQL_CONCEPTS, SQL_QUIZ, SQL_QUIZ_TOPICS, SQL_SANDBOX).
    Routes: #/relational/sql[/<cardId> | /quiz[/<topic>] | /practice]
    ========================================================================== */
@@ -47,8 +48,15 @@ const SqlSection = (() => {
       : ''),
     groups: [
       { key: 'oracle', label: 'Oracle and FreeSQL', icon: 'code' },
+      { key: 'querying', label: 'Querying', icon: 'code' },
+      { key: 'joins', label: 'Combining tables', icon: 'venn' },
+      { key: 'aggregation', label: 'Aggregation', icon: 'sigma' },
+      { key: 'subqueries', label: 'Subqueries & sets', icon: 'nested' },
+      { key: 'functions', label: 'Functions', icon: 'fx' },
       { key: 'languages', label: 'SQL languages', icon: 'code' },
       { key: 'constraints', label: 'Constraints', icon: 'key' },
+      { key: 'objects', label: 'Views & schema objects', icon: 'view' },
+      { key: 'plsql', label: 'PL/SQL', icon: 'braces' },
       { key: 'indexes', label: 'Indexes', icon: 'index' },
       { key: 'clustering', label: 'Clustering', icon: 'cluster' },
       { key: 'partitioning', label: 'Partitioning', icon: 'split' },
