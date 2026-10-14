@@ -16,7 +16,7 @@ The content comes from the G241 course material (Topic 2 and 3 translations, Qui
 ## Navigation and brand
 
 - **App bar:** full window width: the CUNEF logo, the sections of the current course as tabs, and a gear button that opens **Settings**: language (Español / English), course (relational / non-relational) and theme (Light / Dark / System, the default). The theme is saved in `localStorage['theme']` and applied before the first paint.
-- **ER concepts:** a navigation rail on the left edge, in the style of a project portal. Hubs (Basics, Relationships, Weak entities and constraints, Extended ER model, Building the model, Test yourself) each have an icon in Chen notation. The active hub lists its concepts or quiz topics, with best scores; the other hubs open a flyout on hover or keyboard focus. **Collapse**, at the bottom, reduces the rail to icons, and the choice is remembered. Each concept has its own page with Previous / Next links. On narrow screens a dropdown replaces the rail. The hubs are defined in `GROUPS` in `js/er.js`.
+- **ER concepts:** a navigation rail on the left edge, in the style of a project portal. Hubs (Basics, Relationships, Weak entities and constraints, Extended ER model, Building the model, Test yourself) each have an icon in Chen notation. The active hub lists its concepts; the other hubs open a flyout on hover or keyboard focus. **Test yourself** is one row; the quiz page has a topic picker that shows the best score of each topic. In SQL the 14 hubs sit under four collapsible parts (Querying data, Defining and changing data, Programming, Performance), and only the part being read is open. The section menu in the top bar lists only the section's destinations: Overview, its practice pages and the quiz. **Collapse**, at the bottom, reduces the rail to icons, and the choice is remembered. Each section opens on an **overview**: its videos, then every group with its concepts and their one-sentence definitions. Each group has its own page: the group's videos first (a card that plays in place), then its concepts as an accordion (one open at a time, or **Show all concepts**), with Previous / Next between groups. Runnable SQL examples start closed in a **Try it** box. On narrow screens a dropdown replaces the rail. The hubs are defined in `GROUPS` in `js/er.js`.
 - **ER → Logical:** Level 1 / Level 2 tabs, then numbered tabs for the exercises of that level, plus ‹ › arrows. A dot marks a solved exercise.
 - **Normalization:** numbered tabs in the same style.
 
@@ -60,7 +60,9 @@ js/er-practice.js       ER practice: statement, model builder, preview, feedback
 js/er-drawio.js         ER models to and from diagrams.net (.drawio): export, import, starter file
 js/er-practice-engine.js  ER practice checker: compares a student's model with the official one (no DOM; also runs in Node)
 js/logical-engine.js    ER → logical rules and checker (no DOM; also runs in Node)
-js/concept-section.js   shared rail + concept cards engine (Theory, ER concepts, ER → Logical, Normalization), optional quiz and practice slot
+js/concept-section.js   shared rail + overview + group pages engine (Theory, ER concepts, ER → Logical, Normalization, SQL), optional quiz and practice slot
+js/video-html.js        course video markup: the briefing card on a group page, the list on an overview
+js/video-player.js      course video playback: play in place, chapters, resume point, watched at 90 %
 js/logical.js           ER → logical exercises (drawn inside the rules section)
 js/logical-section.js   ER → logical rule cards; their tables are derived by js/logical-engine.js
 js/normalization.js     normalization engine, exercises and diagnose quiz (drawn inside the theory section)
@@ -135,12 +137,13 @@ Everything is stored in `localStorage`, on that device only, and never sent anyw
 | `er-logical-v1` | Solved ER → logical exercises |
 | `er-logical-work-v1` (`-es` in Spanish) | The tables of each ER → logical exercise. They are discarded when the exercise's ER model changes |
 | `normalization-en-v1`, `normalization-en-work-v1` (`-es` in Spanish) | Normalization progress and work (the `en` in the name is historical; progress is shared by both languages) |
-| `er-ui-v1` | Whether the ER concepts rail is collapsed to icons |
+| `er-ui-v1` | Layout choices shared by every section: rail collapsed to icons, all concepts of a group shown, "Try it" boxes open |
+| `video-progress-v1`, `video-watched-v2` | Where each course video was left, and the videos watched |
 | `lang` | The chosen language, `es` or `en` |
 | `theme` | `light`, `dark` or `system` |
 | `theory-quiz-v1` | Best Theory quiz score for each topic |
 | `sql-quiz-v1` | Best SQL quiz score for each topic |
-| `read-v1` | The concept cards opened in each section (for the progress page) |
+| `read-v1` | The concepts read in each section (opened, or scrolled to their end; for the progress page) |
 | `sql-sandbox-v1` | The text of the SQL sandbox |
 | `sql-challenges-v1`, `sql-challenges-work-v1` (`-es` in Spanish) | Solved SQL challenges and the text of each |
 

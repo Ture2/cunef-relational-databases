@@ -2,7 +2,6 @@
 /* Normalization theory: one card per concept, read before the exercises (js/normalization-section.js).
    Card fields: those of js/concept-section.js, plus
      nf      a normal form id ('2NF'...): the card shows NF_INFO[nf].how and links to an exercise of that form
-     video   true: the card embeds the course video (assets/video/) with its chapters
    Tables: the first column is a row header; **bold** headers are primary-key columns.
    The running example is the enrolment table of the video (Ana Ruiz, Databases, Computing). */
 DATA.en.NORM_THEORY = [
@@ -32,16 +31,6 @@ DATA.en.NORM_THEORY = [
     },
     example: 'Normalization splits this table so each fact is stored once: students in one table, courses in another, departments in a third, and enrolments (student, course, grade) linking them.',
     mistake: 'Thinking redundancy only wastes space. The real cost is inconsistency: two rows that should agree can come to disagree.',
-  },
-  {
-    id: 'video',
-    hub: 'why',
-    title: 'Video: normalization step by step',
-    summary: 'A six-minute walk-through of the whole path, from one messy table to 1NF, 2NF, 3NF and BCNF, with the same example as these cards.',
-    body: [
-      'Watch it once before the cards, or use the chapters to jump to the step you need.',
-    ],
-    video: true,
   },
 
   /* ───────────── Dependencies ───────────── */

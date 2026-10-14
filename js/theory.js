@@ -12,6 +12,7 @@
 const TheorySection = ConceptSection({
   base: '#/relational/theory',
   title: () => t('Theory'),
+  blurb: () => t('What a database is, the relational model, keys and integrity.'),
   badge: 'DB',
   pdf: 'theory',
   /* Hubs in teaching order; each card names its hub in `hub`. */

@@ -81,6 +81,7 @@ const LogicalRulesSection = (() => {
   return ConceptSection({
     base: '#/relational/logical',
     title: () => t('ER → Logical'),
+    blurb: () => t('Turn an ER diagram into tables, with instant checking.'),
     badge: '1:N',
     pdf: 'logical',
     /* Summary sheet: the tables of the course-default design, without the per-table reasons. */

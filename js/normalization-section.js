@@ -2,7 +2,7 @@
 
 /* ==========================================================================
    Relational databases › Normalization: the theory as concept cards (anomalies,
-   dependencies, each normal form, decomposition, the course video), plus the
+   dependencies, each normal form, decomposition) with the course video, plus the
    Normalize exercises and the Diagnose quizzes of js/normalization.js drawn
    inside the same rail layout.
    Data: data/<lang>/normalization-theory.js (NORM_THEORY); the steps of each
@@ -12,10 +12,12 @@
    ========================================================================== */
 
 const NormalizationSection = (() => {
+  /* The course video (video/src, rendered to assets/video), at the top of the first group. */
   const VIDEO = {
-    id: 'norm-video',
-    src: 'assets/video/normalization.mp4',
-    poster: 'assets/video/normalization-poster.jpg',
+    title: 'Video: normalization step by step',
+    duration: '5:58',
+    size: 18,
+    chapterLabel: (name) => (/^(\dNF|BCNF)$/.test(name) ? nfLabel(name) : t(name)),
     /* Chapter starts in seconds: the scene offsets of video/src/timeline.ts. */
     chapters: [
       [0, 'Introduction'], [12, 'The problem: anomalies'], [65, 'What normalization is'],
@@ -23,13 +25,6 @@ const NormalizationSection = (() => {
       [200, '1NF'], [225, '2NF'], [265, '3NF'], [300, 'BCNF'], [325, 'Lossless join and recap'],
     ],
   };
-  const videoHtml = () => courseVideoHtml({
-    ...VIDEO,
-    title: t('Video: normalization step by step'),
-    chapterLabel: (name) => (/^(\dNF|BCNF)$/.test(name) ? nfLabel(name) : t(name)),
-    meta: t('6 minutes · English narration.'),
-    download: t('Download (MP4, 18 MB)'),
-  });
 
   /* The steps of a normal form, as in the exercises (NF_INFO[nf].how). */
   function howHtml(card) {
@@ -53,9 +48,10 @@ const NormalizationSection = (() => {
   return ConceptSection({
     base: '#/relational/normalization',
     title: () => t('Normalization'),
+    blurb: () => t('Functional dependencies and normal forms up to 5NF.'),
     badge: 'NF',
     pdf: 'normalization',
-    summaryExtra: (card) => `${howHtml(card)}${card.video ? `<p class="meta">${esc(t('Watch it on the website, in the Normalization section.'))}</p>` : ''}`,
+    summaryExtra: howHtml,
     groups: [
       { key: 'why', label: 'Why normalize', icon: 'why' },
       { key: 'deps', label: 'Dependencies', icon: 'arrow' },
@@ -63,8 +59,8 @@ const NormalizationSection = (() => {
       { key: 'decomp', label: 'Decomposition', icon: 'split' },
     ],
     concepts: cards,
-    extra: (card) => `${card.video ? videoHtml() : ''}${howHtml(card)}`,
-    onClick: seekCourseVideo,
+    videos: [courseVideo('norm-video', 'why', VIDEO, 'normalization')],
+    extra: howHtml,
     practice: {
       label: 'Practice',
       icon: 'practice',

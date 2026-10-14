@@ -43,18 +43,21 @@ for (const lang of LANGS.length ? LANGS : ['en', 'es']) {
   console.log(`[${lang}] ${cards.length} cards, ${examples.length} sandbox examples`);
 
   for (const c of cards.filter((x) => !ONLY.length || ONLY.includes(x.id))) {
+    // A card's runner sits in a closed "Try it" box on its group page, next to the other cards of the group.
+    const card = `#c-${c.id}`;
     await page.goto(`${base}#/relational/sql/${c.id}`);
-    await page.waitForSelector('[data-action="sql-run"]');
-    await page.click('[data-action="sql-run"]');
-    await page.waitForSelector('.sql-time', { timeout: 60000 });
-    const failed = await page.locator('.sql-out .feedback.bad').count();
-    const unsupported = await page.locator('.sql-out .feedback.mixed').count();
-    const warn = await page.locator('.sql-warn').count();
-    const msg = failed ? await page.locator('.sql-out .feedback.bad').first().innerText() : '';
+    await page.waitForSelector(`${card} details.try > summary`);
+    if (!(await page.locator(`${card} details.try`).evaluate((d) => d.open))) await page.click(`${card} details.try > summary`);
+    await page.click(`${card} [data-action="sql-run"]`);
+    await page.waitForSelector(`${card} .sql-time`, { timeout: 60000 });
+    const failed = await page.locator(`${card} .sql-out .feedback.bad`).count();
+    const unsupported = await page.locator(`${card} .sql-out .feedback.mixed`).count();
+    const warn = await page.locator(`${card} .sql-warn`).count();
+    const msg = failed ? await page.locator(`${card} .sql-out .feedback.bad`).first().innerText() : '';
     // An expected error must come from the LAST statement: the rest of the script has to run.
     const lastFails = failed > 0 && (await page.evaluate((id) => {
       const total = OracleDialect.script(SQL_CONCEPTS.find((x) => x.id === id).sql.query).filter((u) => !u.silent).length;
-      const shown = [...document.querySelectorAll('.sql-out .sql-n')].map((e) => +e.textContent);
+      const shown = [...document.querySelectorAll(`#c-${id} .sql-out .sql-n`)].map((e) => +e.textContent);
       return shown.length === total;
     }, c.id));
     const ok = c.expectError ? lastFails : failed === 0 && warn === 0 && unsupported === 0;

@@ -2,7 +2,6 @@
 /* Teoría de la normalización: una tarjeta por concepto, para leer antes de los ejercicios (js/normalization-section.js).
    Campos de cada tarjeta: los de js/concept-section.js, más
      nf      id de una forma normal ('2NF'...): la tarjeta muestra NF_INFO[nf].how y enlaza con un ejercicio de esa forma
-     video   true: la tarjeta incrusta el vídeo del curso (assets/video/) con sus capítulos
    Tablas: la primera columna es una cabecera de fila; las cabeceras en **negrita** son columnas de la clave primaria.
    El ejemplo conductor es la tabla de matrículas del vídeo (Ana Ruiz, Bases de datos, Informática). */
 DATA.es.NORM_THEORY = [
@@ -32,16 +31,6 @@ DATA.es.NORM_THEORY = [
     },
     example: 'La normalización divide esta tabla para que cada hecho se guarde una sola vez: los estudiantes en una tabla, las asignaturas en otra, los departamentos en una tercera y las matrículas (estudiante, asignatura, nota) enlazándolas.',
     mistake: 'Pensar que la redundancia solo desperdicia espacio. El coste real es la inconsistencia: dos filas que deberían coincidir pueden acabar contradiciéndose.',
-  },
-  {
-    id: 'video',
-    hub: 'why',
-    title: 'Vídeo: la normalización paso a paso',
-    summary: 'Un recorrido de seis minutos por todo el camino, desde una tabla desordenada hasta 1FN, 2FN, 3FN y FNBC, con el mismo ejemplo que estas tarjetas.',
-    body: [
-      'Míralo una vez antes de las tarjetas, o usa los capítulos para saltar al paso que necesites.',
-    ],
-    video: true,
   },
 
   /* ───────────── Dependencias ───────────── */

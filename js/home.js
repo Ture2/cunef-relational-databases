@@ -1,8 +1,9 @@
 'use strict';
 
 /* ==========================================================================
-   Landing page: where to resume, the five sections with their progress,
-   a link to each summary PDF and quick actions. Route: #/ (the default).
+   Landing page: where to resume, the five sections (each with its groups,
+   size and progress, in the style of a section overview), a link to each
+   summary PDF and quick actions. Route: #/ (the default).
    Progress comes from ProgressPage; the last visited route is saved by
    js/main.js under 'last-v1' (this device only).
    ========================================================================== */
@@ -17,14 +18,14 @@ const HomePage = (() => {
     try { localStorage.setItem(LAST_KEY, hash); } catch (e) { /* no storage available */ }
   }
 
-  /* Short description, the "practice" entry point and its label, per section. */
+  /* Each section's module (its overview, groups and blurb), and its "practice" entry point and label. */
   function meta(id) {
     return {
-      theory: { text: t('What a database is, the relational model, keys and integrity.'), practice: '/quiz', action: t('Take the quiz') },
-      er: { text: t('Entities, relationships, cardinalities, and modelling exercises compared with the official solution.'), practice: '/practice', action: t('Practice') },
-      logical: { text: t('Turn an ER diagram into tables, with instant checking.'), practice: '/practice', action: t('Practice') },
-      normalization: { text: t('Functional dependencies and normal forms up to 5NF.'), practice: '/practice', action: t('Practice') },
-      sql: { text: t('Queries you can run in the browser, a quiz and challenges.'), practice: '/practice', action: t('Practice') },
+      theory: { module: TheorySection, practice: '/quiz', action: t('Take the quiz') },
+      er: { module: ErSection, practice: '/practice', action: t('Practice') },
+      logical: { module: LogicalRulesSection, practice: '/practice', action: t('Practice') },
+      normalization: { module: NormalizationSection, practice: '/practice', action: t('Practice') },
+      sql: { module: SqlSection, practice: '/practice', action: t('Practice') },
     }[id];
   }
 
@@ -39,21 +40,31 @@ const HomePage = (() => {
     return { href: '#/relational/theory', what: '', started: false };
   }
 
-  function card(sec) {
+  /* A section in the style of a section overview group: number, title, size, its groups as links, progress. */
+  function card(sec, k) {
     let done = 0;
     let total = 0;
     sec.parts.forEach((p) => { done += p.done; total += p.total; });
     const pct = total ? Math.round((done / total) * 100) : 0;
     const m = meta(sec.id);
-    return `<article class="home-card${pct === 100 ? ' is-done' : ''}" aria-labelledby="hc-${sec.id}">
+    const o = m.module.outline();
+    const size = [
+      o.groups.length === 1 ? t('1 group') : t('{n} groups', { n: o.groups.length }),
+      o.concepts === 1 ? t('1 concept') : t('{n} concepts', { n: o.concepts }),
+      t('about {n} min', { n: o.minutes }),
+      o.videos ? (o.videos === 1 ? t('1 video') : t('{n} videos', { n: o.videos })) : '',
+    ].filter(Boolean).join(' · ');
+    return `<article class="home-card ov-group${pct === 100 ? ' is-done' : ''}" aria-labelledby="hc-${sec.id}">
         <header class="home-card-head">
-          <h2 id="hc-${sec.id}"><a href="${sec.base}">${esc(sec.title)}</a></h2>
+          <h2 id="hc-${sec.id}"><span class="ov-n" aria-hidden="true">${k + 1}</span><a href="${sec.base}">${esc(sec.title)}</a></h2>
           <span class="pcard-pct">${pct}%</span>
         </header>
-        <p class="home-card-text">${esc(m.text)}</p>
+        <p class="group-meta">${esc(size)}</p>
+        <p class="home-card-text">${esc(o.blurb)}</p>
         <div class="pbar" role="progressbar" aria-label="${esc(sec.title)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></div>
+        <ol class="home-groups">${o.groups.map((g) => `<li><a href="${g.href}">${esc(g.label)}</a></li>`).join('')}</ol>
         <p class="home-card-links">
-          <a class="btn" href="${sec.base}">${esc(t('Read'))}</a>
+          <a class="btn" href="${sec.base}">${esc(t('Overview'))}</a>
           <a class="btn ghost" href="${sec.base}${m.practice}">${esc(m.action)}</a>
           <a class="pcard-pdf" href="${summaryPdf(sec.id)}" download title="${esc(t('Download the summary of {section} (PDF)', { section: sec.title }))}">PDF</a>
         </p>

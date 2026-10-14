@@ -64,7 +64,7 @@ const SearchIndex = (() => {
     sections.forEach((s) => {
       s.cards.forEach((c, k) => {
         const rest = strings({ ...c, title: undefined, summary: undefined });
-        add({ section: s.label, kind: t('Concept'), href: k === 0 ? s.base : `${s.base}/${c.id}`, title: plain(c.title || ''), summary: plain(c.summary || ''), body: rest.join(' · ') });
+        add({ section: s.label, kind: t('Concept'), href: `${s.base}/${c.id}`, title: plain(c.title || ''), summary: plain(c.summary || ''), body: rest.join(' · ') });
       });
       (s.quiz || []).forEach((q) => {
         add({ section: s.label, kind: t('Quiz'), href: `${s.base}/quiz${q.topic ? `/${q.topic}` : ''}`, title: plain(q.q), summary: '', body: strings([q.choices, q.why]).join(' · ') });

@@ -156,9 +156,10 @@
     const btn = menuBtn(id);
     if (!s || !btn) return;
     if (menuFor && menuFor !== id) closeMenu();
-    const items = [{ href: s.href, label: t('Read the cards') }, ...s.module.tools()];
+    const items = s.module.tools();
     menu.setAttribute('aria-label', t('{section} tools', { section: s.label }));
-    menu.innerHTML = `<ul>${items.map((x) => `<li><a href="${x.href}"${x.href === location.hash ? ' aria-current="page"' : ''}>${esc(x.label)}</a></li>`).join('')}</ul>`;
+    const cls = (x) => [x.sub ? 'is-sub' : '', x.sep ? 'is-sep' : ''].filter(Boolean).join(' ');
+    menu.innerHTML = `<ul>${items.map((x) => `<li${cls(x) ? ` class="${cls(x)}"` : ''}><a href="${x.href}"${x.href === location.hash ? ' aria-current="page"' : ''}>${esc(x.label)}</a></li>`).join('')}</ul>`;
     menuFor = id;
     btn.setAttribute('aria-expanded', 'true');
     btn.closest('.mode').classList.add('is-open');
@@ -263,12 +264,17 @@
     if (current && current.onSubmit) current.onSubmit(e.target);
   });
 
+  /* After the scroll to the top: a section may scroll to a concept and move focus (ConceptSection). */
+  const settle = () => { if (current && current.afterNavigate) current.afterNavigate(); };
+
   window.addEventListener('hashchange', () => {
     render();
     try { window.scrollTo(0, 0); } catch (e) { /* environments without scrolling */ }
+    settle();
   });
 
   render();
+  settle();
   whenIdle(ErPractice.selfTest);
   whenIdle(LogicalSection.selfTest);     // author checks: console warnings only, after the first paint
 })();

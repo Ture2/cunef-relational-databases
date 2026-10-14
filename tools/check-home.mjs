@@ -30,7 +30,8 @@ for (const lang of ['en', 'es']) {
   await page.goto(base);
   await page.waitForSelector('.home');
   expect((await page.$$('.home-card')).length === 5, `[${lang}] five section cards`);
-  expect((await page.getAttribute('.home-resume .btn', 'href')) === '#/relational/theory', `[${lang}] fresh Continue goes to theory`);
+  expect((await page.getAttribute('.home-resume .btn', 'href')).startsWith('#/relational/theory/'), `[${lang}] fresh Continue goes to the first theory group`);
+  expect((await page.$$('.home-card .home-groups a')).length >= 5 * 4, `[${lang}] each section card lists its groups`);
   await page.click('.home-card a.btn.ghost >> nth=0');
   expect(page.url().endsWith('#/relational/theory/quiz'), `[${lang}] quiz link opens`);
   await page.click('.brand');
@@ -65,7 +66,7 @@ for (const lang of ['en', 'es']) {
 {
   const page = await browser.newPage({ viewport: { width: 375, height: 800 } });
   await page.goto(`${base}#/relational/er`);
-  await page.waitForSelector('.concept');
+  await page.waitForSelector('.ov-groups');
   await page.click('.mode-more[data-menu="er"]');
   const m = await page.evaluate(() => ({ w: document.querySelector('#section-menu').getBoundingClientRect().width, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth }));
   expect(m.w >= 370 && m.overflow <= 1, `[375px] the section menu spans the screen (${Math.round(m.w)}px) without horizontal scroll`);

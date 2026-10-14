@@ -1,5 +1,5 @@
 // Checks the concept-section quiz in both languages: scoreboard and strip, skip, keyboard answers,
-// the end screen, "retry the ones I missed" (no best score saved) and the rail. SHOTS=<dir> saves screenshots.
+// the end screen, "retry the ones I missed" (no best score saved), the topic picker and the rail. SHOTS=<dir> saves screenshots.
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { createReadStream, existsSync, statSync } from 'node:fs';
@@ -35,7 +35,9 @@ for (const lang of ['en', 'es']) {
   const cells = () => page.$$eval('.q-strip .q-cell', (els) => els.map((e) => e.className.replace('q-cell', '').trim()));
   const total = (await cells()).length;
   expect(total === 5, `[${lang}] strip has one cell per question (${total})`);
-  expect(await page.isVisible('.rail-quiz a[href$="/basics"] .rail-score.perfect .rail-meter'), `[${lang}] rail: perfect score with meter and check`);
+  const basics = await page.textContent('#quiz-topic option[value="basics"]');
+  expect(await page.isVisible('#quiz-topic') && basics.includes('4/4') && basics.includes('✓'), `[${lang}] topic picker: perfect best score with a check (${basics.trim()})`);
+  expect(await page.$$eval('.rail-quiz a', (l) => l.length) === 1, `[${lang}] rail: the quiz is a single row`);
   expect((await cells())[0] === 'cur', `[${lang}] first cell is current`);
   if (SHOTS && lang === 'en') await page.screenshot({ path: `${SHOTS}/quiz-start.png` });
 
@@ -67,8 +69,8 @@ for (const lang of ['en', 'es']) {
   const score = +(await page.$eval('.q-result-n', (e) => e.firstChild.textContent));
   expect(!(await cells()).some((c) => c === '' || c.includes('cur')), `[${lang}] end strip: every cell answered`);
   if (SHOTS && lang === 'en') await page.screenshot({ path: `${SHOTS}/quiz-end.png`, fullPage: true });
-  const railBest = await page.textContent('.rail-quiz a[aria-current] .rail-score, .rail-quiz a[aria-current] .rail-count');
-  expect(score === 0 || railBest.includes(`${score}/5`), `[${lang}] rail shows best ${score}/5 (${railBest.trim()})`);
+  const pickBest = await page.textContent('#quiz-topic option[value="cardinality"]');
+  expect(score === 0 || pickBest.includes(`${score}/5`), `[${lang}] topic picker shows best ${score}/5 (${pickBest.trim()})`);
 
   const retry = await page.$('[data-action="retry-missed"]');
   expect(!!retry === score < total, `[${lang}] retry-missed offered when something was missed`);

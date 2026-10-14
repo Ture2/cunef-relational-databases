@@ -19,7 +19,7 @@ const ProgressPage = (() => {
     return Math.min(total, Math.max(+best.all || 0, byTopic));
   }
 
-  const cardHref = (base, cards, k) => (k === 0 ? base : `${base}/${cards[k].id}`);
+  const cardHref = (base, cards, k) => `${base}/${cards[k].id}`;
 
   /* One entry per section, in teaching order: { id, title, base, parts: [{ label, done, total, next? }] }. */
   function sections() {
@@ -148,7 +148,7 @@ const ProgressPage = (() => {
   }
 
   /* Progress and saved work of every section; the language, theme and rail layout stay. */
-  const PROGRESS_KEYS = ['read-v1', 'theory-quiz-v1', 'er-quiz-v1', 'sql-quiz-v1', 'er-practice-v1', 'er-logical-v1', 'normalization-en-v1', 'sql-challenges-v1'];
+  const PROGRESS_KEYS = ['read-v1', 'theory-quiz-v1', 'er-quiz-v1', 'sql-quiz-v1', 'er-practice-v1', 'er-logical-v1', 'normalization-en-v1', 'sql-challenges-v1', 'video-progress-v1', 'video-watched-v2'];
   /* Saved work is kept per language: <key>-<lang> (langKey in js/core.js), and the plain key for English. */
   const WORK_KEYS = ['er-practice-work-v1', 'er-logical-work-v1', 'normalization-en-work-v1', 'sql-challenges-work-v1'].flatMap((k) => [k, ...Object.keys(DATA).map((l) => `${k}-${l}`)]);
   const KEYS = [...PROGRESS_KEYS, ...WORK_KEYS, 'sql-sandbox-v1'];
