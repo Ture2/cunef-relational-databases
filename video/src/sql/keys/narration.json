@@ -1,0 +1,174 @@
+{
+  "voice": "en-GB-SoniaNeural",
+  "rate": "+0%",
+  "segments": [
+    {
+      "id": "ky01-01",
+      "scene": "title",
+      "startSec": 1.0,
+      "text": "Primary and foreign keys: how Oracle defines them, and how you manage them.",
+      "durationSec": 5.224
+    },
+    {
+      "id": "ky02-01",
+      "scene": "pk",
+      "startSec": 0.8,
+      "text": "A primary key identifies each row of a table. In student, that is the student id column.",
+      "durationSec": 6.922
+    },
+    {
+      "id": "ky02-02",
+      "scene": "pk",
+      "startSec": 8.2,
+      "text": "It combines two rules: the value must be unique, and it can never be NULL.",
+      "durationSec": 5.224
+    },
+    {
+      "id": "ky02-03",
+      "scene": "pk",
+      "startSec": 14.0,
+      "text": "A table can have many unique columns, but only one primary key. Oracle builds an index for it, to find duplicates fast.",
+      "durationSec": 8.908
+    },
+    {
+      "id": "ky03-01",
+      "scene": "composite",
+      "startSec": 0.8,
+      "text": "Enrolment needs two columns to identify a row, the student and the course: a composite primary key.",
+      "durationSec": 7.053
+    },
+    {
+      "id": "ky03-02",
+      "scene": "composite",
+      "startSec": 8.4,
+      "text": "Each id repeats on its own: S zero one twice, C ten three times. But each pair appears only once.",
+      "durationSec": 8.046
+    },
+    {
+      "id": "ky03-03",
+      "scene": "composite",
+      "startSec": 16.9,
+      "text": "Enrol Ana in Databases again, and Oracle refuses: O R A zero zero zero zero one, unique constraint violated.",
+      "durationSec": 8.908
+    },
+    {
+      "id": "ky04-01",
+      "scene": "unique",
+      "startSec": 0.8,
+      "text": "Email is UNIQUE too, but it is not the key, so it may be NULL. Eva has no email.",
+      "durationSec": 6.217
+    },
+    {
+      "id": "ky04-02",
+      "scene": "unique",
+      "startSec": 7.9,
+      "text": "A second NULL email is accepted: NULL is not equal to anything, so it never counts as a duplicate.",
+      "durationSec": 6.557
+    },
+    {
+      "id": "ky04-03",
+      "scene": "unique",
+      "startSec": 15.5,
+      "text": "A primary key is never NULL. Insert a student without an id, and Oracle refuses: O R A zero one four zero zero.",
+      "durationSec": 9.378
+    },
+    {
+      "id": "ky05-01",
+      "scene": "fk",
+      "startSec": 0.8,
+      "text": "A foreign key links a child row to its parent. Each enrolment refers to an existing student and an existing course.",
+      "durationSec": 7.993
+    },
+    {
+      "id": "ky05-02",
+      "scene": "fk",
+      "startSec": 9.3,
+      "text": "Enrol a student that does not exist, S zero nine, and the insert fails with O R A zero two two nine one: parent key not found.",
+      "durationSec": 8.986
+    },
+    {
+      "id": "ky05-03",
+      "scene": "fk",
+      "startSec": 19.2,
+      "text": "The other way round, deleting course C ten, which still has enrolments, fails with O R A zero two two nine two: child record found.",
+      "durationSec": 9.012
+    },
+    {
+      "id": "ky06-01",
+      "scene": "actions",
+      "startSec": 0.8,
+      "text": "What happens to the children when a parent is deleted? The foreign key decides, with its ON DELETE clause.",
+      "durationSec": 7.419
+    },
+    {
+      "id": "ky06-02",
+      "scene": "actions",
+      "startSec": 8.7,
+      "text": "With ON DELETE CASCADE, the children go too. Delete Ana, and her two enrolments disappear.",
+      "durationSec": 6.975
+    },
+    {
+      "id": "ky06-03",
+      "scene": "actions",
+      "startSec": 16.1,
+      "text": "ON DELETE SET NULL keeps the children, but empties their foreign key. Write nothing, and the delete is rejected while children exist.",
+      "durationSec": 8.882
+    },
+    {
+      "id": "ky06-04",
+      "scene": "actions",
+      "startSec": 25.4,
+      "text": "Oracle has no ON UPDATE: primary keys should not change.",
+      "durationSec": 4.467
+    },
+    {
+      "id": "ky07-01",
+      "scene": "named",
+      "startSec": 0.8,
+      "text": "Name your constraints with the CONSTRAINT keyword. Otherwise Oracle makes up a name, like sys C and a number.",
+      "durationSec": 7.758
+    },
+    {
+      "id": "ky07-02",
+      "scene": "named",
+      "startSec": 9.0,
+      "text": "To add a constraint to a table that already exists, use ALTER TABLE, ADD CONSTRAINT. Oracle first checks that the existing rows obey it.",
+      "durationSec": 9.535
+    },
+    {
+      "id": "ky07-03",
+      "scene": "named",
+      "startSec": 19.1,
+      "text": "Here, every course id must exist in course.",
+      "durationSec": 3.683
+    },
+    {
+      "id": "ky08-01",
+      "scene": "manage",
+      "startSec": 0.8,
+      "text": "The dictionary view USER CONSTRAINTS lists them. The type says what each one is: P primary key, R foreign key, U unique, and C check, which includes NOT NULL.",
+      "durationSec": 10.998
+    },
+    {
+      "id": "ky08-02",
+      "scene": "manage",
+      "startSec": 12.4,
+      "text": "DISABLE CONSTRAINT switches one off, for a bulk load for example, and its status shows DISABLED.",
+      "durationSec": 6.531
+    },
+    {
+      "id": "ky08-03",
+      "scene": "manage",
+      "startSec": 19.5,
+      "text": "ENABLE switches it back on, after checking every row. And DROP CONSTRAINT removes it for good.",
+      "durationSec": 6.687
+    },
+    {
+      "id": "ky09-01",
+      "scene": "outro",
+      "startSec": 0.6,
+      "text": "Practise it in the SQL section of the course site.",
+      "durationSec": 3.709
+    }
+  ]
+}

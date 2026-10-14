@@ -281,6 +281,7 @@ SELECT name, NVL(email, 'sin email') AS email FROM student;`,
     },
     {
       id: 'inner-join',
+      video: 'sql-joins',
       hub: 'querying',
       topic: 'querying',
       title: 'Combinar tablas con INNER JOIN',
@@ -430,6 +431,7 @@ FROM enrolment;`,
     },
     {
       id: 'group-by-having',
+      video: 'sql-aggregation',
       hub: 'aggregation',
       topic: 'aggregation',
       title: 'GROUP BY y HAVING',
@@ -470,6 +472,7 @@ ORDER BY course_id;`,
     /* ───────────── Subconsultas y operadores de conjuntos ───────────── */
     {
       id: 'subqueries',
+      video: 'sql-subqueries',
       hub: 'subqueries',
       topic: 'subqueries',
       title: 'Subconsultas en WHERE, FROM y SELECT',
@@ -775,6 +778,7 @@ ORDER BY grade DESC;`,
     },
     {
       id: 'ddl',
+      video: 'sql-ddl',
       hub: 'languages',
       topic: 'languages',
       title: 'DDL: definir el esquema',
@@ -853,6 +857,7 @@ INSERT INTO player (full_name, shirt, team_id) VALUES ('Nobody', 7, 99);   -- el
     },
     {
       id: 'alter-drop',
+      video: 'sql-delete',
       hub: 'languages',
       topic: 'languages',
       title: 'ALTER, DROP y TRUNCATE',
@@ -1099,6 +1104,7 @@ SELECT COUNT(*) AS rows_after_rollback FROM enrolment;`,
     /* ───────────── Restricciones ───────────── */
     {
       id: 'keys-unique',
+      video: 'sql-keys',
       hub: 'constraints',
       topic: 'constraints',
       title: 'PRIMARY KEY, UNIQUE y NOT NULL',
@@ -1459,6 +1465,7 @@ END;
     },
     {
       id: 'cursors',
+      video: 'sql-cursors',
       hub: 'plsql',
       topic: 'plsql',
       title: 'Cursores: recorrer las filas una a una',
@@ -1648,6 +1655,7 @@ END;
     },
     {
       id: 'procedures-functions',
+      video: 'sql-procedures',
       hub: 'plsql',
       topic: 'plsql',
       title: 'Procedimientos y funciones almacenados',
@@ -1724,6 +1732,7 @@ ORDER BY student_id;`,
     },
     {
       id: 'triggers',
+      video: 'sql-triggers',
       hub: 'plsql',
       topic: 'plsql',
       title: 'Disparadores (triggers)',
@@ -1873,6 +1882,7 @@ SELECT student_id, grade, grades_pkg.letter(grade) AS letter FROM enrolment;`,
     /* ───────────── Índices ───────────── */
     {
       id: 'index-basics',
+      video: 'sql-indexes',
       hub: 'indexes',
       topic: 'indexes',
       title: 'Qué es un índice',

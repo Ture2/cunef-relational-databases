@@ -124,3 +124,21 @@ export const Chip: React.FC<{
     {children}
   </div>
 );
+
+/** A centred line of text at a fixed top, for questions and short statements. */
+export const Caption: React.FC<{
+  readonly name: string;
+  readonly top: number;
+  readonly left?: number;
+  readonly width?: number;
+  readonly opacity: number;
+  readonly size?: number;
+  readonly children: React.ReactNode;
+}> = ({name, top, left = 0, width = 1920, opacity, size = 44, children}) => (
+  <Interactive.Div
+    name={name}
+    style={{position: 'absolute', left, top, width, textAlign: 'center', fontSize: size, lineHeight: 1.3, color: C.ink, opacity, fontFamily: FONT}}
+  >
+    {children}
+  </Interactive.Div>
+);

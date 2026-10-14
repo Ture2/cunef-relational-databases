@@ -1,0 +1,174 @@
+{
+  "voice": "en-GB-SoniaNeural",
+  "rate": "+0%",
+  "segments": [
+    {
+      "id": "sq01-01",
+      "scene": "title",
+      "startSec": 1.0,
+      "text": "Subqueries: a query inside a query.",
+      "durationSec": 3.291
+    },
+    {
+      "id": "sq02-01",
+      "scene": "scalar",
+      "startSec": 0.8,
+      "text": "Which grades are above the average? A subquery is like asking a colleague for that figure before you finish your own report.",
+      "durationSec": 7.758
+    },
+    {
+      "id": "sq02-02",
+      "scene": "scalar",
+      "startSec": 9.8,
+      "text": "The inner query, in brackets, runs first. The average of the six grades is seven point two five, and that one value takes its place.",
+      "durationSec": 9.273
+    },
+    {
+      "id": "sq02-03",
+      "scene": "scalar",
+      "startSec": 20.4,
+      "text": "Three grades beat it: nine, eight point five and seven point five.",
+      "durationSec": 4.963
+    },
+    {
+      "id": "sq03-01",
+      "scene": "in",
+      "startSec": 0.8,
+      "text": "When a subquery returns a list, use IN. Think of the guest list at a party door: is your id on the list?",
+      "durationSec": 7.967
+    },
+    {
+      "id": "sq03-02",
+      "scene": "in",
+      "startSec": 10.4,
+      "text": "Python has two students, so the query returns Luis Gil and Eva Sanz.",
+      "durationSec": 5.329
+    },
+    {
+      "id": "sq03-03",
+      "scene": "in",
+      "startSec": 16.4,
+      "text": "With an equals sign, a list makes Oracle fail with error zero one four two seven. Use IN.",
+      "durationSec": 6.949
+    },
+    {
+      "id": "sq04-01",
+      "scene": "anyall",
+      "startSec": 0.8,
+      "text": "ANY and ALL compare a value with a whole list. Take the Databases grades: five, six point five and eight point five.",
+      "durationSec": 8.934
+    },
+    {
+      "id": "sq04-02",
+      "scene": "anyall",
+      "startSec": 10.4,
+      "text": "Greater than ALL means greater than every one, so above the largest, eight point five. Only the nine in Python passes.",
+      "durationSec": 8.176
+    },
+    {
+      "id": "sq04-03",
+      "scene": "anyall",
+      "startSec": 19.2,
+      "text": "Greater than ANY means greater than at least one, so above the smallest, five. All three grades of the other courses pass.",
+      "durationSec": 8.594
+    },
+    {
+      "id": "sq05-01",
+      "scene": "notin",
+      "startSec": 0.8,
+      "text": "Now a trap. NOT IN keeps the grades that are not in the list. Python's grades are nine and seven point five, so four rows come back.",
+      "durationSec": 9.665
+    },
+    {
+      "id": "sq05-02",
+      "scene": "notin",
+      "startSec": 11.2,
+      "text": "Add one Python enrolment without a grade, and the list now holds a NULL. Suddenly, no rows at all.",
+      "durationSec": 7.131
+    },
+    {
+      "id": "sq05-03",
+      "scene": "notin",
+      "startSec": 18.9,
+      "text": "NOT IN means different from every value, and different from NULL is unknown, never true. So nothing passes.",
+      "durationSec": 7.784
+    },
+    {
+      "id": "sq05-04",
+      "scene": "notin",
+      "startSec": 27.3,
+      "text": "Filter out the NULLs, or use NOT EXISTS.",
+      "durationSec": 3.448
+    },
+    {
+      "id": "sq06-01",
+      "scene": "correlated",
+      "startSec": 0.8,
+      "text": "A correlated subquery uses a column of the outer query. Like a tutor opening each student's file, it runs again for every outer row.",
+      "durationSec": 9.273
+    },
+    {
+      "id": "sq06-02",
+      "scene": "correlated",
+      "startSec": 10.8,
+      "text": "For each enrolment, it finds the best grade of that row's course, and keeps the row if its grade is equal.",
+      "durationSec": 6.452
+    },
+    {
+      "id": "sq06-03",
+      "scene": "correlated",
+      "startSec": 22.4,
+      "text": "The result: the top student of each course. A tie would return several rows.",
+      "durationSec": 5.878
+    },
+    {
+      "id": "sq07-01",
+      "scene": "exists",
+      "startSec": 0.8,
+      "text": "EXISTS asks a yes or no question: does the subquery find at least one row? What it selects does not matter, so people write SELECT 1.",
+      "durationSec": 9.378
+    },
+    {
+      "id": "sq07-02",
+      "scene": "exists",
+      "startSec": 11.6,
+      "text": "Databases, Python and Statistics all have enrolments. Marketing has none, so NOT EXISTS returns just Marketing.",
+      "durationSec": 8.751
+    },
+    {
+      "id": "sq07-03",
+      "scene": "exists",
+      "startSec": 20.8,
+      "text": "And unlike NOT IN, it is not fooled by NULLs.",
+      "durationSec": 3.814
+    },
+    {
+      "id": "sq08-01",
+      "scene": "from",
+      "startSec": 0.8,
+      "text": "A subquery in FROM is an inline view: a temporary table you can query, with an alias. In Oracle, no AS before that alias.",
+      "durationSec": 9.404
+    },
+    {
+      "id": "sq08-02",
+      "scene": "from",
+      "startSec": 10.8,
+      "text": "Here it computes the average per course: six point six seven for Databases, eight point two five for Python, and seven for Statistics.",
+      "durationSec": 8.725
+    },
+    {
+      "id": "sq08-03",
+      "scene": "from",
+      "startSec": 20.2,
+      "text": "Then we join it to course and keep the averages of seven or more: Python and Statistics.",
+      "durationSec": 5.642
+    },
+    {
+      "id": "sq09-01",
+      "scene": "outro",
+      "startSec": 0.6,
+      "text": "Practise it in the SQL section of the course site.",
+      "durationSec": 3.709
+    }
+  ]
+}

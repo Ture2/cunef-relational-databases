@@ -1,0 +1,146 @@
+{
+  "voice": "en-GB-SoniaNeural",
+  "rate": "+0%",
+  "segments": [
+    {
+      "id": "tg01-01",
+      "scene": "title",
+      "startSec": 1.0,
+      "text": "Triggers: code that runs by itself when data changes.",
+      "durationSec": 4.18
+    },
+    {
+      "id": "tg02-01",
+      "scene": "what",
+      "startSec": 0.8,
+      "text": "A trigger is a block of PL SQL that Oracle runs automatically. Nobody calls it: like a motion-sensor light, the event switches it on.",
+      "durationSec": 9.613
+    },
+    {
+      "id": "tg02-02",
+      "scene": "what",
+      "startSec": 11.2,
+      "text": "Each trigger has an event: an insert, update or delete on a table. A timing: before or after the change. And a level: once per statement, or once for each row.",
+      "durationSec": 12.173
+    },
+    {
+      "id": "tg03-01",
+      "scene": "before",
+      "startSec": 0.8,
+      "text": "First, a BEFORE trigger at row level. It fires before each row is stored, and it sees the new value as colon NEW dot grade.",
+      "durationSec": 8.751
+    },
+    {
+      "id": "tg03-02",
+      "scene": "before",
+      "startSec": 11.8,
+      "text": "Try to set a grade of eleven. The trigger raises an application error, and the update is rejected.",
+      "durationSec": 6.818
+    },
+    {
+      "id": "tg03-03",
+      "scene": "before",
+      "startSec": 20.4,
+      "text": "Set seven point four six instead. It passes the check, and the trigger rounds it to one decimal, so seven point five is stored.",
+      "durationSec": 8.594
+    },
+    {
+      "id": "tg04-01",
+      "scene": "audit",
+      "startSec": 0.8,
+      "text": "Now an AFTER trigger. It fires once the row has changed, so it is the place for an audit trail.",
+      "durationSec": 6.583
+    },
+    {
+      "id": "tg04-02",
+      "scene": "audit",
+      "startSec": 8.8,
+      "text": "For each updated row, it inserts a line into grade audit, with the old grade from colon OLD and the new grade from colon NEW.",
+      "durationSec": 8.333
+    },
+    {
+      "id": "tg04-03",
+      "scene": "audit",
+      "startSec": 18.8,
+      "text": "Raise every Databases grade by half a point: three rows change, so three audit lines appear.",
+      "durationSec": 6.478
+    },
+    {
+      "id": "tg04-04",
+      "scene": "audit",
+      "startSec": 26.0,
+      "text": "The WHEN clause skips rows whose grade does not really change. Setting Ana's grade to nine again writes nothing.",
+      "durationSec": 7.288
+    },
+    {
+      "id": "tg05-01",
+      "scene": "oldnew",
+      "startSec": 0.8,
+      "text": "A row trigger sees two versions of the row. Colon OLD holds the values before the change, and colon NEW the values after it.",
+      "durationSec": 8.751
+    },
+    {
+      "id": "tg05-02",
+      "scene": "oldnew",
+      "startSec": 10.8,
+      "text": "An update has both. An insert has no old row, so colon OLD is null. A delete has no new row, so colon NEW is null.",
+      "durationSec": 9.796
+    },
+    {
+      "id": "tg05-03",
+      "scene": "oldnew",
+      "startSec": 21.4,
+      "text": "Inside WHEN, write them without the colon.",
+      "durationSec": 3.239
+    },
+    {
+      "id": "tg06-01",
+      "scene": "order",
+      "startSec": 0.8,
+      "text": "Without FOR EACH ROW, a trigger is statement level. Grade notice fires once per update, however many rows it changes.",
+      "durationSec": 8.542
+    },
+    {
+      "id": "tg06-02",
+      "scene": "order",
+      "startSec": 10.0,
+      "text": "So one update that touches three Databases enrolments fires a statement trigger once, and a row trigger three times.",
+      "durationSec": 7.445
+    },
+    {
+      "id": "tg06-03",
+      "scene": "order",
+      "startSec": 18.2,
+      "text": "The order is fixed. BEFORE statement first. Then, for every row: BEFORE row, the change itself, and AFTER row. AFTER statement comes last.",
+      "durationSec": 11.337
+    },
+    {
+      "id": "tg07-01",
+      "scene": "pitfalls",
+      "startSec": 0.8,
+      "text": "Two warnings. A row trigger cannot query the table it is changing: Oracle stops with O R A zero four zero nine one, table is mutating.",
+      "durationSec": 9.77
+    },
+    {
+      "id": "tg07-02",
+      "scene": "pitfalls",
+      "startSec": 11.8,
+      "text": "And triggers are invisible. Another developer runs an update and wonders where the extra changes came from.",
+      "durationSec": 7.079
+    },
+    {
+      "id": "tg07-03",
+      "scene": "pitfalls",
+      "startSec": 19.8,
+      "text": "Keep them small. If a check constraint can do the job, use the constraint.",
+      "durationSec": 5.407
+    },
+    {
+      "id": "tg08-01",
+      "scene": "outro",
+      "startSec": 0.6,
+      "text": "Practise it in the SQL section of the course site.",
+      "durationSec": 3.709
+    }
+  ]
+}

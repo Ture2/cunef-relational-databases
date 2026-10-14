@@ -1,0 +1,160 @@
+{
+  "voice": "en-GB-SoniaNeural",
+  "rate": "+0%",
+  "segments": [
+    {
+      "id": "pr01-01",
+      "scene": "title",
+      "startSec": 1.0,
+      "text": "Procedures and functions: named P L S Q L blocks, stored in the database.",
+      "durationSec": 5.851
+    },
+    {
+      "id": "pr02-01",
+      "scene": "named",
+      "startSec": 0.8,
+      "text": "So far, our P L S Q L has lived in anonymous blocks: DECLARE, BEGIN, EXCEPTION, END. A block runs once, and then it is gone. Nothing is stored.",
+      "durationSec": 12.33
+    },
+    {
+      "id": "pr02-02",
+      "scene": "named",
+      "startSec": 13.8,
+      "text": "Give the code a name, and it becomes a subprogram, stored in the database and compiled once. Every application can call it, and you share it with GRANT EXECUTE.",
+      "durationSec": 10.397
+    },
+    {
+      "id": "pr03-01",
+      "scene": "procedure",
+      "startSec": 0.8,
+      "text": "Here is a stored procedure, enrol student. CREATE OR REPLACE stores it, compiled, in your schema.",
+      "durationSec": 7.419
+    },
+    {
+      "id": "pr03-02",
+      "scene": "procedure",
+      "startSec": 8.8,
+      "text": "Its first two parameters are IN: the student and the course, which it can only read. The third, p message, is OUT: the procedure writes it, and the caller gets it back.",
+      "durationSec": 11.52
+    },
+    {
+      "id": "pr03-03",
+      "scene": "procedure",
+      "startSec": 21.2,
+      "text": "Parameter types have no length. The body inserts the enrolment, then sets the message.",
+      "durationSec": 6.4
+    },
+    {
+      "id": "pr04-01",
+      "scene": "call",
+      "startSec": 0.8,
+      "text": "To call it from a block, declare a variable for the message, and pass it as the third argument.",
+      "durationSec": 5.799
+    },
+    {
+      "id": "pr04-02",
+      "scene": "call",
+      "startSec": 8.0,
+      "text": "In a script, EXEC does the same in one line, with a bind variable.",
+      "durationSec": 4.807
+    },
+    {
+      "id": "pr04-03",
+      "scene": "call",
+      "startSec": 13.4,
+      "text": "The enrolment table gains a row: student S zero three in course C twenty, with no grade yet. And the variable now holds the message.",
+      "durationSec": 9.221
+    },
+    {
+      "id": "pr05-01",
+      "scene": "errors",
+      "startSec": 0.8,
+      "text": "Now run the same call a second time. The INSERT repeats the primary key, so Oracle raises dup val on index.",
+      "durationSec": 8.49
+    },
+    {
+      "id": "pr05-02",
+      "scene": "errors",
+      "startSec": 9.8,
+      "text": "Instead of crashing, execution jumps to the EXCEPTION section. The handler for that error sets a different message.",
+      "durationSec": 7.706
+    },
+    {
+      "id": "pr05-03",
+      "scene": "errors",
+      "startSec": 18.2,
+      "text": "The caller gets a clear answer, and the table is unchanged.",
+      "durationSec": 4.153
+    },
+    {
+      "id": "pr06-01",
+      "scene": "func",
+      "startSec": 0.8,
+      "text": "A function returns a value. Letter grade takes a grade and returns a letter: A from nine, B from seven, C from five, otherwise F.",
+      "durationSec": 9.796
+    },
+    {
+      "id": "pr06-02",
+      "scene": "func",
+      "startSec": 11.6,
+      "text": "Because it returns a SQL type, you can call it inside a query, just like a built-in function.",
+      "durationSec": 6.296
+    },
+    {
+      "id": "pr06-03",
+      "scene": "func",
+      "startSec": 18.8,
+      "text": "Each enrolment gets its letter. Eight point five is a B, nine is an A, and the new row, with no grade, gets a dash.",
+      "durationSec": 8.333
+    },
+    {
+      "id": "pr07-01",
+      "scene": "compare",
+      "startSec": 0.8,
+      "text": "Think of a procedure as a vending machine. You put in a coin and a choice, it does something, and it may hand back change through its OUT parameters.",
+      "durationSec": 9.169
+    },
+    {
+      "id": "pr07-02",
+      "scene": "compare",
+      "startSec": 12.2,
+      "text": "A function is a calculator: numbers in, one answer out, ready to use inside a bigger expression, even a SELECT.",
+      "durationSec": 7.811
+    },
+    {
+      "id": "pr07-03",
+      "scene": "compare",
+      "startSec": 20.8,
+      "text": "Want an action? Write a procedure. Want a value? Write a function.",
+      "durationSec": 5.982
+    },
+    {
+      "id": "pr08-01",
+      "scene": "packages",
+      "startSec": 0.8,
+      "text": "As your code grows, group related procedures and functions in a package.",
+      "durationSec": 5.094
+    },
+    {
+      "id": "pr08-02",
+      "scene": "packages",
+      "startSec": 6.4,
+      "text": "The specification is the menu that callers see. The body is the kitchen, where the code lives.",
+      "durationSec": 6.583
+    },
+    {
+      "id": "pr08-03",
+      "scene": "packages",
+      "startSec": 13.6,
+      "text": "Callers write the package name, a dot, and the subprogram.",
+      "durationSec": 4.232
+    },
+    {
+      "id": "pr09-01",
+      "scene": "outro",
+      "startSec": 0.6,
+      "text": "Practise it in the SQL section of the course site.",
+      "durationSec": 3.709
+    }
+  ]
+}

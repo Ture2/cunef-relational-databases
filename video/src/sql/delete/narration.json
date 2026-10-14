@@ -1,0 +1,167 @@
+{
+  "voice": "en-GB-SoniaNeural",
+  "rate": "+0%",
+  "segments": [
+    {
+      "id": "dl01-01",
+      "scene": "title",
+      "startSec": 1.0,
+      "text": "Three ways to delete data: DELETE, TRUNCATE and DROP.",
+      "durationSec": 4.467
+    },
+    {
+      "id": "dl02-01",
+      "scene": "levels",
+      "startSec": 0.8,
+      "text": "SQL gives you three tools to remove data, and each one works at a different level.",
+      "durationSec": 5.486
+    },
+    {
+      "id": "dl02-02",
+      "scene": "levels",
+      "startSec": 7.8,
+      "text": "DELETE removes some rows: the ones its WHERE picks. TRUNCATE removes all the rows, but keeps the empty table.",
+      "durationSec": 7.758
+    },
+    {
+      "id": "dl02-03",
+      "scene": "levels",
+      "startSec": 16.2,
+      "text": "DROP removes the table itself.",
+      "durationSec": 2.638
+    },
+    {
+      "id": "dl03-01",
+      "scene": "delete",
+      "startSec": 0.8,
+      "text": "DELETE is DML. Here it removes one student: S zero three, Eva Sanz.",
+      "durationSec": 6.322
+    },
+    {
+      "id": "dl03-02",
+      "scene": "delete",
+      "startSec": 7.6,
+      "text": "Enrolment's foreign key says ON DELETE CASCADE, so Eva's two enrolments are deleted with her.",
+      "durationSec": 6.165
+    },
+    {
+      "id": "dl03-03",
+      "scene": "delete",
+      "startSec": 14.4,
+      "text": "DELETE works row by row, and fires the delete triggers of the table. Without a WHERE, it removes every row.",
+      "durationSec": 7.628
+    },
+    {
+      "id": "dl03-04",
+      "scene": "delete",
+      "startSec": 22.6,
+      "text": "But nothing is final until COMMIT: Oracle keeps the undo, so ROLLBACK brings all three rows back.",
+      "durationSec": 6.687
+    },
+    {
+      "id": "dl04-01",
+      "scene": "truncate",
+      "startSec": 0.8,
+      "text": "TRUNCATE is DDL. It takes no WHERE: it empties the whole table at once.",
+      "durationSec": 6.034
+    },
+    {
+      "id": "dl04-02",
+      "scene": "truncate",
+      "startSec": 7.4,
+      "text": "Instead of deleting row by row, Oracle simply frees the table's storage, so it is very fast, and no triggers fire. The columns, constraints and indexes stay.",
+      "durationSec": 11.18
+    },
+    {
+      "id": "dl04-03",
+      "scene": "truncate",
+      "startSec": 19.1,
+      "text": "Like every DDL statement, it commits. ROLLBACK cannot bring the rows back.",
+      "durationSec": 6.06
+    },
+    {
+      "id": "dl05-01",
+      "scene": "parent",
+      "startSec": 0.8,
+      "text": "And you cannot truncate a parent table. Enrolment is empty now, but its foreign key to student is still enabled, so Oracle refuses: O R A zero two two six six.",
+      "durationSec": 11.442
+    },
+    {
+      "id": "dl05-02",
+      "scene": "parent",
+      "startSec": 13.6,
+      "text": "Disable the foreign key first, or use DELETE.",
+      "durationSec": 3.579
+    },
+    {
+      "id": "dl06-01",
+      "scene": "drop",
+      "startSec": 0.8,
+      "text": "DROP TABLE removes everything: the rows, the columns, and the table's indexes and constraints.",
+      "durationSec": 6.557
+    },
+    {
+      "id": "dl06-02",
+      "scene": "drop",
+      "startSec": 7.9,
+      "text": "In Oracle a dropped table goes to the recycle bin, like a file on your desktop.",
+      "durationSec": 5.433
+    },
+    {
+      "id": "dl06-03",
+      "scene": "drop",
+      "startSec": 14.5,
+      "text": "FLASHBACK TABLE, TO BEFORE DROP, brings it back, rows included.",
+      "durationSec": 5.198
+    },
+    {
+      "id": "dl06-04",
+      "scene": "drop",
+      "startSec": 20.6,
+      "text": "Add PURGE, and the table skips the bin: it is gone for good.",
+      "durationSec": 4.284
+    },
+    {
+      "id": "dl07-01",
+      "scene": "cascade",
+      "startSec": 0.8,
+      "text": "Dropping a parent table that others still reference fails, with O R A zero two four four nine.",
+      "durationSec": 6.504
+    },
+    {
+      "id": "dl07-02",
+      "scene": "cascade",
+      "startSec": 8.6,
+      "text": "CASCADE CONSTRAINTS also drops the foreign keys that point to it. The enrolment rows stay, but nothing checks them any more.",
+      "durationSec": 8.255
+    },
+    {
+      "id": "dl08-01",
+      "scene": "summary",
+      "startSec": 0.8,
+      "text": "To sum up. DELETE is DML: it can filter with WHERE, fires triggers, and can be rolled back.",
+      "durationSec": 6.975
+    },
+    {
+      "id": "dl08-02",
+      "scene": "summary",
+      "startSec": 8.6,
+      "text": "TRUNCATE and DROP are DDL: no WHERE, no triggers, and an implicit commit. TRUNCATE keeps the empty table; DROP removes it, unless you flash it back.",
+      "durationSec": 10.893
+    },
+    {
+      "id": "dl08-03",
+      "scene": "summary",
+      "startSec": 20.0,
+      "text": "When in doubt, DELETE, and check before you COMMIT.",
+      "durationSec": 3.84
+    },
+    {
+      "id": "dl09-01",
+      "scene": "outro",
+      "startSec": 0.6,
+      "text": "Practise it in the SQL section of the course site.",
+      "durationSec": 3.709
+    }
+  ]
+}

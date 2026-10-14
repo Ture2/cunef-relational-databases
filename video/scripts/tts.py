@@ -3,6 +3,7 @@
     python scripts/tts.py                  # generate missing segments, normalise, measure, validate
     python scripts/tts.py --force          # re-synthesise every segment
     python scripts/tts.py --video ternary  # the same for another video (src/<video>/narration.json)
+    python scripts/tts.py --video sql/joins  # a SQL video (src/sql/joins/narration.json)
 
 Requires: pip install edge-tts   (sends the narration text to Microsoft's online TTS service)
 
@@ -87,7 +88,9 @@ def main() -> int:
         raw = CACHE / f"{seg['id']}-{key}.mp3"
         if force or not raw.exists():
             print(f"tts   {seg['id']}")
-            asyncio.run(synth(seg["text"], voice, rate, raw))
+            part = raw.with_suffix(".part")  # a failed request must not leave a broken cache entry
+            asyncio.run(synth(seg["text"], voice, rate, part))
+            part.replace(raw)
         final = OUT / f"{seg['id']}.mp3"
         subprocess.run(
             [FFMPEG, "-y", "-v", "error", "-i", str(raw),

@@ -1,0 +1,146 @@
+{
+  "voice": "en-GB-SoniaNeural",
+  "rate": "+0%",
+  "segments": [
+    {
+      "id": "jn01-01",
+      "scene": "title",
+      "startSec": 1.0,
+      "text": "Joins: putting the rows of several tables back together.",
+      "durationSec": 4.101
+    },
+    {
+      "id": "jn02-01",
+      "scene": "why",
+      "startSec": 0.8,
+      "text": "A well designed database splits its data. Students live in one table, courses in another.",
+      "durationSec": 6.766
+    },
+    {
+      "id": "jn02-02",
+      "scene": "why",
+      "startSec": 8.0,
+      "text": "Enrolment only stores the two ids, as foreign keys. To read who takes what, we follow those keys back.",
+      "durationSec": 7.784
+    },
+    {
+      "id": "jn02-03",
+      "scene": "why",
+      "startSec": 16.3,
+      "text": "That is what a join does: it pairs the rows whose keys match.",
+      "durationSec": 4.232
+    },
+    {
+      "id": "jn03-01",
+      "scene": "inner",
+      "startSec": 0.8,
+      "text": "Start with an inner join of course and enrolment. The ON condition says how rows match: the course ids must be equal.",
+      "durationSec": 8.411
+    },
+    {
+      "id": "jn03-02",
+      "scene": "inner",
+      "startSec": 10.0,
+      "text": "Databases matches three enrolments, Python two, and Statistics one. Each match becomes a row of the result.",
+      "durationSec": 8.02
+    },
+    {
+      "id": "jn03-03",
+      "scene": "inner",
+      "startSec": 18.6,
+      "text": "Marketing finds no partner, so it disappears. An inner join keeps only the rows that match.",
+      "durationSec": 6.74
+    },
+    {
+      "id": "jn03-04",
+      "scene": "inner",
+      "startSec": 25.8,
+      "text": "JOIN on its own means INNER JOIN.",
+      "durationSec": 2.769
+    },
+    {
+      "id": "jn04-01",
+      "scene": "left",
+      "startSec": 0.8,
+      "text": "What if we want every course, even the empty ones? Use a LEFT JOIN.",
+      "durationSec": 5.329
+    },
+    {
+      "id": "jn04-02",
+      "scene": "left",
+      "startSec": 6.8,
+      "text": "It keeps every row of the left table. Marketing comes back, and its enrolment columns are filled with NULL.",
+      "durationSec": 7.262
+    },
+    {
+      "id": "jn04-03",
+      "scene": "left",
+      "startSec": 16.0,
+      "text": "Now keep only the rows where the enrolment side is NULL. This is an anti-join: it finds the courses nobody takes.",
+      "durationSec": 7.732
+    },
+    {
+      "id": "jn04-04",
+      "scene": "left",
+      "startSec": 25.2,
+      "text": "Here, just Marketing.",
+      "durationSec": 2.247
+    },
+    {
+      "id": "jn05-01",
+      "scene": "rightfull",
+      "startSec": 0.8,
+      "text": "A RIGHT JOIN is the mirror image: it keeps every row of the right table. Most people swap the tables and write LEFT.",
+      "durationSec": 7.941
+    },
+    {
+      "id": "jn05-02",
+      "scene": "rightfull",
+      "startSec": 10.4,
+      "text": "A FULL OUTER JOIN keeps the unmatched rows of both sides. Statistics students on the left, Python students on the right: nobody takes both, so every row has a NULL.",
+      "durationSec": 11.128
+    },
+    {
+      "id": "jn06-01",
+      "scene": "cross",
+      "startSec": 0.8,
+      "text": "A CROSS JOIN has no condition at all. It pairs every row with every row: three students times four courses gives twelve rows.",
+      "durationSec": 8.62
+    },
+    {
+      "id": "jn06-02",
+      "scene": "cross",
+      "startSec": 11.2,
+      "text": "Forget the join condition, and this is what you get by accident.",
+      "durationSec": 4.232
+    },
+    {
+      "id": "jn07-01",
+      "scene": "self",
+      "startSec": 0.8,
+      "text": "A self-join joins a table with itself, under two aliases.",
+      "durationSec": 4.519
+    },
+    {
+      "id": "jn07-02",
+      "scene": "self",
+      "startSec": 5.8,
+      "text": "To find classmates, pair the enrolments of the same course. The condition a dot student id, less than b dot student id, stops a student pairing with themselves, and lists each pair once.",
+      "durationSec": 12.669
+    },
+    {
+      "id": "jn08-01",
+      "scene": "summary",
+      "startSec": 0.8,
+      "text": "To sum up: inner keeps the matches. Left, right and full also keep the rows without a partner. Cross pairs everything, and a self-join compares a table with itself.",
+      "durationSec": 11.677
+    },
+    {
+      "id": "jn09-01",
+      "scene": "outro",
+      "startSec": 0.6,
+      "text": "Practise it in the SQL section of the course site.",
+      "durationSec": 3.709
+    }
+  ]
+}

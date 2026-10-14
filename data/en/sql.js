@@ -279,6 +279,7 @@ SELECT name, NVL(email, 'no email') AS email FROM student;`,
     },
     {
       id: 'inner-join',
+      video: 'sql-joins',
       hub: 'querying',
       topic: 'querying',
       title: 'Joining tables with INNER JOIN',
@@ -428,6 +429,7 @@ FROM enrolment;`,
     },
     {
       id: 'group-by-having',
+      video: 'sql-aggregation',
       hub: 'aggregation',
       topic: 'aggregation',
       title: 'GROUP BY and HAVING',
@@ -468,6 +470,7 @@ ORDER BY course_id;`,
     /* ───────────── Subqueries and set operators ───────────── */
     {
       id: 'subqueries',
+      video: 'sql-subqueries',
       hub: 'subqueries',
       topic: 'subqueries',
       title: 'Subqueries in WHERE, FROM and SELECT',
@@ -772,6 +775,7 @@ ORDER BY grade DESC;`,
     },
     {
       id: 'ddl',
+      video: 'sql-ddl',
       hub: 'languages',
       topic: 'languages',
       title: 'DDL: defining the schema',
@@ -850,6 +854,7 @@ INSERT INTO player (full_name, shirt, team_id) VALUES ('Nobody', 7, 99);   -- te
     },
     {
       id: 'alter-drop',
+      video: 'sql-delete',
       hub: 'languages',
       topic: 'languages',
       title: 'ALTER, DROP and TRUNCATE',
@@ -1096,6 +1101,7 @@ SELECT COUNT(*) AS rows_after_rollback FROM enrolment;`,
     /* ───────────── Constraints ───────────── */
     {
       id: 'keys-unique',
+      video: 'sql-keys',
       hub: 'constraints',
       topic: 'constraints',
       title: 'PRIMARY KEY, UNIQUE and NOT NULL',
@@ -1456,6 +1462,7 @@ END;
     },
     {
       id: 'cursors',
+      video: 'sql-cursors',
       hub: 'plsql',
       topic: 'plsql',
       title: 'Cursors: walking through the rows one by one',
@@ -1645,6 +1652,7 @@ END;
     },
     {
       id: 'procedures-functions',
+      video: 'sql-procedures',
       hub: 'plsql',
       topic: 'plsql',
       title: 'Stored procedures and functions',
@@ -1721,6 +1729,7 @@ ORDER BY student_id;`,
     },
     {
       id: 'triggers',
+      video: 'sql-triggers',
       hub: 'plsql',
       topic: 'plsql',
       title: 'Triggers',
@@ -1870,6 +1879,7 @@ SELECT student_id, grade, grades_pkg.letter(grade) AS letter FROM enrolment;`,
     /* ───────────── Indexes ───────────── */
     {
       id: 'index-basics',
+      video: 'sql-indexes',
       hub: 'indexes',
       topic: 'indexes',
       title: 'What an index is',

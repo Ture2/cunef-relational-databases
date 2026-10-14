@@ -1,0 +1,174 @@
+{
+  "voice": "en-GB-SoniaNeural",
+  "rate": "+0%",
+  "segments": [
+    {
+      "id": "ag01-01",
+      "scene": "title",
+      "startSec": 1.0,
+      "text": "Aggregation: from many rows to a single value, for a whole table or for each group.",
+      "durationSec": 5.747
+    },
+    {
+      "id": "ag02-01",
+      "scene": "receipt",
+      "startSec": 0.8,
+      "text": "Think of a supermarket receipt: many lines above, and one total at the bottom.",
+      "durationSec": 5.433
+    },
+    {
+      "id": "ag02-02",
+      "scene": "receipt",
+      "startSec": 7.2,
+      "text": "An aggregate function does the same with rows. Count star and the average grade turn six enrolments into a single row.",
+      "durationSec": 7.967
+    },
+    {
+      "id": "ag03-01",
+      "scene": "count",
+      "startSec": 0.8,
+      "text": "Count star counts rows. On the student table, that is three.",
+      "durationSec": 4.885
+    },
+    {
+      "id": "ag03-02",
+      "scene": "count",
+      "startSec": 6.4,
+      "text": "Count of email counts only the values that are not NULL. Eva has no email, so the answer is two.",
+      "durationSec": 6.949
+    },
+    {
+      "id": "ag03-03",
+      "scene": "count",
+      "startSec": 14.6,
+      "text": "To count values that may be missing, count the column, not the rows.",
+      "durationSec": 4.754
+    },
+    {
+      "id": "ag04-01",
+      "scene": "functions",
+      "startSec": 0.8,
+      "text": "Sum, average, minimum and maximum work the same way, here over the grades of enrolment.",
+      "durationSec": 6.165
+    },
+    {
+      "id": "ag04-02",
+      "scene": "functions",
+      "startSec": 7.6,
+      "text": "The lowest grade is five, the highest nine, the total forty-three point five, and the average seven point two five.",
+      "durationSec": 7.549
+    },
+    {
+      "id": "ag04-03",
+      "scene": "functions",
+      "startSec": 16.4,
+      "text": "They also skip NULLs: a missing grade is not a zero.",
+      "durationSec": 3.971
+    },
+    {
+      "id": "ag05-01",
+      "scene": "groupby",
+      "startSec": 0.8,
+      "text": "Now, an average for each course. GROUP BY is like sorting the laundry into piles.",
+      "durationSec": 6.191
+    },
+    {
+      "id": "ag05-02",
+      "scene": "groupby",
+      "startSec": 7.8,
+      "text": "Group by course id makes one pile per course: three rows for C ten, two for C eleven, and one for C twenty.",
+      "durationSec": 7.576
+    },
+    {
+      "id": "ag05-03",
+      "scene": "groupby",
+      "startSec": 16.2,
+      "text": "Then the aggregates are computed for each pile, and every pile becomes one row of the result.",
+      "durationSec": 5.904
+    },
+    {
+      "id": "ag05-04",
+      "scene": "groupby",
+      "startSec": 23.4,
+      "text": "C ten has three students and an average of six point six seven. C eleven, eight point two five. C twenty, seven.",
+      "durationSec": 9.273
+    },
+    {
+      "id": "ag06-01",
+      "scene": "having",
+      "startSec": 0.8,
+      "text": "There are two places to filter. WHERE filters rows, before grouping: here, grades under six are dropped.",
+      "durationSec": 7.576
+    },
+    {
+      "id": "ag06-02",
+      "scene": "having",
+      "startSec": 8.9,
+      "text": "Eva's five in C ten never reaches a pile.",
+      "durationSec": 3.344
+    },
+    {
+      "id": "ag06-03",
+      "scene": "having",
+      "startSec": 12.8,
+      "text": "HAVING filters groups, after grouping. Having count star at least two throws away the whole C twenty pile.",
+      "durationSec": 7.471
+    },
+    {
+      "id": "ag06-04",
+      "scene": "having",
+      "startSec": 21.0,
+      "text": "Two courses remain, C ten and C eleven, each with two grades of six or more.",
+      "durationSec": 5.564
+    },
+    {
+      "id": "ag06-05",
+      "scene": "having",
+      "startSec": 27.2,
+      "text": "Conditions on aggregates go in HAVING. Everything else, in WHERE.",
+      "durationSec": 5.042
+    },
+    {
+      "id": "ag07-01",
+      "scene": "order",
+      "startSec": 0.8,
+      "text": "It all follows from the logical order: FROM, then WHERE, GROUP BY, HAVING, then SELECT, and finally ORDER BY.",
+      "durationSec": 8.281
+    },
+    {
+      "id": "ag07-02",
+      "scene": "order",
+      "startSec": 9.8,
+      "text": "WHERE runs before the groups exist, so it cannot use an aggregate. ORDER BY runs last, so it can use the aliases of the SELECT.",
+      "durationSec": 9.3
+    },
+    {
+      "id": "ag08-01",
+      "scene": "errors",
+      "startSec": 0.8,
+      "text": "Three errors you will meet. A plain column next to an aggregate, without GROUP BY: O R A zero zero nine three seven, not a single-group group function.",
+      "durationSec": 10.449
+    },
+    {
+      "id": "ag08-02",
+      "scene": "errors",
+      "startSec": 12.6,
+      "text": "Every column outside an aggregate must be in the GROUP BY. If not: O R A zero zero nine seven nine.",
+      "durationSec": 8.176
+    },
+    {
+      "id": "ag08-03",
+      "scene": "errors",
+      "startSec": 21.4,
+      "text": "And an aggregate in WHERE gives O R A zero zero nine three four. Move it to HAVING.",
+      "durationSec": 6.504
+    },
+    {
+      "id": "ag09-01",
+      "scene": "outro",
+      "startSec": 0.6,
+      "text": "Practise it in the SQL section of the course site.",
+      "durationSec": 3.709
+    }
+  ]
+}

@@ -1,0 +1,167 @@
+{
+  "voice": "en-GB-SoniaNeural",
+  "rate": "+0%",
+  "segments": [
+    {
+      "id": "ix01-01",
+      "scene": "title",
+      "startSec": 1.0,
+      "text": "Indexes: how the database finds rows fast.",
+      "durationSec": 3.866
+    },
+    {
+      "id": "ix02-01",
+      "scene": "phonebook",
+      "startSec": 0.8,
+      "text": "Think of a phone book. To find Ruiz, you don't read every page. The names are sorted, so you jump straight to R.",
+      "durationSec": 8.124
+    },
+    {
+      "id": "ix02-02",
+      "scene": "phonebook",
+      "startSec": 10.0,
+      "text": "An index does the same for a table: a separate, sorted structure that points to the rows.",
+      "durationSec": 5.93
+    },
+    {
+      "id": "ix03-01",
+      "scene": "scan",
+      "startSec": 0.8,
+      "text": "Here is the customer table of the shop: fifty thousand rows. We want the customer with one email address.",
+      "durationSec": 7.314
+    },
+    {
+      "id": "ix03-02",
+      "scene": "scan",
+      "startSec": 8.8,
+      "text": "Without an index, Oracle has no choice. It reads every row, from the first to the last, and checks each email.",
+      "durationSec": 7.941
+    },
+    {
+      "id": "ix03-03",
+      "scene": "scan",
+      "startSec": 17.8,
+      "text": "The plan calls this TABLE ACCESS FULL.",
+      "durationSec": 3.03
+    },
+    {
+      "id": "ix04-01",
+      "scene": "btree",
+      "startSec": 0.8,
+      "text": "So we create an index on the email column.",
+      "durationSec": 3.187
+    },
+    {
+      "id": "ix04-02",
+      "scene": "btree",
+      "startSec": 5.4,
+      "text": "Oracle builds a B-tree: the emails, sorted, in leaf blocks, with a few levels of guide keys above them.",
+      "durationSec": 7.079
+    },
+    {
+      "id": "ix04-03",
+      "scene": "btree",
+      "startSec": 13.8,
+      "text": "To find our email, it starts at the root, follows one branch, and reaches the right leaf.",
+      "durationSec": 5.851
+    },
+    {
+      "id": "ix04-04",
+      "scene": "btree",
+      "startSec": 21.2,
+      "text": "The leaf stores the row I D, the exact address of the row in the table. A few steps down the tree, instead of fifty thousand rows.",
+      "durationSec": 8.934
+    },
+    {
+      "id": "ix05-01",
+      "scene": "plan",
+      "startSec": 0.8,
+      "text": "Explain plan shows how Oracle will run a query.",
+      "durationSec": 3.553
+    },
+    {
+      "id": "ix05-02",
+      "scene": "plan",
+      "startSec": 5.4,
+      "text": "Before the index: TABLE ACCESS FULL, every row of customer.",
+      "durationSec": 4.676
+    },
+    {
+      "id": "ix05-03",
+      "scene": "plan",
+      "startSec": 10.6,
+      "text": "After it: an INDEX RANGE SCAN finds the row I D, then TABLE ACCESS BY INDEX row I D fetches just that row.",
+      "durationSec": 8.124
+    },
+    {
+      "id": "ix05-04",
+      "scene": "plan",
+      "startSec": 19.4,
+      "text": "The result is exactly the same. And remember: every primary key and UNIQUE constraint gets an index automatically.",
+      "durationSec": 8.098
+    },
+    {
+      "id": "ix06-01",
+      "scene": "composite",
+      "startSec": 0.8,
+      "text": "An index can cover several columns. This one sorts customers by city, then by signup date, like a phone book sorted by surname, then first name.",
+      "durationSec": 9.979
+    },
+    {
+      "id": "ix06-02",
+      "scene": "composite",
+      "startSec": 11.8,
+      "text": "It finds Madrid from twenty twenty-three quickly, and Madrid on its own too.",
+      "durationSec": 5.146
+    },
+    {
+      "id": "ix06-03",
+      "scene": "composite",
+      "startSec": 17.8,
+      "text": "But a date on its own is spread across every city, so the index cannot go straight to it. That is the leftmost prefix rule.",
+      "durationSec": 8.229
+    },
+    {
+      "id": "ix07-01",
+      "scene": "cost",
+      "startSec": 0.8,
+      "text": "Indexes are not free. Every insert, update or delete must also change each index of the table.",
+      "durationSec": 7.262
+    },
+    {
+      "id": "ix07-02",
+      "scene": "cost",
+      "startSec": 9.6,
+      "text": "They also take disk space. So index the columns your queries filter, join or sort by, not every column.",
+      "durationSec": 7.732
+    },
+    {
+      "id": "ix08-01",
+      "scene": "functions",
+      "startSec": 0.8,
+      "text": "One more trap. Wrap the column in a function, like lower of email, and the index on email can no longer be used.",
+      "durationSec": 7.706
+    },
+    {
+      "id": "ix08-02",
+      "scene": "functions",
+      "startSec": 9.8,
+      "text": "The index is sorted by email, not by lower of email, so Oracle scans the table again.",
+      "durationSec": 6.191
+    },
+    {
+      "id": "ix08-03",
+      "scene": "functions",
+      "startSec": 17.2,
+      "text": "The fix: a function-based index on exactly that expression.",
+      "durationSec": 4.467
+    },
+    {
+      "id": "ix09-01",
+      "scene": "outro",
+      "startSec": 0.6,
+      "text": "Practise it in the SQL section of the course site.",
+      "durationSec": 3.709
+    }
+  ]
+}
