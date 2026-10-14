@@ -4,8 +4,9 @@
    Relational databases › SQL: querying (joins, aggregation, subqueries and
    functions), the sub-languages (DDL, DML, DCL, TCL), constraints, views and
    schema objects, PL/SQL, indexes, clustering, partitioning and efficiency, as
-   concept cards with runnable examples (js/sql-runner.js; PL/SQL is static
-   code for FreeSQL), a quiz, and a free SQL sandbox in the practice slot.
+   concept cards with figures (js/sql-figures.js) and runnable examples
+   (js/sql-runner.js; PL/SQL is static code for FreeSQL), a quiz, and a free
+   SQL sandbox in the practice slot.
    Data: data/<lang>/sql.js (SQL_CONCEPTS, SQL_QUIZ, SQL_QUIZ_TOPICS, SQL_SANDBOX).
    Routes: #/relational/sql[/<cardId> | /quiz[/<topic>] | /practice]
    ========================================================================== */
@@ -97,6 +98,7 @@ const SqlSection = (() => {
     topics: SQL_QUIZ_TOPICS,
     quizKey: 'sql-quiz-v1',
     codeDownload: true,
+    figure: (item) => (item.figure ? SqlFigures.svg(item.figure) : ''),
     extra: (card) => sqlVideoHtml(card) + SqlRunner.html(card),
     perfectText: () => t('You did not miss any. Try the SQL challenges or your own queries in the SQL sandbox.'),
     nextLink: { href: `${SANDBOX}/1`, label: () => t('Try the SQL challenges') },

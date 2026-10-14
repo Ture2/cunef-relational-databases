@@ -1,4 +1,4 @@
-/* Theory figures and interactive examples (js/theory-figures.js, js/theory-widgets.js). Colours only through the tokens in styles.css. */
+/* Theory and SQL figures and interactive examples (js/theory-figures.js, js/sql-figures.js, js/theory-widgets.js). Colours only through the tokens in styles.css. */
 
 /* ---- Figures (inline SVG) ------------------------------------------------ */
 
@@ -45,6 +45,31 @@
 .tf-c6 { fill: var(--h6s); stroke: var(--h6); stroke-width: 1.3; }
 .tf-c7 { fill: var(--h7s); stroke: var(--h7); stroke-width: 1.3; }
 .tf-c8 { fill: var(--h8s); stroke: var(--h8); stroke-width: 1.3; }
+
+/* SQL figures (js/sql-figures.js): the classes above, plus table cells, NULLs, links and set shading. */
+.sf-cell { fill: var(--surface); stroke: var(--rule-strong); stroke-width: 1; }
+.sf-on { fill: var(--hover); stroke: var(--rule-strong); stroke-width: 1; }
+.sf-pick { fill: none; stroke: var(--accent); stroke-width: 2.4; }
+.sf-unk { fill: var(--tint); stroke: var(--rule-strong); stroke-width: 1; stroke-dasharray: 3 2; }
+.sf-null { font-style: italic; fill: var(--muted); }
+.sf-off { fill: var(--muted); }
+.sf-imp { fill: var(--accent); font-weight: 700; }
+.sf-strike { stroke: var(--bad); stroke-width: 1.8; }
+.sf-block { fill: none; stroke: var(--bad); stroke-width: 1.6; stroke-dasharray: 5 4; }
+.sf-ring { fill: none; stroke: var(--ink); stroke-width: 1.4; }
+.sf-shade { fill: var(--h1); fill-opacity: .38; stroke: none; }
+.sf-l1, .sf-l3 { fill: none; stroke-width: 2; }
+.sf-l1 { stroke: var(--h1); }
+.sf-l3 { stroke: var(--h3); }
+.sf-d1 { fill: var(--h1); }
+.sf-d3 { fill: var(--h3); }
+.sf-dot { fill: var(--ink); }
+.sf-dot1 { fill: var(--h1); stroke: var(--ink); stroke-width: 1; }
+.sf-open { fill: var(--surface); stroke: var(--ink); stroke-width: 1.3; }
+.sf-dotok { fill: var(--ok); stroke: var(--surface); stroke-width: 1; }
+.sf-dotno { fill: var(--surface); stroke: var(--muted); stroke-width: 1.3; }
+.sf-virt { fill: none; stroke: var(--ink); stroke-width: 1.3; stroke-dasharray: 6 4; }
+.sf-virtcell { fill: var(--tint); stroke: var(--rule-strong); stroke-width: 1; stroke-dasharray: 3 2; }
 
 /* ---- Interactive examples -------------------------------------------------- */
 
