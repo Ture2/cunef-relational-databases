@@ -13,7 +13,9 @@ export const SqlTitle: React.FC<{
   readonly chips: readonly {readonly label: string; readonly tone: Tone}[];
   /** Separator between chips (default none). */
   readonly sep?: string;
-}> = ({style, narration, title, subtitle, chips, sep}) => {
+  /** Small label above the title (default "SQL"). */
+  readonly kicker?: string;
+}> = ({style, narration, title, subtitle, chips, sep, kicker = 'SQL'}) => {
   const f = useCurrentFrame();
   const {fps} = useVideoConfig();
   return (
@@ -32,7 +34,7 @@ export const SqlTitle: React.FC<{
         name="Kicker"
         style={{position: 'absolute', left: 0, right: 0, top: 300, textAlign: 'center', fontSize: 34, fontWeight: 700, letterSpacing: 4, color: C.muted, opacity: prog(f, 0.3, 1.6)}}
       >
-        SQL
+        {kicker}
       </Interactive.Div>
       <Interactive.Div
         name="Title"
@@ -84,7 +86,9 @@ export const SqlOutro: React.FC<{
   readonly narration: React.ReactNode;
   /** The card title on the website, e.g. "Inner join". */
   readonly card: string;
-}> = ({style, narration, card}) => {
+  /** The website section that holds the card (default "SQL"). */
+  readonly section?: string;
+}> = ({style, narration, card, section = 'SQL'}) => {
   const f = useCurrentFrame();
   const {fps} = useVideoConfig();
   return (
@@ -100,7 +104,7 @@ export const SqlOutro: React.FC<{
         name="Practice site line"
         style={{position: 'absolute', left: 0, right: 0, top: 410, textAlign: 'center', fontSize: 50, lineHeight: 1.35, color: C.ink, opacity: prog(f, 0.5, 2)}}
       >
-        <b>{card}</b> in the <b>SQL</b> section of the
+        <b>{card}</b> in the <b>{section}</b> section of the
         <br />
         Databases practice site
       </Interactive.Div>

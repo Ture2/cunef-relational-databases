@@ -6,6 +6,9 @@ Remotion project for the course videos (English, 1920×1080, 30 fps, British Eng
   - Script and timeline: [`SCRIPT.md`](SCRIPT.md)
   - Scene timing (single source): `src/timeline.ts`
   - Scenes: `src/scenes/`
+- **Beyond 3NF: BCNF, 4NF and 5NF** (~3 min, composition `NormalizationAdvanced`)
+  - Script and timeline: [`SCRIPT-normalization-advanced.md`](SCRIPT-normalization-advanced.md)
+  - Everything else is in `src/nfadv/` (timing, narration and scenes); it reuses the title, outro and timeline helpers of `src/sql/common/`
 - **Ternary relationships** (~2:40, composition `Ternary`)
   - Script and timeline: [`SCRIPT-ternary.md`](SCRIPT-ternary.md)
   - Everything else is in `src/ternary/` (timing, narration and scenes)
@@ -26,7 +29,7 @@ npm i
 npx remotion studio
 ```
 
-The main compositions are `Normalization`, `Ternary` and the SQL videos (folder `SQL`). Each scene is also registered on its own, in the `Scenes`, `Ternary-scenes` and `Sql<Topic>-scenes` folders.
+The main compositions are `Normalization`, `NormalizationAdvanced`, `Ternary` and the SQL videos (folder `SQL`). Each scene is also registered on its own, in the `Scenes`, `NormalizationAdvanced-scenes`, `Ternary-scenes` and `Sql<Topic>-scenes` folders.
 
 ## Render
 
@@ -40,22 +43,24 @@ For the website (`../assets/video/`, committed and served by GitHub Pages):
 
 ```bash
 npm run render:site      # normalization: 720p H.264 (~18 MB) and the poster frame
+npm run render:nf-advanced # BCNF, 4NF and 5NF: assets/video/normalization-advanced.mp4 and its poster
 npm run render:ternary   # ternary relationships: the same, as assets/video/ternary.mp4
 npm run render:sql-joins # one SQL video: assets/video/sql-joins.mp4 and its poster
 npm run render:sql       # all ten SQL videos
 ```
 
-`out/` stays gitignored; the site copy lives in `assets/video/`. If the scenes change, also update the chapter times: `js/normalization-section.js` for normalization, `TERNARY_VIDEO` in `js/er.js` for the ternary video, `SQL_VIDEOS` in `js/sql.js` for the SQL videos.
+`out/` stays gitignored; the site copy lives in `assets/video/`. If the scenes change, also update the chapter times: `js/normalization-section.js` for the two normalization videos (`VIDEO`, `VIDEO_ADVANCED`), `TERNARY_VIDEO` in `js/er.js` for the ternary video, `SQL_VIDEOS` in `js/sql.js` for the SQL videos.
 
 ## Audio (voice-over + music)
 
-- Narration text and timing: `src/narration.json`, `src/ternary/narration.json` for the ternary video and `src/sql/<topic>/narration.json` for the SQL videos. Start times are local to each scene.
+- Narration text and timing: `src/narration.json`, `src/nfadv/narration.json` for the BCNF/4NF/5NF video, `src/ternary/narration.json` for the ternary video and `src/sql/<topic>/narration.json` for the SQL videos. Start times are local to each scene.
 - Regenerate the voice (Microsoft neural voice via edge-tts; sends the text to Microsoft's online TTS):
 
   ```bash
   pip install edge-tts
   python scripts/tts.py                  # writes public/audio/vo/<id>.mp3 + durations, validates fit
   python scripts/tts.py --video ternary  # the same for the ternary video
+  python scripts/tts.py --video nfadv    # the same for the BCNF/4NF/5NF video
   python scripts/tts.py --video sql/joins  # the same for a SQL video
   ```
 
@@ -65,4 +70,4 @@ npm run render:sql       # all ten SQL videos
   python scripts/music.py        # writes public/audio/music.wav
   ```
 
-- If a segment no longer fits, shorten its text, or add a tail hold for that scene in `HOLDS` (`src/timeline.ts`, `src/ternary/timeline.ts` or `src/sql/<topic>/timeline.ts`).
+- If a segment no longer fits, shorten its text, or add a tail hold for that scene in `HOLDS` (`src/timeline.ts`, `src/nfadv/timeline.ts`, `src/ternary/timeline.ts` or `src/sql/<topic>/timeline.ts`).

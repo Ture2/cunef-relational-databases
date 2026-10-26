@@ -1,5 +1,6 @@
 import type React from 'react';
 import {Composition, Folder} from 'remotion';
+import {NF_ADVANCED_VIDEO} from './nfadv';
 import {Normalization} from './Normalization';
 import {TitleScene} from './scenes/S01Title';
 import {ProblemScene} from './scenes/S02Problem';
@@ -126,6 +127,12 @@ export const RemotionRoot: React.FC = () => {
           width={1920}
           height={1080}
         />
+      </Folder>
+      <Composition id={NF_ADVANCED_VIDEO.id} component={NF_ADVANCED_VIDEO.Component} durationInFrames={NF_ADVANCED_VIDEO.totalFrames} fps={30} width={1920} height={1080} />
+      <Folder name="NormalizationAdvanced-scenes">
+        {NF_ADVANCED_VIDEO.scenes.map((sc) => (
+          <Composition key={sc.id} id={sc.id} component={sc.Component} durationInFrames={sc.durationInFrames} fps={30} width={1920} height={1080} />
+        ))}
       </Folder>
       <Composition id="Ternary" component={Ternary} durationInFrames={TERNARY_FRAMES} fps={30} width={1920} height={1080} />
       <Folder name="Ternary-scenes">

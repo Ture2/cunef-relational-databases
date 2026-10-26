@@ -1,0 +1,209 @@
+{
+  "voice": "en-GB-SoniaNeural",
+  "rate": "+0%",
+  "segments": [
+    {
+      "id": "na01-01",
+      "scene": "title",
+      "startSec": 1.4,
+      "text": "Beyond third normal form.",
+      "durationSec": 2.247
+    },
+    {
+      "id": "na02-01",
+      "scene": "case",
+      "startSec": 0.5,
+      "text": "As a database engineer, I review schemas like this every week: three tables, all in third normal form.",
+      "durationSec": 7.053
+    },
+    {
+      "id": "na02-02",
+      "scene": "case",
+      "startSec": 8.4,
+      "text": "Are we done? Not quite: each one still hides redundancy.",
+      "durationSec": 4.754
+    },
+    {
+      "id": "na03-01",
+      "scene": "concepts",
+      "startSec": 0.4,
+      "text": "First: if knowing X fixes Y, then X is a determinant.",
+      "durationSec": 4.754
+    },
+    {
+      "id": "na03-02",
+      "scene": "concepts",
+      "startSec": 5.8,
+      "text": "Student and subject fix the tutor. And each tutor fixes one subject.",
+      "durationSec": 5.747
+    },
+    {
+      "id": "na03-03",
+      "scene": "concepts",
+      "startSec": 12.3,
+      "text": "A candidate key is a minimal set of columns that identifies each row. Drop a column, and it fails.",
+      "durationSec": 7.131
+    },
+    {
+      "id": "na03-04",
+      "scene": "concepts",
+      "startSec": 20.2,
+      "text": "Tutoring has two: student and subject, or student and tutor.",
+      "durationSec": 4.754
+    },
+    {
+      "id": "na04-01",
+      "scene": "bcnf",
+      "startSec": 0.4,
+      "text": "Boyce-Codd normal form has one rule: every determinant must be a candidate key.",
+      "durationSec": 5.46
+    },
+    {
+      "id": "na04-02",
+      "scene": "bcnf",
+      "startSec": 6.5,
+      "text": "Tutor is a determinant, but not a key.",
+      "durationSec": 3.291
+    },
+    {
+      "id": "na04-03",
+      "scene": "bcnf",
+      "startSec": 10.4,
+      "text": "Third normal form allowed it, because subject is part of a key, a prime attribute. BCNF doesn't.",
+      "durationSec": 7.419
+    },
+    {
+      "id": "na04-04",
+      "scene": "bcnf",
+      "startSec": 18.5,
+      "text": "So if Pérez changes subject, we update three rows.",
+      "durationSec": 4.18
+    },
+    {
+      "id": "na04-05",
+      "scene": "bcnf",
+      "startSec": 23.4,
+      "text": "We split on the tutor: tutor with subject, and student with tutor.",
+      "durationSec": 4.78
+    },
+    {
+      "id": "na04-06",
+      "scene": "bcnf",
+      "startSec": 28.9,
+      "text": "The price: one tutor per student and subject is no longer enforced by a key.",
+      "durationSec": 5.564
+    },
+    {
+      "id": "na05-01",
+      "scene": "nf4",
+      "startSec": 0.4,
+      "text": "Next, course material. Every teacher of Databases uses every book.",
+      "durationSec": 5.956
+    },
+    {
+      "id": "na05-02",
+      "scene": "nf4",
+      "startSec": 7.0,
+      "text": "That's a multivalued dependency: a course fixes a set of teachers and, independently, a set of books.",
+      "durationSec": 7.184
+    },
+    {
+      "id": "na05-03",
+      "scene": "nf4",
+      "startSec": 15.0,
+      "text": "So adding one book takes two rows.",
+      "durationSec": 2.873
+    },
+    {
+      "id": "na05-04",
+      "scene": "nf4",
+      "startSec": 18.8,
+      "text": "Fourth normal form: one independent fact per table. A new book is now one row.",
+      "durationSec": 6.217
+    },
+    {
+      "id": "na06-01",
+      "scene": "nf5",
+      "startSec": 0.4,
+      "text": "Last, teaching: lecturer, course and campus.",
+      "durationSec": 4.441
+    },
+    {
+      "id": "na06-02",
+      "scene": "nf5",
+      "startSec": 5.4,
+      "text": "Our rule: if a lecturer teaches a course, the course runs on a campus, and the lecturer works there, then they teach it there.",
+      "durationSec": 7.34
+    },
+    {
+      "id": "na06-03",
+      "scene": "nf5",
+      "startSec": 13.4,
+      "text": "That's a join dependency: the table equals the join of its pieces.",
+      "durationSec": 4.702
+    },
+    {
+      "id": "na06-04",
+      "scene": "nf5",
+      "startSec": 18.8,
+      "text": "Fifth normal form stores the three pairs. Join only two,",
+      "durationSec": 4.65
+    },
+    {
+      "id": "na06-05",
+      "scene": "nf5",
+      "startSec": 24.3,
+      "text": "and we invent a row: Gil teaching Databases online.",
+      "durationSec": 4.023
+    },
+    {
+      "id": "na06-06",
+      "scene": "nf5",
+      "startSec": 29.1,
+      "text": "The third pair removes it. Only split like this if the rule always holds.",
+      "durationSec": 5.433
+    },
+    {
+      "id": "na07-01",
+      "scene": "summary",
+      "startSec": 0.5,
+      "text": "To recap: every determinant a key, no independent lists, and nothing rebuilt from pairs.",
+      "durationSec": 6.452
+    },
+    {
+      "id": "na08-01",
+      "scene": "questions",
+      "startSec": 0.4,
+      "text": "Now, your turn.",
+      "durationSec": 1.907
+    },
+    {
+      "id": "na08-02",
+      "scene": "questions",
+      "startSec": 3.0,
+      "text": "One: BCNF lost a rule. How would you enforce it?",
+      "durationSec": 4.65
+    },
+    {
+      "id": "na08-03",
+      "scene": "questions",
+      "startSec": 8.6,
+      "text": "Two: if each teacher had their own books, would you still split?",
+      "durationSec": 4.389
+    },
+    {
+      "id": "na08-04",
+      "scene": "questions",
+      "startSec": 13.9,
+      "text": "Three: if the campus rule stopped holding, is the 5NF design still right?",
+      "durationSec": 5.956
+    },
+    {
+      "id": "na09-01",
+      "scene": "outro",
+      "startSec": 0.8,
+      "text": "Practise it with the normal form cards of the normalization section.",
+      "durationSec": 4.441
+    }
+  ]
+}

@@ -345,6 +345,11 @@ Object.assign(UI.es, {
   "Full and partial dependency": "Dependencia completa y parcial",
   "Transitive dependency": "Dependencia transitiva",
   "Lossless join and recap": "Reunión sin pérdida y resumen",
+  "Video: beyond 3NF (BCNF, 4NF and 5NF)": "Vídeo: más allá de la 3FN (FNBC, 4FN y 5FN)",
+  "The case: a 3NF schema": "El caso: un esquema en 3FN",
+  "Determinant and candidate key": "Determinante y clave candidata",
+  "Recap": "Resumen",
+  "Open questions": "Preguntas abiertas",
   "6 minutes · English narration.": "6 minutos · narración en inglés.",
   "Download (MP4, 18 MB)": "Descargar (MP4, 18 MB)",
   // ER concepts video

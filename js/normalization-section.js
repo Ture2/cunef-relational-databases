@@ -25,6 +25,18 @@ const NormalizationSection = (() => {
       [200, '1NF'], [225, '2NF'], [265, '3NF'], [300, 'BCNF'], [325, 'Lossless join and recap'],
     ],
   };
+  /* The second video (video/src/nfadv): BCNF, 4NF and 5NF from a 3NF schema, at the top of "Normal forms". */
+  const VIDEO_ADVANCED = {
+    title: 'Video: beyond 3NF (BCNF, 4NF and 5NF)',
+    duration: '2:59',
+    size: 10,
+    chapterLabel: VIDEO.chapterLabel,
+    /* Chapter starts in seconds: the scene offsets of video/src/nfadv/timeline.ts. */
+    chapters: [
+      [0, 'Introduction'], [6, 'The case: a 3NF schema'], [20, 'Determinant and candidate key'],
+      [46, 'BCNF'], [81, '4NF'], [107, '5NF'], [142, 'Recap'], [151, 'Open questions'],
+    ],
+  };
 
   /* The steps of a normal form, as in the exercises (NF_INFO[nf].how). */
   function howHtml(card) {
@@ -59,7 +71,10 @@ const NormalizationSection = (() => {
       { key: 'decomp', label: 'Decomposition', icon: 'split' },
     ],
     concepts: cards,
-    videos: [courseVideo('norm-video', 'why', VIDEO, 'normalization')],
+    videos: [
+      courseVideo('norm-video', 'why', VIDEO, 'normalization'),
+      courseVideo('norm-advanced-video', 'forms', VIDEO_ADVANCED, 'normalization-advanced'),
+    ],
     extra: howHtml,
     practice: {
       label: 'Practice',

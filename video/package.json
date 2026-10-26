@@ -26,6 +26,7 @@
     "upgrade": "remotion upgrade",
     "lint": "eslint src && tsc",
     "render:site": "remotion render Normalization ../assets/video/normalization.mp4 --codec=h264 --crf=28 --scale=0.6667 && remotion still Normalization ../assets/video/normalization-poster.jpg --frame=320 --scale=0.6667 --image-format=jpeg --jpeg-quality=82",
+    "render:nf-advanced": "remotion render NormalizationAdvanced ../assets/video/normalization-advanced.mp4 --codec=h264 --crf=28 --scale=0.6666666666666666 && remotion still NormalizationAdvanced ../assets/video/normalization-advanced-poster.jpg --frame=4020 --scale=0.6666666666666666 --image-format=jpeg --jpeg-quality=82",
     "render:ternary": "remotion render Ternary ../assets/video/ternary.mp4 --codec=h264 --crf=28 --scale=0.6667 && remotion still Ternary ../assets/video/ternary-poster.jpg --frame=1500 --scale=0.6667 --image-format=jpeg --jpeg-quality=82",
     "render:sql-ddl": "remotion render SqlDdl ../assets/video/sql-ddl.mp4 --codec=h264 --crf=28 --scale=0.6666666666666666 && remotion still SqlDdl ../assets/video/sql-ddl-poster.jpg --frame=2010 --scale=0.6666666666666666 --image-format=jpeg --jpeg-quality=82",
     "render:sql-keys": "remotion render SqlKeys ../assets/video/sql-keys.mp4 --codec=h264 --crf=28 --scale=0.6666666666666666 && remotion still SqlKeys ../assets/video/sql-keys-poster.jpg --frame=1710 --scale=0.6666666666666666 --image-format=jpeg --jpeg-quality=82",
