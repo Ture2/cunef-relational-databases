@@ -6,7 +6,12 @@
    toXml(model, opts)   an editable .drawio of a model: entities, relationships
                         and hierarchies as shapes, attributes as ellipses around
                         their owner, look-across (min,max) labels on the lines,
-                        double lines for total participation.
+                        double lines for total participation, the ratio of an
+                        n-ary relationship beside its diamond. opts.legend adds a
+                        "Legend" layer with the title and the notation.
+   logicalXml(tables, opts)  the tables of a logical schema (LogicalEngine.variants)
+                        as a .drawio page named LOGICAL: one box per table, a line per
+                        column (PK / FK / NOT NULL / → target), an arrow per foreign key.
    starter(ex)          the statement and a palette of the course's shapes.
    fromXml(text)        (async, browser only) reads a .drawio back as the ER
                         practice builder's state: { work, unread }.
@@ -37,8 +42,24 @@ const ErDrawio = (() => {
     double: 'endArrow=none;html=1;rounded=0;shape=link;strokeColor=#1A1F6C;',
     label: 'edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontFamily=Arial;fontSize=11;fontStyle=1;labelBackgroundColor=#FFFFFF;',
     text: 'text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontFamily=Arial;fontSize=12;fillColor=#FFFFFF;strokeColor=#D6D1C4;',
+    ratio: 'text;html=1;align=center;verticalAlign=middle;fontFamily=Arial;fontSize=11;fontStyle=1;',
+    title: 'text;html=1;align=left;verticalAlign=middle;fontFamily=Arial;fontSize=18;fontStyle=1;fontColor=#1A1F6C;',
+    legend: 'text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontFamily=Arial;fontSize=11;',
+    table: 'rounded=0;html=1;whiteSpace=wrap;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fillColor=#E6EEF9;strokeColor=#1A1F6C;fontFamily=Arial;fontSize=12;',
+    fk: 'html=1;rounded=0;endArrow=block;endFill=1;strokeColor=#1A1F6C;',
   };
+  const TITLE_H = 70;                       // the title strip of a page with a legend layer
+  const LEGEND_W = 320;
   const CARD_RE = /\(\s*(\d+)\s*[,.;]\s*(\d+|[NnMm*])\s*\)/;
+  /* Ratio of an n-ary relationship in end order: '1' or M, N, P… for each "many" end (as ErDiagram.naryRatio). */
+  const naryRatio = (r) => {
+    let k = 0;
+    return r.ends.map((e) => {
+      const m = (e.card || '').match(CARD_RE);
+      if (!m) return '?';
+      return /^\d+$/.test(m[2]) && +m[2] <= 1 ? '1' : 'MNPQRS'[k++] || 'N';
+    }).join(':');
+  };
 
   /* ---- Export --------------------------------------------------------------- */
 
@@ -59,6 +80,13 @@ const ErDrawio = (() => {
   }
   const angDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; };
   const PREFER = [-90, -65, -115, -40, -140, 90, 65, 115, 40, 140, -15, -165, 15, 165, 0, 180];
+  /* The lines of an entity that appears at several ends of one relationship leave its lower-right corner side by side. */
+  const UNARY_LEGS = [
+    'exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;',
+    'exitX=0.8;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;',
+    'exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0;entryDx=0;entryDy=0;',
+    'exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;',
+  ];
 
   function attrLabel(a) {
     const n = he(a.name);
@@ -69,14 +97,16 @@ const ErDrawio = (() => {
   const attrStyle = (a) => STYLE[a.kind === 'multivalued' ? 'multivalued' : a.kind === 'derived' ? 'derived' : 'attribute'];
 
   /* model: { entities: [{ id, at, weak, attrs, _uid? }], relationships, hierarchies, title }
-     opts: { title, source, statement: [lines], layout: { uid: [x, y] } (centres from an import) } */
+     opts: { title, source, statement: [lines], layout: { uid: [x, y] } (centres from an import),
+             legend (title + notation on a "Legend" layer), spread (grid spacing factor, default 1) } */
   function toXml(model, opts = {}) {
     let n = 1;
     const id = () => `c${++n}`;
     const cells = [];
     const layout = opts.layout || {};
-    const X = (c) => c * 180;
-    const Y = (r) => r * 175;
+    const spread = opts.spread || 1;
+    const X = (c) => c * 180 * spread;
+    const Y = (r) => r * 175 * spread;
     const boxes = [];                     // everything placed, for collisions: { x, y, w, h } (centres)
     const vertex = (tag, label, style, b) => {
       const cid = id();
@@ -106,7 +136,13 @@ const ErDrawio = (() => {
       else if (new Set(r.ends.map((x) => x.entity)).size === 1) fb = { x: ats[0].x + X(1), y: ats[0].y + Y(1) };
       else fb = { x: ats.reduce((s, a) => s + a.x, 0) / ats.length, y: ats.reduce((s, a) => s + a.y, 0) / ats.length };
       const c = centre(r._uid, fb);
-      return { r, x: c.x, y: c.y, w: Math.max(110, textW(r.id, 110, 7.6) + 30), h: 64, dirs: [] };
+      return { r, x: c.x, y: c.y, w: Math.max(110, textW(r.id, 110, 7.6) + 30), h: 64, dirs: [], fixed: !!(r._uid && layout[r._uid]) };
+    });
+    // A diamond placed from its entities (a ternary at their mean) may land on another shape: step it down until clear.
+    rels.forEach((R, i) => {
+      if (R.fixed) return;
+      const others = () => [...Object.values(ents), ...rels.slice(0, i)];
+      for (let k = 0; k < 12 && others().some((o) => overlaps(o, R, 20)); k++) R.y += R.h / 2 + 30;
     });
     const hiers = (model.hierarchies || []).map((h) => {
       const sp = ents[h.super];
@@ -123,6 +159,28 @@ const ErDrawio = (() => {
     Object.values(ents).forEach((E) => { ids[E.e.id] = vertex({ kind: 'entity', weak: E.e.weak ? 1 : 0 }, he(E.e.id), STYLE[E.e.weak ? 'weak' : 'entity'], E); });
     rels.forEach((R) => { R.cid = vertex({ kind: 'relationship', identifying: R.r.identifying ? 1 : 0 }, he(R.r.id), STYLE[R.r.identifying ? 'identifying' : 'relationship'], R); });
     hiers.forEach((H) => { H.cid = vertex({ kind: 'hierarchy', disjoint: H.h.disjoint ? 1 : 0, total: H.h.total ? 1 : 0 }, H.h.disjoint ? 'd' : 'o', STYLE.hierarchy, { x: H.x, y: H.y, w: 50, h: 44 }); });
+    // The ratio of an n-ary relationship sits just above its diamond (placed now, so the attributes keep clear of it).
+    rels.forEach((R) => {
+      if (R.r.ends.length < 3) return;
+      const text = naryRatio(R.r);
+      vertex({ kind: 'ratio' }, he(text), STYLE.ratio, { x: R.x, y: R.y - R.h / 2 - 14, w: textW(text, 50, 7.6), h: 20 });
+    });
+
+    /* Lines already decided (entity–relationship, hierarchy, then each attribute and part link as it is placed):
+       a new ellipse must not sit on any of them. */
+    const segs = [];
+    const pin = (B, fx, fy) => ({ x: B.x - B.w / 2 + fx * B.w, y: B.y - B.h / 2 + fy * B.h });
+    rels.forEach((R) => R.r.ends.forEach((x, k) => {
+      const E = ents[x.entity];
+      if (!E) return;
+      // The legs of a unary relationship leave from pinned corners (UNARY_LEGS), not from the centre.
+      if (R.r.ends.filter((y) => y.entity === x.entity).length < 2) { segs.push([E, R]); return; }
+      const idx = R.r.ends.slice(0, k).filter((y) => y.entity === x.entity).length;
+      const v = Object.fromEntries(UNARY_LEGS[idx % UNARY_LEGS.length].split(';').filter(Boolean).map((p) => p.split('=')).map(([a, b]) => [a, +b]));
+      segs.push([pin(E, v.exitX, v.exitY), pin(R, v.entryX, v.entryY)]);
+    }));
+    hiers.forEach((H) => [H.h.super, ...H.h.subs].forEach((s) => { if (ents[s]) segs.push([ents[s], H]); }));
+    const onLine = (b) => segs.some(([p, q]) => crosses(p, q, b, 2));
 
     /* Attributes on rings around their owner, away from its lines and from each other. */
     const ring = (owner, attrs, ownerId, radii) => {
@@ -139,33 +197,52 @@ const ErDrawio = (() => {
               if (owner.dirs.some((d) => angDist(d, ang) < 32) || used.some((u) => angDist(u, ang) < 18)) continue;
               const rad = (ang * Math.PI) / 180;
               const b = { x: owner.x + Math.cos(rad) * (rx + w / 3), y: owner.y + Math.sin(rad) * ry, w, h: 36 };
+              if (strict && onLine(b)) continue;
               if (!boxes.some((o) => overlaps(o, b) || (strict && o !== owner && crosses(owner, b, o)))) { spot = b; used.push(ang); break; }
             }
           }
           if (spot) break;
         }
+        // Every ring full: keep widening the last ring until a free spot turns up.
+        for (let k = 1; !spot && k <= 8; k++) {
+          const [rx, ry] = radii[radii.length - 1];
+          for (const ang of PREFER) {
+            const rad = (ang * Math.PI) / 180;
+            const b = { x: owner.x + Math.cos(rad) * (rx + 70 * k + w / 3), y: owner.y + Math.sin(rad) * (ry + 45 * k), w, h: 36 };
+            if (!onLine(b) && !boxes.some((o) => overlaps(o, b) || (o !== owner && crosses(owner, b, o)))) { spot = b; break; }
+          }
+        }
         if (!spot) spot = { x: owner.x + ((boxes.length % 5) - 2) * 60, y: owner.y - radii[radii.length - 1][1] - 50, w, h: 36 };
         const aid = vertex({ kind: 'attribute', 'attr-kind': a.kind || '' }, attrLabel(a), attrStyle(a), spot);
         edge({ kind: 'link' }, aid, ownerId, STYLE.line);
+        segs.push([spot, owner]);
+        // The parts of a composite fan out on the far side of it, each moved further out until it is clear.
         (a.parts || []).forEach((p, i, all) => {
           const pw = textW(p, 70, 6.6);
           const off = (i - (all.length - 1) / 2) * 34;
           const away = Math.sign(spot.y - owner.y) || -1;
-          const pb = { x: spot.x + off * 2.6, y: spot.y + away * (60 + Math.abs(off) * 0.4), w: pw, h: 28 };
+          const at = (k, s) => ({ x: spot.x + off * 2.6 + s * 70, y: spot.y + away * (60 + Math.abs(off) * 0.4 + 40 * k), w: pw, h: 28 });
+          // First a spot clear of every shape and line; failing that, one whose own link may cross a shape.
+          let pb = null;
+          for (const strict of [true, false]) {
+            for (let k = 0; !pb && k < 10; k++) {
+              for (const s of [0, 1, -1, 2, -2, 3, -3]) {
+                const b = at(k, s);
+                if (!onLine(b) && !boxes.some((o) => overlaps(o, b, 4) || (strict && o !== spot && crosses(spot, b, o)))) { pb = b; break; }
+              }
+            }
+            if (pb) break;
+          }
+          if (!pb) pb = at(0, 0);
           const pid = vertex({ kind: 'part' }, he(p), STYLE.part, pb);
           edge({ kind: 'link' }, pid, aid, STYLE.line);
+          segs.push([pb, spot]);
         });
       });
     };
     Object.values(ents).forEach((E) => ring(E, E.e.attrs, ids[E.e.id], [[110, 80], [190, 125], [270, 170]]));
     rels.forEach((R) => ring(R, R.r.attrs || [], R.cid, [[95, 70], [170, 110], [245, 150]]));
 
-    const UNARY_LEGS = [
-      'exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;',
-      'exitX=0.8;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;',
-      'exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0;entryDx=0;entryDy=0;',
-      'exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;',
-    ];
     /* Lines: (min,max) next to the entity; a double line at E when the other end has min ≥ 1 (contract). */
     rels.forEach((R) => {
       const cards = R.r.ends.map((x) => (x.card ? x.card.match(CARD_RE) : null));
@@ -196,15 +273,193 @@ const ErDrawio = (() => {
       const h = 60 + opts.statement.join(' ').length * 0.5;
       cells.push(`<object id="${id()}" label="${xa(body)}" er-kind="statement"><mxCell style="${STYLE.text}" vertex="1" parent="1"><mxGeometry x="${Math.round(maxX + 80)}" y="${Math.round(minY)}" width="460" height="${Math.round(h)}" as="geometry"/></mxCell></object>`);
     }
-    // Shift everything into the positive quadrant.
+    // Shift everything into the positive quadrant (below the title strip when there is a legend layer).
     const minX = Math.min(...boxes.map((b) => b.x - b.w / 2));
-    const dx = 40 - minX;
-    const dy = 40 - minY;
-    const body = cells.join('').replace(/<mxGeometry x="(-?\d+)" y="(-?\d+)"/g, (m, x, y) => `<mxGeometry x="${+x + Math.round(dx)}" y="${+y + Math.round(dy)}"`);
-    return wrap(body, opts.title || model.title || 'ER model');
+    const top = opts.legend ? 40 + TITLE_H : 40;
+    const dx = Math.round(40 - minX);
+    const dy = Math.round(top - minY);
+    const body = cells.join('').replace(/<mxGeometry x="(-?\d+)" y="(-?\d+)"/g, (m, x, y) => `<mxGeometry x="${+x + dx}" y="${+y + dy}"`);
+    const right = Math.max(...boxes.map((b) => b.x + b.w / 2)) + dx;
+    const bottom = Math.max(...boxes.map((b) => b.y + b.h / 2)) + dy;
+    if (!opts.legend) return wrap(body, { w: right + 40, h: bottom + 40 });
+    const lines = [
+      `${tr('Rectangle')}: ${tr('entity')} · ${tr('double rectangle')}: ${tr('weak entity')}`,
+      `${tr('Diamond')}: ${tr('relationship')} · ${tr('double diamond')}: ${tr('identifying relationship')}`,
+      `${tr('Ellipse')}: ${tr('attribute')} · <u>${he(tr('key'))}</u> · <span style="text-decoration: underline dashed">${he(tr('partial key'))}</span> · ${tr('double ellipse')}: ${tr('multivalued')} · ${tr('dashed ellipse')}: ${tr('derived')} · ${tr('smaller ellipses linked to an attribute')}: ${tr('its parts (composite)')}`,
+      tr('(min,max) next to an entity E, read across: how many E go with one occurrence of the other end.'),
+      tr('Double line at E: E participates totally (the min at the other end is at least 1).'),
+    ];
+    if (model.relationships.some((r) => r.ends.length > 2)) lines.push(tr('M:N:P above a diamond: the ratio of an n-ary relationship, one part per end in order (1 or a letter for many).'));
+    if ((model.hierarchies || []).length) lines.push(tr('Triangle: specialization, d disjoint / o overlapping; a double line from the supertype marks a total one.'));
+    const legendH = 40 + lines.length * 34;
+    const legend = layer([
+      layerCell('title', he(opts.title || model.title || tr('ER model')), STYLE.title, 40, 20, Math.max(400, right - 40), 40),
+      layerCell('legend', `<b>${he(tr('Legend'))}</b><br>${lines.join('<br>')}`, STYLE.legend, right + 60, top, LEGEND_W, legendH),
+    ]);
+    return wrap(body + legend, { w: right + 60 + LEGEND_W + 40, h: Math.max(bottom, top + legendH) + 40 });
   }
 
-  const wrap = (body, name) => `<mxfile host="cunef-databases-practice" type="device"><diagram name="ERD" id="erd"><mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0"><root><mxCell id="0"/><mxCell id="1" parent="0"/>${body}</root></mxGraphModel></diagram></mxfile>\n`;
+  /* The page furniture (title, legend) goes on its own draw.io layer, so it can be hidden or locked on its own. */
+  const layer = (body) => `<mxCell id="legend-layer" value="${xa(tr('Legend'))}" parent="0"/>${body.join('')}`;
+  const layerCell = (kind, label, style, x, y, w, h) => `<object id="${kind}" label="${xa(label)}" er-kind="${kind}"><mxCell style="${style}" vertex="1" parent="legend-layer"><mxGeometry x="${Math.round(x)}" y="${Math.round(y)}" width="${Math.round(w)}" height="${Math.round(h)}" as="geometry"/></mxCell></object>`;
+
+  const wrap = (body, { page = 'ERD', w = 1654, h = 1169 } = {}) => `<mxfile host="cunef-databases-practice" type="device"><diagram name="${page}" id="${page.toLowerCase()}"><mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="${Math.max(1654, Math.ceil(w / 10) * 10)}" pageHeight="${Math.max(1169, Math.ceil(h / 10) * 10)}" math="0" shadow="0"><root><mxCell id="0"/><mxCell id="1" parent="0"/>${body}</root></mxGraphModel></diagram></mxfile>\n`;
+
+  /* ---- Logical schema ----------------------------------------------------------------- */
+
+  /* tables: [{ name, cols: [{ name, pk, fk: { table, col } | null, nn, optional }] }] — a LogicalEngine variant's
+     tables. One row per column: "PK name", "FK name NOT NULL → Table.col", "PK,FK name → Table.col";
+     a primary key is NOT NULL by definition, so it is not written. Columns marked optional are left out.
+     opts: { title, legend } as for toXml. */
+  function logicalXml(tables, opts = {}) {
+    let n = 1;
+    const cells = [];
+    const rowOf = (c) => {
+      const mark = c.pk && c.fk ? 'PK,FK' : c.pk ? 'PK' : c.fk ? 'FK' : '';
+      const nn = c.nn && !c.pk ? ' NOT NULL' : '';
+      const ref = c.fk ? ` → ${c.fk.table}.${c.fk.col}` : '';
+      return `${mark ? `${mark} ` : ''}${c.name}${nn}${ref}`;
+    };
+    const boxes = tables.map((t) => {
+      const rows = t.cols.filter((c) => !c.optional).map(rowOf);
+      const w = Math.max(160, ...[t.name, ...rows].map((s) => Math.round(s.length * 7 + 30)));
+      return { t, rows, w: Math.ceil(w / 10) * 10, h: 40 + 20 * rows.length };
+    });
+    // Layers: a table sits one row below the deepest table it refers to, so the arrows point up.
+    // Within a row, tables are ordered by where the tables they refer to sit.
+    const byName = Object.fromEntries(boxes.map((b) => [b.t.name, b]));
+    const refs = (b) => [...new Set(b.t.cols.filter((c) => c.fk && !c.optional && c.fk.table !== b.t.name && byName[c.fk.table]).map((c) => c.fk.table))];
+    const depth = {};
+    const depthOf = (b, seen = new Set()) => {
+      if (depth[b.t.name] !== undefined) return depth[b.t.name];
+      if (seen.has(b.t.name)) return 0;
+      seen.add(b.t.name);
+      return (depth[b.t.name] = Math.max(0, ...refs(b).map((r) => depthOf(byName[r], seen) + 1)));
+    };
+    boxes.forEach((b) => depthOf(b));
+    const rows = [];
+    boxes.forEach((b) => (rows[depth[b.t.name]] = rows[depth[b.t.name]] || []).push(b));
+    const top = opts.legend ? 40 + TITLE_H : 40;
+    const place = () => {
+      let y = top;
+      rows.forEach((row) => {
+        let x = 40;
+        row.forEach((b) => { b.x = x; b.y = y; x += b.w + 80; });
+        y += Math.max(...row.map((b) => b.h)) + 110;
+      });
+    };
+    // First order: each row by where the tables its tables refer to sit (placing row by row).
+    let y0 = top;
+    rows.forEach((row, r) => {
+      if (r > 0) {
+        const mid = (b) => { const rs = refs(b).map((t) => byName[t].x + byName[t].w / 2); return rs.length ? rs.reduce((s, v) => s + v, 0) / rs.length : 0; };
+        row.sort((a, b) => mid(a) - mid(b));
+      }
+      let x = 40;
+      row.forEach((b) => { b.x = x; b.y = y0; x += b.w + 80; });
+      y0 += Math.max(...row.map((b) => b.h)) + 110;
+    });
+
+    // One arrow per referencing table and target, from the referencing table to the referenced one:
+    // straight when that crosses no other table, else an elbow through the gap below the target's row,
+    // leaving the source by its top, left or right side, or round the outside of the layout.
+    const rowBottom = (b) => Math.max(...boxes.filter((o) => o.y === b.y).map((o) => o.y + o.h));
+    const C = (b) => ({ x: b.x + b.w / 2, y: b.y + b.h / 2, w: b.w, h: b.h });
+    const clear = (pts, s, t) => pts.slice(1).every((q, i) => boxes.every((o) => o === s || o === t || !crosses(pts[i], q, C(o), 6)));
+    const pins = (ex, ey, nx, ny) => `exitX=${ex};exitY=${ey};exitDx=0;exitDy=0;entryX=${nx};entryY=${ny};entryDx=0;entryDy=0;`;
+    const routeAll = () => {
+      const out = [];
+      const into = {};
+      const seen = new Set();
+      boxes.forEach((b) => b.t.cols.forEach((c) => {
+        if (!c.fk || !byName[c.fk.table] || c.optional) return;
+        const key = `${b.t.name}→${c.fk.table}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push(routeOne(b, byName[c.fk.table], into));
+      }));
+      return out;
+    };
+    const routeOne = (b, t, into) => {
+      let style = STYLE.fk;
+      let points = [];
+      let ok = true;
+      if (t === b) style += pins(1, 0.3, 1, 0.7);
+      else if (!clear([C(b), C(t)], b, t)) {
+        const k = (into[t.t.name] = (into[t.t.name] || 0) + 1);
+        const nx = [0.5, 0.3, 0.7, 0.2, 0.8][(k - 1) % 5];
+        const tx = t.x + nx * t.w;
+        const lane = rowBottom(t) + 30 + ((k - 1) % 3) * 20;
+        const exits = [
+          { ex: 0.5, ey: 0, p: { x: b.x + b.w / 2, y: b.y }, via: [] },
+          { ex: 0, ey: 0.5, p: { x: b.x, y: b.y + b.h / 2 }, via: [{ x: b.x - 40, y: b.y + b.h / 2 }] },
+          { ex: 1, ey: 0.5, p: { x: b.x + b.w, y: b.y + b.h / 2 }, via: [{ x: b.x + b.w + 40, y: b.y + b.h / 2 }] },
+          // Last resort: round the outside of the layout.
+          { ex: 0, ey: 0.5, p: { x: b.x, y: b.y + b.h / 2 }, via: [{ x: 20, y: b.y + b.h / 2 }] },
+          { ex: 1, ey: 0.5, p: { x: b.x + b.w, y: b.y + b.h / 2 }, via: [{ x: Math.max(...boxes.map((o) => o.x + o.w)) + 30 + k * 12, y: b.y + b.h / 2 }] },
+        ];
+        const route = exits.map((e) => {
+          const x0 = e.via.length ? e.via[0].x : e.p.x;
+          return { e, way: [...e.via, { x: x0, y: lane }, { x: tx, y: lane }] };
+        }).find(({ e, way }) => clear([e.p, ...way, { x: tx, y: t.y + t.h }], b, t));
+        if (route) {
+          style += `edgeStyle=orthogonalEdgeStyle;${pins(route.e.ex, route.e.ey, nx, 1)}`;
+          points = route.way;
+        } else ok = false;
+      }
+      return { b, t, style, points, ok };
+    };
+
+    // If an arrow found no clear route, try other orders within the rows (a fixed pseudo-random
+    // sequence, so a model always gives the same file) and keep the order with the fewest blocked arrows.
+    let routes = routeAll();
+    let bad = routes.filter((r) => !r.ok).length;
+    if (bad) {
+      let seed = 7;
+      const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+      let best = rows.map((row) => [...row]);
+      for (let k = 0; k < 300 && bad; k++) {
+        rows.forEach((row) => row.sort(() => rnd() - 0.5));
+        place();
+        const r = routeAll();
+        const nb = r.filter((x) => !x.ok).length;
+        if (nb < bad) { bad = nb; best = rows.map((row) => [...row]); }
+      }
+      best.forEach((row, i) => { rows[i] = row; });
+      place();
+      routes = routeAll();
+    }
+
+    const ids = {};
+    boxes.forEach((b) => {
+      const cid = `t${++n}`;
+      ids[b.t.name] = cid;
+      const label = `<b>${he(b.t.name)}</b><br>${b.rows.map(he).join('<br>')}`;
+      cells.push(`<object id="${cid}" label="${xa(label)}" er-kind="table"><mxCell style="${STYLE.table}" vertex="1" parent="1"><mxGeometry x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" as="geometry"/></mxCell></object>`);
+    });
+    routes.forEach(({ b, t, style, points }) => {
+      const geo = points.length
+        ? `<mxGeometry relative="1" as="geometry"><Array as="points">${points.map((p) => `<mxPoint x="${Math.round(p.x)}" y="${Math.round(p.y)}"/>`).join('')}</Array></mxGeometry>`
+        : '<mxGeometry relative="1" as="geometry"/>';
+      cells.push(`<object id="f${++n}" label="" er-kind="fk"><mxCell style="${style}" edge="1" parent="1" source="${ids[b.t.name]}" target="${ids[t.t.name]}">${geo}</mxCell></object>`);
+    });
+    const right = Math.max(...boxes.map((b) => b.x + b.w));
+    const bottom = Math.max(...boxes.map((b) => b.y + b.h));
+    if (!opts.legend) return wrap(cells.join(''), { page: 'LOGICAL', w: right + 40, h: bottom + 40 });
+    const lines = [
+      tr('Box: a table; its name on the first line, then one line per column.'),
+      tr('PK: primary key (never NULL) · FK: foreign key · PK,FK: both.'),
+      tr('NOT NULL: the column is mandatory.'),
+      tr('→ Table.column: the primary key a foreign key refers to.'),
+      tr('Arrow: from the table holding foreign keys to the table they refer to.'),
+    ];
+    const legendH = 40 + lines.length * 22;
+    const legend = layer([
+      layerCell('title', he(opts.title || tr('Logical model')), STYLE.title, 40, 20, Math.max(400, right - 40), 40),
+      layerCell('legend', `<b>${he(tr('Legend'))}</b><br>${lines.join('<br>')}`, STYLE.legend, right + 60, top, LEGEND_W, legendH),
+    ]);
+    return wrap(cells.join('') + legend, { page: 'LOGICAL', w: right + 60 + LEGEND_W + 40, h: Math.max(bottom, top + legendH) + 40 });
+  }
 
   /* The statement and a palette of the course's Chen shapes (copy them), for drawing from scratch. */
   function starter(ex) {
@@ -230,7 +485,7 @@ const ErDrawio = (() => {
     let y = 54;
     shapes.forEach(([label, style, w, h]) => { cell(label, style, 680, y, w, h); y += h + 14; });
     cell(he(tr('Cardinalities are read across: the (min,max) next to an entity says how many of it go with one occurrence of the other end. A double line marks total participation.')), 'text;html=1;whiteSpace=wrap;align=left;verticalAlign=top;fontFamily=Arial;fontSize=11;fontColor=#555555;', 680, y + 6, 200, 90);
-    return wrap(cells.join(''), ex.title);
+    return wrap(cells.join(''));
   }
 
   /* ---- Import (browser) -------------------------------------------------------- */
@@ -412,7 +667,7 @@ const ErDrawio = (() => {
     return { work, unread };
   }
 
-  return { toXml, starter, fromXml, inflate, CARD_RE };
+  return { toXml, logicalXml, starter, fromXml, inflate, CARD_RE };
 })();
 
 if (typeof module !== 'undefined') module.exports = ErDrawio;
