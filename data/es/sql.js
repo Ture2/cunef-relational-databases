@@ -777,10 +777,10 @@ ORDER BY grade DESC;`,
       },
     },
 
-    /* ───────────── Lenguajes de SQL ───────────── */
+    /* ───────────── Sublenguajes · tablas DDL · cambios DML · DCL · TCL (cada tarjeta nombra su grupo en `hub`) ───────────── */
     {
       id: 'sql-languages',
-      hub: 'languages',
+      hub: 'sublanguages',
       topic: 'languages',
       title: 'Los sublenguajes de SQL',
       summary: 'SQL es un solo lenguaje con varios **sublenguajes**, agrupados según lo que hace cada sentencia: definir la estructura, trabajar con los datos, controlar quién puede hacer qué y agrupar los cambios en transacciones.',
@@ -795,20 +795,71 @@ ORDER BY grade DESC;`,
         caption: 'Los cuatro grupos',
         head: ['Sublenguaje', 'Sentencias', 'Sobre qué actúa'],
         rows: [
-          ['**DDL** · definición de datos', '`CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `RENAME`', 'El esquema: tablas, columnas, restricciones, índices, vistas'],
+          ['**DDL** · definición de datos', '`CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `RENAME`, `COMMENT`', 'El esquema: tablas, columnas, restricciones, índices, vistas'],
           ['**DML** · manipulación de datos', '`SELECT`, `INSERT`, `UPDATE`, `DELETE`, `MERGE`', 'Las filas almacenadas en las tablas'],
           ['**DCL** · control de datos', '`GRANT`, `REVOKE`', 'Usuarios, roles y sus privilegios'],
-          ['**TCL** · control de transacciones', '`BEGIN`, `COMMIT`, `ROLLBACK`, `SAVEPOINT`', 'Cuándo los cambios pasan a ser permanentes o se deshacen'],
+          ['**TCL** · control de transacciones', '`COMMIT`, `ROLLBACK`, `SAVEPOINT`, `SET TRANSACTION`', 'Cuándo los cambios pasan a ser permanentes o se deshacen'],
         ],
       },
       example: '`CREATE TABLE student (…)` es DDL; `INSERT INTO student VALUES (…)` es DML; `GRANT SELECT ON student TO teacher` es DCL; `COMMIT` es TCL.',
       mistake: 'Pensar que `TRUNCATE` es lo mismo que `DELETE` sin WHERE. `TRUNCATE` es DDL: vacía la tabla de golpe, normalmente no admite filtro y en muchos SGBD confirma la transacción de forma implícita.',
     },
     {
+      id: 'ddl-vs-dml',
+      hub: 'sublanguages',
+      topic: 'languages',
+      title: 'DDL, DML, DCL y TCL comparados',
+      summary: 'Los sublenguajes se distinguen por **lo que cambian** y por **si se puede deshacer**. DML cambia filas dentro de una transacción que tú confirmas o deshaces; DDL y DCL cambian el diccionario de datos y **confirman en el acto**; TCL termina la transacción.',
+      body: [
+        'La pregunta práctica es «¿todavía puedo deshacerlo?». Una sentencia DML (INSERT, UPDATE, DELETE, MERGE) se suma a la transacción abierta: hasta el COMMIT solo tu sesión la ve, y ROLLBACK la deshace. Una sentencia DDL o DCL (CREATE, ALTER, DROP, TRUNCATE, GRANT, REVOKE) cambia el **diccionario de datos**: Oracle confirma la transacción abierta antes de ejecutarla y confirma la propia sentencia después, así que no queda nada que deshacer.',
+        'Vaciar una tabla muestra la diferencia mejor que nada, porque se puede hacer de tres maneras. **DELETE** es DML: elimina las filas una a una, admite WHERE y se puede deshacer. **TRUNCATE** es DDL: elimina todas las filas de golpe, conserva la tabla y confirma. **DROP** también es DDL: elimina la propia tabla, datos y definición. Ejecuta el ejemplo: ROLLBACK recupera las filas borradas con DELETE, no las vaciadas con TRUNCATE.',
+        'Muchos clientes permiten activar el **autocommit** (`SET AUTOCOMMIT ON` en SQL*Plus, una preferencia en SQL Developer; los controladores de programación como JDBC lo traen activado). Entonces cada sentencia DML se confirma sola y ROLLBACK no tiene nada que deshacer. Es un ajuste del cliente, no de SQL; los ejemplos del curso suponen que está desactivado.',
+      ],
+      table: {
+        caption: 'Los cuatro sublenguajes, uno al lado del otro',
+        head: ['', 'DDL', 'DML', 'DCL', 'TCL'],
+        rows: [
+          ['Actúa sobre', 'El esquema (el diccionario de datos)', 'Las filas de las tablas', 'Usuarios, roles y privilegios', 'La transacción abierta'],
+          ['Sentencias', '`CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `RENAME`, `COMMENT`', '`SELECT`, `INSERT`, `UPDATE`, `DELETE`, `MERGE`', '`GRANT`, `REVOKE`', '`COMMIT`, `ROLLBACK`, `SAVEPOINT`'],
+          ['¿Dentro de la transacción?', 'No: confirma antes y después', 'Sí: espera al COMMIT', 'No: confirma antes y después', 'La termina, o marca un punto en ella'],
+          ['¿ROLLBACK la deshace?', 'No', 'Sí, hasta el COMMIT', 'No', '·'],
+        ],
+      },
+      tables: [{
+        caption: 'Tres maneras de vaciar una tabla',
+        head: ['', '`DELETE FROM t`', '`TRUNCATE TABLE t`', '`DROP TABLE t`'],
+        rows: [
+          ['Sublenguaje', 'DML', 'DDL', 'DDL'],
+          ['Elimina', 'Las filas que cumplen el WHERE (todas si no hay WHERE)', 'Todas las filas', 'Todas las filas y la propia tabla'],
+          ['Después', 'La tabla sigue ahí', 'La tabla sigue ahí, vacía', 'La tabla ya no existe (va a la papelera, salvo con PURGE)'],
+          ['ROLLBACK', 'Lo deshace', 'No lo puede deshacer', 'No lo puede deshacer (`FLASHBACK TABLE` puede recuperarla)'],
+          ['En una tabla grande', 'Lento: registra cada fila', 'Rápido', 'Rápido'],
+          ['En una tabla padre', 'Falla solo con las filas que aún tienen hijas', 'Falla (ORA-02266) mientras una clave ajena activa apunte a ella', 'Falla (ORA-02449) salvo con `CASCADE CONSTRAINTS`'],
+        ],
+      }],
+      example: 'En una práctica vacías una copia de una tabla: `DELETE` mientras aún quieras poder deshacerlo, `TRUNCATE` cuando estés seguro y `DROP` cuando ya no necesites la copia.',
+      mistake: 'Creer que ROLLBACK deshace «lo último que hice». Deshace solo el DML de la transacción abierta; un CREATE, ALTER, TRUNCATE o GRANT ejecutado en medio ya ha confirmado todo lo anterior.',
+      sql: {
+        setup: SCHOOL,
+        query: `-- DML: forma parte de la transacción, así que ROLLBACK la deshace
+DELETE FROM enrolment;
+SELECT COUNT(*) AS after_delete FROM enrolment;
+ROLLBACK;
+SELECT COUNT(*) AS after_delete_and_rollback FROM enrolment;
+-- DDL: TRUNCATE confirma, así que no hay vuelta atrás
+TRUNCATE TABLE enrolment;
+ROLLBACK;
+SELECT COUNT(*) AS after_truncate_and_rollback FROM enrolment;
+-- DDL otra vez: DROP elimina la propia tabla
+DROP TABLE enrolment;
+SELECT table_name FROM user_tables ORDER BY table_name;`,
+      },
+    },
+    {
       id: 'ddl',
       video: 'sql-ddl',
-      hub: 'languages',
-      topic: 'languages',
+      hub: 'ddl-tables',
+      topic: 'ddl',
       title: 'DDL: definir el esquema',
       summary: '**CREATE** crea un objeto, **ALTER** lo modifica y **DROP** lo elimina, datos incluidos. Con DDL el modelo lógico se convierte en tablas reales.',
       body: [
@@ -839,8 +890,8 @@ SELECT table_name FROM user_tables;`,
     },
     {
       id: 'create-table',
-      hub: 'languages',
-      topic: 'languages',
+      hub: 'ddl-tables',
+      topic: 'ddl',
       title: 'CREATE TABLE paso a paso',
       summary: 'Un **CREATE TABLE** da a cada columna un nombre, un **tipo** y sus **restricciones**. Una restricción se puede escribir junto a su columna (**en línea**) o tras la última columna (**fuera de línea**), donde puede abarcar varias columnas.',
       body: [
@@ -884,10 +935,115 @@ INSERT INTO player (full_name, shirt, team_id) VALUES ('Nobody', 7, 99);   -- el
       },
     },
     {
+      id: 'data-types',
+      hub: 'ddl-tables',
+      topic: 'ddl',
+      title: 'Tipos de datos de Oracle',
+      summary: 'Cada columna tiene un **tipo** que fija lo que puede guardar. Oracle traduce los tipos del estándar SQL a unos pocos propios: **VARCHAR2** para texto, **NUMBER** para cualquier número, **DATE** y **TIMESTAMP** para instantes de tiempo, **CLOB** y **BLOB** para objetos grandes.',
+      body: [
+        'El tipo es la primera regla de una columna. Una columna `NUMBER(6,2)` rechaza el texto \'six\' y redondea 4.256 a 4.26; una columna `VARCHAR2(40)` rechaza un valor de 41 caracteres (ORA-12899: valor demasiado grande para la columna).',
+        '`NUMBER(p, s)` tiene p dígitos en total, s de ellos tras el punto decimal: `NUMBER(5,2)` llega hasta 999.99, `NUMBER(4)` es un entero de hasta 4 dígitos y `NUMBER` a secas admite cualquier número. Los nombres del estándar `INTEGER`, `SMALLINT` y `DECIMAL(p,s)` se aceptan y por debajo se convierten en `NUMBER`. Un valor con demasiados dígitos antes del punto falla con ORA-01438.',
+        'Un `DATE` de Oracle guarda la fecha **y la hora**, hasta el segundo; `TIMESTAMP` añade fracciones de segundo. Escribe las fechas como `DATE \'2026-09-14\'`, que no depende del formato de fecha de la sesión. Oracle 21c no tiene tipo de columna `BOOLEAN` (llega en 23ai): usa `CHAR(1)` con `CHECK (x IN (\'Y\', \'N\'))`, o `NUMBER(1)`.',
+        'Oracle no tiene `CREATE DOMAIN`. `CREATE TYPE address_t AS OBJECT (street VARCHAR2(30), city VARCHAR2(25))` define un **tipo definido por el usuario** que después se puede usar como tipo de una columna.',
+      ],
+      table: {
+        caption: 'Tipos del estándar SQL y su equivalente en Oracle',
+        head: ['Clase de dato', 'Estándar SQL', 'Oracle'],
+        rows: [
+          ['Texto de longitud fija', '`CHAR(n)`', '`CHAR(n)`'],
+          ['Texto de longitud variable', '`VARCHAR(n)`, `CHARACTER VARYING(n)`', '`VARCHAR2(n)`'],
+          ['Texto nacional (Unicode)', '`NCHAR(n)`, `NCHAR VARYING(n)`', '`NCHAR(n)`, `NVARCHAR2(n)`'],
+          ['Enteros', '`SMALLINT`, `INTEGER`, `BIGINT`', '`NUMBER(n)`, o `NUMBER`'],
+          ['Decimales exactos', '`NUMERIC(p,s)`, `DECIMAL(p,s)`', '`NUMBER(p,s)`'],
+          ['Números aproximados', '`FLOAT`, `REAL`, `DOUBLE PRECISION`', '`NUMBER`, `BINARY_FLOAT`, `BINARY_DOUBLE`'],
+          ['Fecha', '`DATE`', '`DATE` (con la hora del día)'],
+          ['Fecha y hora', '`TIMESTAMP`', '`TIMESTAMP`'],
+          ['Intervalo', '`INTERVAL YEAR TO MONTH`, `INTERVAL DAY TO SECOND`', 'Los mismos'],
+          ['Booleano', '`BOOLEAN`', 'Ninguno en 21c: `CHAR(1)` o `NUMBER(1)`'],
+          ['Binario', '`BIT`, `BIT VARYING`', '`RAW(n)`'],
+          ['Texto largo', '`CLOB`', '`CLOB` (`LONG` está obsoleto)'],
+          ['Binario largo', '`BLOB`', '`BLOB`, `BFILE` (`LONG RAW` está obsoleto)'],
+          ['Dirección de una fila', '·', '`ROWID`'],
+        ],
+      },
+      points: [
+        '`VARCHAR2(n)` cuenta **bytes** por defecto. Con letras como la «ñ» o las tildes, escribe `VARCHAR2(n CHAR)` para contar caracteres.',
+        'En Oracle la cadena vacía `\'\'` es NULL.',
+        '`USER_TAB_COLUMNS` (o `DESCRIBE tabla` en SQL Developer) muestra el tipo de cada columna.',
+      ],
+      example: '`price NUMBER(6,2)` guarda hasta 9999.99, `country CHAR(2)` guarda códigos como \'ES\' y `added DATE DEFAULT SYSDATE` registra el día y la hora en que se creó la fila.',
+      mistake: 'Guardar fechas o números como texto. \'10/02/2026\' no se puede comparar ni ordenar como fecha, y como texto \'9\' es mayor que \'10\'.',
+      dialect: 'Oracle · ejecútalo en FreeSQL',
+      code: `DROP TABLE IF EXISTS product PURGE;
+CREATE TABLE product (
+  product_id NUMBER(6)         PRIMARY KEY,
+  name       VARCHAR2(40 CHAR) NOT NULL,
+  country    CHAR(2),
+  price      NUMBER(6,2)       NOT NULL,
+  in_stock   CHAR(1)           DEFAULT 'Y' NOT NULL CHECK (in_stock IN ('Y', 'N')),
+  added      DATE              DEFAULT SYSDATE NOT NULL,
+  notes      CLOB
+);
+INSERT INTO product (product_id, name, country, price) VALUES (1, 'Café molido', 'CO', 4.256);
+SELECT product_id, name, price, TO_CHAR(added, 'YYYY-MM-DD HH24:MI:SS') AS added FROM product;   -- 4.26
+SELECT column_name, data_type, data_length, data_precision, data_scale, nullable
+FROM user_tab_columns WHERE table_name = 'PRODUCT' ORDER BY column_id;
+INSERT INTO product (product_id, name, price) VALUES (2, 'Un nombre demasiado largo para cuarenta letras', 1);   -- ORA-12899
+INSERT INTO product (product_id, name, price) VALUES (3, 'Té', 12345.5);   -- ORA-01438: más de 4 dígitos antes del punto`,
+    },
+    {
+      id: 'identity-columns',
+      hub: 'ddl-tables',
+      topic: 'ddl',
+      title: 'Columnas identidad',
+      summary: 'Una **columna identidad** numera las filas sola: en cada INSERT Oracle toma el siguiente valor de una secuencia oculta. **ALWAYS**, **BY DEFAULT** y **BY DEFAULT ON NULL** deciden si además puedes dar tú el valor.',
+      body: [
+        'Una clave subrogada (`order_id`, `player_id`) no significa nada: solo tiene que ser única. En lugar de calcularla, declárala, `order_id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY`, y déjala fuera de todos los INSERT. Es la respuesta de Oracle, desde 12c, a AUTO_INCREMENT (MySQL), IDENTITY(1,1) (SQL Server) y SERIAL (PostgreSQL).',
+        'Los tres modos: con `GENERATED ALWAYS` (el valor por defecto) Oracle siempre pone el valor, y un INSERT o UPDATE que lo dé falla con ORA-32795. Con `GENERATED BY DEFAULT` Oracle lo pone solo cuando el INSERT omite la columna; un NULL explícito falla. Con `GENERATED BY DEFAULT ON NULL` Oracle también lo pone cuando el INSERT dice NULL.',
+        'Las opciones van entre paréntesis tras IDENTITY: `(START WITH 100 INCREMENT BY 10)` produce la serie 100, 110, 120…, y `CACHE 20` guarda números en memoria para ir más rápido. Como cualquier secuencia, una columna identidad puede dejar **huecos**: un INSERT deshecho ya ha gastado su número.',
+      ],
+      table: {
+        caption: 'Qué hace cada modo con el INSERT',
+        head: ['', 'El INSERT la omite', 'El INSERT da NULL', 'El INSERT da un valor'],
+        rows: [
+          ['`GENERATED ALWAYS`', 'Oracle la numera', 'Error (ORA-32795)', 'Error (ORA-32795)'],
+          ['`GENERATED BY DEFAULT`', 'Oracle la numera', 'Error (ORA-01400)', 'Se acepta'],
+          ['`GENERATED BY DEFAULT ON NULL`', 'Oracle la numera', 'Oracle la numera', 'Se acepta'],
+        ],
+      },
+      points: [
+        'Usa ALWAYS para las claves subrogadas: nadie puede escribir un número que choque después con uno generado.',
+        'BY DEFAULT sirve para cargar datos antiguos con sus números de siempre; pon START WITH por encima del mayor, o los valores generados chocarán con ellos.',
+        'Oracle crea la secuencia oculta (`ISEQ$$_…`) y la borra con la tabla. `USER_TAB_IDENTITY_COLS` lista las columnas identidad.',
+        'En la simulación del navegador una columna identidad se convierte en un INTEGER autonumerado; los modos y START WITH solo funcionan en FreeSQL.',
+      ],
+      example: 'Con `GENERATED BY DEFAULT ON NULL AS IDENTITY (START WITH 100 INCREMENT BY 10)` la primera fila recibe 100, una fila insertada con `id = NULL` recibe 110 y una insertada con `id = 5` conserva su 5.',
+      mistake: 'Dar un valor a una columna GENERATED ALWAYS, por ejemplo al reutilizar un script antiguo con `VALUES (1, …)`. Deja la columna fuera de la lista de columnas.',
+      dialect: 'Oracle · ejecútalo en FreeSQL',
+      code: `DROP TABLE IF EXISTS identity_demo PURGE;
+CREATE TABLE identity_demo (
+  id          NUMBER GENERATED BY DEFAULT ON NULL AS IDENTITY (START WITH 100 INCREMENT BY 10) PRIMARY KEY,
+  description VARCHAR2(100) NOT NULL
+);
+INSERT INTO identity_demo (description) VALUES ('Omitida: Oracle pone 100');
+INSERT INTO identity_demo (id, description) VALUES (NULL, 'NULL: ON NULL pone 110');
+INSERT INTO identity_demo (id, description) VALUES (5, 'Un valor propio: se acepta');
+SELECT * FROM identity_demo ORDER BY id;
+
+DROP TABLE IF EXISTS ticket PURGE;
+CREATE TABLE ticket (
+  ticket_id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  customer  VARCHAR2(30) NOT NULL
+);
+INSERT INTO ticket (customer) VALUES ('Ana');                  -- ticket 1
+SELECT table_name, column_name, generation_type, identity_options FROM user_tab_identity_cols;
+INSERT INTO ticket (ticket_id, customer) VALUES (7, 'Luis');   -- ORA-32795: no se puede insertar en una columna identidad GENERATED ALWAYS`,
+    },
+    {
       id: 'alter-drop',
       video: 'sql-delete',
-      hub: 'languages',
-      topic: 'languages',
+      hub: 'ddl-change',
+      topic: 'ddl',
       title: 'ALTER, DROP y TRUNCATE',
       summary: '**ALTER TABLE** cambia una tabla que ya tiene datos: añade, modifica, renombra o elimina columnas y restricciones. **DROP TABLE** elimina la tabla; **TRUNCATE** la vacía y conserva su estructura.',
       body: [
@@ -947,9 +1103,74 @@ DROP TABLE member PURGE;`,
       },
     },
     {
+      id: 'data-dictionary',
+      hub: 'ddl-change',
+      topic: 'ddl',
+      title: 'El diccionario de datos, COMMENT y RENAME',
+      summary: 'Cada sentencia DDL queda registrada en el **diccionario de datos**, un conjunto de vistas de solo lectura que describen tu esquema: **USER_TABLES**, **USER_TAB_COLUMNS**, **USER_CONSTRAINTS** y otras. **COMMENT ON** documenta allí tablas y columnas, y **RENAME** cambia un nombre.',
+      body: [
+        'El diccionario es el catálogo de la base de datos: sus filas son tus tablas, columnas y restricciones. El DDL lo escribe y los SELECT de siempre lo leen. El prefijo indica cuánto ves: `USER_` tus propios objetos, `ALL_` todos los que puedes usar, `DBA_` todos los de la base de datos (solo administradores).',
+        '`USER_CONSTRAINTS` lista cada restricción con su tipo: **P** clave primaria, **R** clave ajena (referencial), **U** única y **C** de comprobación (un NOT NULL también es una C). `USER_CONS_COLUMNS` dice qué columnas cubre cada una. `DESCRIBE tabla` (SQL Developer, SQL*Plus) muestra las columnas, sus tipos y si admiten NULL.',
+        '`COMMENT ON TABLE t IS \'…\'` y `COMMENT ON COLUMN t.c IS \'…\'` guardan documentación en el diccionario (`USER_TAB_COMMENTS`, `USER_COL_COMMENTS`). `RENAME t TO t2` (o `ALTER TABLE t RENAME TO t2`) y `ALTER TABLE t RENAME COLUMN a TO b` cambian nombres: Oracle traslada las restricciones, los índices y los permisos, pero las vistas y los programas que usan el nombre antiguo dejan de funcionar.',
+      ],
+      table: {
+        caption: 'Vistas del diccionario que vas a usar',
+        head: ['Vista', 'Qué lista'],
+        rows: [
+          ['`USER_TABLES`', 'Tus tablas'],
+          ['`USER_TAB_COLUMNS`', 'Sus columnas: tipo, longitud, precisión y si admiten NULL'],
+          ['`USER_CONSTRAINTS`', 'Las restricciones: nombre, tipo (P, R, U, C), estado y, en una clave ajena, la clave a la que apunta'],
+          ['`USER_CONS_COLUMNS`', 'Las columnas de cada restricción'],
+          ['`USER_INDEXES`, `USER_IND_COLUMNS`', 'Los índices y sus columnas'],
+          ['`USER_VIEWS`, `USER_SEQUENCES`, `USER_SYNONYMS`', 'Los demás objetos del esquema'],
+          ['`USER_OBJECTS`', 'Todos los objetos, con su tipo y su estado (VALID o INVALID)'],
+          ['`USER_RECYCLEBIN`', 'Las tablas borradas que FLASHBACK aún puede recuperar'],
+        ],
+      },
+      points: [
+        'El diccionario es de solo lectura: cambia con DDL, nunca con INSERT o UPDATE.',
+        'La simulación del navegador conoce `USER_TABLES` y `USER_TAB_COLUMNS`; las demás vistas, COMMENT y RENAME TO solo funcionan en FreeSQL.',
+      ],
+      example: '`SELECT constraint_name, constraint_type FROM user_constraints WHERE table_name = \'ENROLMENT\'` muestra la clave primaria (P), las dos claves ajenas (R) y el CHECK de la nota (C) del esquema de ejemplo.',
+      mistake: 'Buscar una tabla por su nombre en minúsculas. Los nombres sin comillas se guardan en **mayúsculas**, así que `WHERE table_name = \'player\'` no encuentra nada: escribe `\'PLAYER\'`.',
+      dialect: 'Oracle · ejecútalo en FreeSQL',
+      code: `DROP TABLE IF EXISTS player PURGE;
+DROP TABLE IF EXISTS team PURGE;
+CREATE TABLE team (
+  team_id NUMBER(4)    CONSTRAINT pk_team PRIMARY KEY,
+  name    VARCHAR2(40) NOT NULL
+);
+CREATE TABLE player (
+  player_id NUMBER(6)    CONSTRAINT pk_player PRIMARY KEY,
+  full_name VARCHAR2(60) NOT NULL,
+  team_id   NUMBER(4)    CONSTRAINT fk_player_team REFERENCES team (team_id)
+);
+SELECT column_name, data_type, data_length, nullable
+FROM user_tab_columns WHERE table_name = 'PLAYER' ORDER BY column_id;
+SELECT constraint_name, constraint_type, r_constraint_name, status
+FROM user_constraints WHERE table_name = 'PLAYER';
+SELECT constraint_name, column_name FROM user_cons_columns WHERE table_name = 'PLAYER';
+
+COMMENT ON TABLE player IS 'Una fila por jugador inscrito';
+COMMENT ON COLUMN player.team_id IS 'El equipo al que pertenece el jugador';
+SELECT column_name, comments FROM user_col_comments WHERE table_name = 'PLAYER' AND comments IS NOT NULL;
+
+ALTER TABLE player RENAME COLUMN full_name TO player_name;
+RENAME player TO squad_member;              -- lo mismo que ALTER TABLE player RENAME TO squad_member
+SELECT object_name, object_type, status FROM user_objects WHERE object_type = 'TABLE';`,
+      sql: {
+        setup: SCHOOL,
+        query: `SELECT table_name FROM user_tables ORDER BY table_name;
+SELECT column_name FROM user_tab_columns WHERE table_name = 'COURSE' ORDER BY column_id;
+ALTER TABLE course RENAME COLUMN title TO course_title;
+SELECT column_name FROM user_tab_columns WHERE table_name = 'COURSE' ORDER BY column_id;
+SELECT course_id, course_title FROM course;`,
+      },
+    },
+    {
       id: 'dml',
-      hub: 'languages',
-      topic: 'languages',
+      hub: 'dml-change',
+      topic: 'dml',
       title: 'DML: leer y modificar filas',
       summary: '**SELECT** lee, **INSERT** añade filas, **UPDATE** las modifica y **DELETE** las elimina. UPDATE y DELETE afectan a **todas las filas** que cumplen el WHERE.',
       body: [
@@ -982,8 +1203,8 @@ HAVING COUNT(*) >= 2;`,
     },
     {
       id: 'insert-rows',
-      hub: 'languages',
-      topic: 'languages',
+      hub: 'dml-change',
+      topic: 'dml',
       title: 'INSERT en la práctica',
       summary: '**INSERT** añade filas. Nombra las columnas que rellenas, deja que las columnas con **DEFAULT** e **identidad** se rellenen solas, añade varias filas en una sentencia o copia las filas de una consulta con **INSERT … SELECT**.',
       body: [
@@ -1021,8 +1242,8 @@ SELECT * FROM honours;`,
     },
     {
       id: 'update-delete',
-      hub: 'languages',
-      topic: 'languages',
+      hub: 'dml-change',
+      topic: 'dml',
       title: 'UPDATE y DELETE en la práctica',
       summary: '**UPDATE** cambia columnas de las filas que cumplen su WHERE, con valores que pueden ser expresiones o subconsultas. **DELETE** elimina las filas que lo cumplen. Antes de ejecutar cualquiera de los dos, ejecuta su WHERE como un SELECT.',
       body: [
@@ -1063,8 +1284,8 @@ ROLLBACK;`,
     },
     {
       id: 'dcl',
-      hub: 'languages',
-      topic: 'languages',
+      hub: 'dcl',
+      topic: 'dcl',
       title: 'DCL: usuarios, roles y privilegios',
       summary: '**GRANT** concede un privilegio sobre un objeto a un usuario o rol; **REVOKE** lo retira. Da a cada rol solo lo que necesita: el **principio de mínimo privilegio**.',
       body: [
@@ -1096,9 +1317,62 @@ REVOKE UPDATE ON enrolment FROM teacher;`,
       mistake: 'Dejar que la aplicación se conecte como propietaria de la base de datos. Un fallo o una inyección SQL puede entonces borrar tablas; con un rol limitado a DML sobre sus tablas, no puede.',
     },
     {
+      id: 'roles',
+      hub: 'dcl',
+      topic: 'dcl',
+      title: 'Privilegios de sistema, privilegios de objeto y roles',
+      summary: 'Oracle tiene dos clases de privilegio. Un **privilegio de sistema** permite una clase de acción (`CREATE SESSION`, `CREATE TABLE`); un **privilegio de objeto** permite una acción sobre un objeto concreto (`SELECT ON hr.emp`). Un **rol** agrupa privilegios para concederlos de una vez.',
+      body: [
+        'Un privilegio de sistema es la llave de un tipo de sala: `CREATE TABLE` te deja crear tablas en tu propio esquema, `CREATE ANY TABLE` en cualquiera. Un privilegio de objeto es la llave de una puerta concreta: `SELECT`, `INSERT`, `UPDATE` o `DELETE` sobre una tabla o vista, `EXECUTE` sobre un procedimiento o una función. El propietario de un objeto tiene todos los privilegios sobre él y es quien los concede.',
+        'Para que quien recibe un privilegio pueda pasarlo hay dos cláusulas. `WITH ADMIN OPTION` va con los privilegios de **sistema** y los roles: quien lo recibe puede concederlo a otros, y revocárselo **no** se propaga a esos otros. `WITH GRANT OPTION` va con los privilegios de **objeto**: quien lo recibe puede concederlo, y revocárselo **sí** se propaga a todos aquellos a quienes lo concedió.',
+        'Oracle trae roles predefinidos: **CONNECT** (para abrir una sesión), **RESOURCE** (para crear tablas, secuencias, procedimientos, disparadores y tipos, pero **no** vistas) y **DBA** (casi todo). Los privilegios administrativos **SYSDBA** y **SYSOPER** arrancan y paran la base de datos; SYSOPER no puede crearla ni borrarla. `SESSION_PRIVS` y `SESSION_ROLES` muestran lo que tu sesión puede usar en este momento.',
+      ],
+      table: {
+        caption: '¿Privilegio de sistema o de objeto?',
+        head: ['', 'Privilegio de sistema', 'Privilegio de objeto'],
+        rows: [
+          ['Permite', 'Una clase de acción', 'Una acción sobre un objeto concreto'],
+          ['Ejemplos', '`CREATE SESSION`, `CREATE TABLE`, `CREATE VIEW`, `CREATE SEQUENCE`, `CREATE PROCEDURE`', '`SELECT`, `INSERT`, `UPDATE`, `DELETE` sobre una tabla; `EXECUTE` sobre un procedimiento'],
+          ['Sintaxis', '`GRANT CREATE TABLE TO ana`', '`GRANT SELECT ON hr.emp TO ana`'],
+          ['Para pasarlo', '`WITH ADMIN OPTION`', '`WITH GRANT OPTION`'],
+          ['REVOKE a quien lo pasó', 'No se propaga', 'Se propaga a todos los que lo recibieron por esa vía'],
+          ['Lo concede', 'Un administrador, o quien lo tenga WITH ADMIN OPTION', 'El propietario, o quien lo tenga WITH GRANT OPTION'],
+        ],
+      },
+      points: [
+        'Concede los privilegios a roles, no a personas: cuando alguien cambia de puesto cambias una pertenencia a un rol en lugar de veinte GRANT.',
+        'Los privilegios recibidos a través de un rol no cuentan dentro de un procedimiento almacenado que se ejecuta con los derechos de su propietario: concédelos directamente al propietario.',
+        'En FreeSQL trabajas en un esquema sin derechos de administrador: puedes conceder privilegios de objeto sobre tus tablas, pero crear usuarios y roles exige un administrador.',
+      ],
+      example: 'Un usuario de informes recibe `CREATE SESSION` (de sistema) y `SELECT ON hr.course_average` (de objeto): puede conectarse y leer una vista, y nada más.',
+      mistake: 'Conceder RESOURCE y esperar que el usuario pueda crear vistas. RESOURCE no incluye CREATE VIEW, así que `CREATE VIEW` falla con ORA-01031 (privilegios insuficientes): concede CREATE VIEW de forma explícita.',
+      dialect: 'Oracle · necesita una cuenta de administrador',
+      code: `CREATE USER app_user IDENTIFIED BY "Change-me-1"
+  DEFAULT TABLESPACE users QUOTA 10M ON users;
+GRANT CREATE SESSION, CREATE TABLE, CREATE VIEW TO app_user;      -- privilegios de sistema
+
+CREATE ROLE jefe;                                                  -- un conjunto de privilegios
+GRANT SELECT, INSERT, UPDATE, DELETE ON hr.dept TO jefe;           -- privilegios de objeto
+GRANT CREATE SESSION TO jefe;
+GRANT jefe TO app_user;
+
+GRANT SELECT ON hr.emp TO app_user WITH GRANT OPTION;              -- app_user puede pasarlo
+GRANT CREATE SEQUENCE TO app_user WITH ADMIN OPTION;               -- app_user puede pasarlo
+
+-- Conectado como app_user: ¿qué puedo usar ahora?
+SELECT * FROM session_privs ORDER BY privilege;
+SELECT * FROM session_roles;
+
+-- Retirarlos
+REVOKE SELECT ON hr.emp FROM app_user;      -- también a todos los que lo recibieron de app_user
+REVOKE CREATE SEQUENCE FROM app_user;       -- quienes lo recibieron de app_user lo conservan
+REVOKE jefe FROM app_user;
+DROP ROLE jefe;`,
+    },
+    {
       id: 'tcl',
-      hub: 'languages',
-      topic: 'languages',
+      hub: 'tcl',
+      topic: 'tcl',
       title: 'TCL: transacciones',
       summary: 'Una **transacción** agrupa sentencias que deben tener éxito o fallar juntas. **COMMIT** las confirma (las hace permanentes), **ROLLBACK** las deshace y un **SAVEPOINT** (punto de guardado) marca un punto al que se puede volver.',
       figure: { kind: 'tx-timeline' },
@@ -1128,6 +1402,54 @@ DELETE FROM enrolment;
 SELECT COUNT(*) AS rows_inside_transaction FROM enrolment;
 ROLLBACK;
 SELECT COUNT(*) AS rows_after_rollback FROM enrolment;`,
+      },
+    },
+    {
+      id: 'implicit-commit',
+      hub: 'tcl',
+      topic: 'tcl',
+      title: 'Commit implícito y autocommit',
+      summary: 'Una transacción puede terminar sin que tú escribas COMMIT: toda sentencia **DDL** o **DCL** confirma antes de ejecutarse, y también lo hace la salida normal del cliente. Una caída o una conexión perdida, en cambio, deshacen la transacción.',
+      body: [
+        'Oracle ejecuta una sentencia DDL como COMMIT, después el DDL y después otro COMMIT. Todo lo que hiciste antes, incluso los INSERT que aún querías revisar, pasa a ser permanente, y un ROLLBACK posterior no tiene nada que deshacer. GRANT, REVOKE, CREATE USER y las demás sentencias DCL se comportan igual. Ejecuta el ejemplo: el UPDATE anterior al CREATE TABLE sobrevive al ROLLBACK.',
+        'Cuando falla una sentencia, Oracle deshace **solo esa sentencia** (un rollback a nivel de sentencia); el trabajo anterior de la transacción sigue pendiente, esperando tu COMMIT o ROLLBACK. Cuando la sesión termina mal (el cliente se cuelga, se cae la red) Oracle deshace toda la transacción abierta. Salir de SQL*Plus con EXIT la confirma; SQL Developer te lo pregunta.',
+        'El **autocommit** es un ajuste del cliente que confirma después de cada sentencia: `SET AUTOCOMMIT ON` en SQL*Plus, una preferencia en SQL Developer y el valor por defecto de controladores de programación como JDBC. Con él activado, ROLLBACK y SAVEPOINT no sirven de nada; desactívalo cuando varios cambios deban salir bien o mal juntos.',
+      ],
+      table: {
+        caption: 'Cómo termina una transacción',
+        head: ['Suceso', 'Qué pasa con la transacción abierta'],
+        rows: [
+          ['`COMMIT`', 'Sus cambios pasan a ser permanentes y visibles para las demás sesiones'],
+          ['`ROLLBACK`', 'Sus cambios se deshacen'],
+          ['`ROLLBACK TO SAVEPOINT s`', 'Solo se deshacen los cambios posteriores a s; la transacción sigue abierta'],
+          ['Una sentencia DDL o DCL', 'COMMIT implícito, antes de la sentencia y después'],
+          ['Una sentencia que falla', 'Solo se deshace esa sentencia; la transacción sigue abierta'],
+          ['Una salida normal (EXIT en SQL*Plus)', 'COMMIT'],
+          ['Una caída o una conexión perdida', 'ROLLBACK'],
+        ],
+      },
+      points: [
+        'Ejecuta el DDL al principio de un script o justo después de un COMMIT, nunca en mitad de cambios que quizá quieras deshacer.',
+        'TRUNCATE también es DDL: confirma la transacción abierta antes de vaciar la tabla.',
+        'Otros SGBD son distintos: PostgreSQL puede deshacer la mayoría del DDL dentro de una transacción; Oracle y MySQL no.',
+      ],
+      example: 'El ejemplo de puntos de guardado del Tema 4: `UPDATE emp SET sal = 7000 WHERE ename = \'Garcia\'`, `SAVEPOINT garcia_sal`, `UPDATE emp SET sal = 12000 WHERE ename = \'Perez\'`, `ROLLBACK TO SAVEPOINT garcia_sal` y `COMMIT`: la subida de Pérez se deshace y la de García se conserva.',
+      mistake: 'Probar un UPDATE y luego crear una tabla «para guardar los resultados» antes de decidir si te quedas con el UPDATE. El CREATE TABLE ya lo ha confirmado.',
+      sql: {
+        setup: SCHOOL,
+        query: `-- 1. Algo de DML: la transacción está abierta
+UPDATE course SET credits = 12 WHERE course_id = 'C30';
+INSERT INTO department VALUES ('D03', 'Law');
+-- 2. Una sentencia DDL en medio confirma todo lo anterior
+CREATE TABLE note (txt VARCHAR2(40));
+-- 3. Así que este ROLLBACK no tiene nada que deshacer
+ROLLBACK;
+SELECT course_id, credits FROM course WHERE course_id = 'C30';
+SELECT * FROM department;
+-- 4. Sin DDL en medio, ROLLBACK funciona
+DELETE FROM enrolment WHERE course_id = 'C10';
+ROLLBACK;
+SELECT COUNT(*) AS c10_enrolments FROM enrolment WHERE course_id = 'C10';`,
       },
     },
 
@@ -1216,6 +1538,53 @@ SELECT * FROM loan;
 INSERT INTO loan (book, days) VALUES ('Hopscotch', 90);       -- incumple days_range`,
       },
     },
+    {
+      id: 'managing-constraints',
+      hub: 'constraints',
+      topic: 'constraints',
+      title: 'Gestionar restricciones con ALTER TABLE',
+      summary: 'Las restricciones se pueden añadir, renombrar, eliminar, **desactivar** y **activar** cuando la tabla ya existe. Las restricciones con nombre son fáciles de gestionar, y Oracle comprueba las filas que ya hay antes de aceptar una restricción nueva o reactivada.',
+      body: [
+        '`ALTER TABLE t ADD CONSTRAINT nombre …` se escribe igual que una restricción fuera de línea de CREATE TABLE. Muchos scripts añaden así todas las claves ajenas cuando ya existen todas las tablas, de modo que el orden de los CREATE TABLE deja de importar. NOT NULL es la excepción: es una propiedad de la columna y se pone con `MODIFY (col NOT NULL)`.',
+        '`DISABLE CONSTRAINT` apaga una regla sin perderla, por ejemplo mientras se carga un lote grande de datos. `ENABLE CONSTRAINT` la vuelve a encender y comprueba todas las filas, así que falla mientras alguna fila incumpla la regla. `DROP CONSTRAINT` la elimina; `DROP PRIMARY KEY` falla mientras haya claves ajenas que apunten a la clave, salvo que añadas `CASCADE`. `RENAME CONSTRAINT viejo TO nuevo` sustituye un nombre de sistema como `SYS_C008123`.',
+        'MODIFY también debe respetar las filas. Una columna siempre se puede **ensanchar**, y **estrechar** solo si todos los valores siguen cabiendo. CHAR puede pasar a VARCHAR2 y DATE a TIMESTAMP; cualquier otro cambio de tipo exige que la columna esté vacía. `ALTER TABLE t READ ONLY` congela una tabla (ni INSERT, ni UPDATE, ni DELETE) hasta `READ WRITE`.',
+      ],
+      points: [
+        'Pon nombre a todas las restricciones: prefijos como `pk_`, `fk_`, `uq_` y `ck_` dicen el tipo de un vistazo, y el mensaje de error muestra el nombre.',
+        '`USER_CONSTRAINTS.STATUS` dice si una restricción está ENABLED o DISABLED.',
+        'La simulación del navegador no puede añadir, desactivar ni eliminar restricciones: ejecuta el script en FreeSQL.',
+      ],
+      example: 'Un script crea primero todas las tablas y luego ejecuta `ALTER TABLE loan ADD CONSTRAINT fk_loan_book FOREIGN KEY (book_id) REFERENCES book (book_id)` para cada clave ajena, así que las tablas se pueden crear en cualquier orden.',
+      mistake: 'Olvidar el ENABLE de una restricción después de una carga de datos. Hasta que lo hagas, la regla no se comprueba y entran filas incorrectas.',
+      dialect: 'Oracle · ejecútalo en FreeSQL',
+      code: `DROP TABLE IF EXISTS loan PURGE;
+DROP TABLE IF EXISTS book PURGE;
+CREATE TABLE book (book_id NUMBER(5), title VARCHAR2(60));
+CREATE TABLE loan (loan_id NUMBER(6), book_id NUMBER(5), days NUMBER(2));
+-- Las restricciones, añadidas después de las tablas
+ALTER TABLE book ADD CONSTRAINT pk_book PRIMARY KEY (book_id);
+ALTER TABLE book MODIFY (title NOT NULL);
+ALTER TABLE loan ADD CONSTRAINT pk_loan PRIMARY KEY (loan_id);
+ALTER TABLE loan ADD CONSTRAINT fk_loan_book FOREIGN KEY (book_id) REFERENCES book (book_id);
+ALTER TABLE loan ADD CONSTRAINT ck_loan_days CHECK (days BETWEEN 1 AND 60);
+INSERT INTO book VALUES (1, 'Ficciones');
+INSERT INTO loan VALUES (1, 1, 15);
+
+-- Apagar una regla, cargar y volver a encenderla
+ALTER TABLE loan DISABLE CONSTRAINT ck_loan_days;
+INSERT INTO loan VALUES (2, 1, 90);                   -- se acepta mientras la regla está apagada
+ALTER TABLE loan ENABLE CONSTRAINT ck_loan_days;      -- ORA-02293: no se puede validar, se incumple la restricción
+UPDATE loan SET days = 60 WHERE loan_id = 2;
+ALTER TABLE loan ENABLE CONSTRAINT ck_loan_days;      -- ahora funciona
+SELECT constraint_name, constraint_type, status FROM user_constraints WHERE table_name = 'LOAN';
+
+ALTER TABLE loan RENAME CONSTRAINT ck_loan_days TO ck_loan_days_range;
+ALTER TABLE book DROP PRIMARY KEY;                     -- ORA-02273: hay claves ajenas que la referencian
+ALTER TABLE book MODIFY (title VARCHAR2(5));           -- ORA-01441: algún valor es demasiado grande
+ALTER TABLE book READ ONLY;
+INSERT INTO book VALUES (2, 'Rayuela');                -- ORA-12081: operación de actualización no permitida en la tabla
+ALTER TABLE book READ WRITE;`,
+    },
 
     /* ───────────── Vistas y objetos del esquema ───────────── */
     {
@@ -1285,8 +1654,8 @@ SELECT * FROM course_average;`,
     },
     {
       id: 'ctes',
-      hub: 'objects',
-      topic: 'objects',
+      hub: 'subqueries',
+      topic: 'subqueries',
       title: 'WITH: expresiones de tabla comunes',
       summary: 'La cláusula **WITH** da nombre a una subconsulta al principio de una sentencia, una **expresión de tabla común** (CTE), y la consulta principal la usa como una tabla. Se pueden encadenar varias CTE, cada una usando las anteriores.',
       figure: { kind: 'cte-pipeline' },
@@ -2301,14 +2670,18 @@ FETCH FIRST 5 ROWS ONLY;`,
 
   DATA.es.SQL_QUIZ_TOPICS = {
     oracle: 'Oracle y FreeSQL',
+    languages: 'Sublenguajes de SQL',
+    ddl: 'DDL: tablas, ALTER y DROP',
+    constraints: 'Restricciones',
+    objects: 'Objetos del esquema',
     querying: 'Consultas',
     joins: 'Combinar tablas',
     aggregation: 'Agregación',
     subqueries: 'Subconsultas y conjuntos',
     functions: 'Funciones',
-    languages: 'Lenguajes de SQL',
-    constraints: 'Restricciones',
-    objects: 'Vistas y objetos del esquema',
+    dml: 'Modificar datos',
+    dcl: 'DCL: usuarios y privilegios',
+    tcl: 'TCL: transacciones',
     plsql: 'PL/SQL',
     indexes: 'Índices',
     clustering: 'Agrupamiento',
@@ -2353,7 +2726,7 @@ FETCH FIRST 5 ROWS ONLY;`,
     { topic: 'objects', type: 'tf', q: 'Una vista normal guarda una copia de las filas que devuelve su consulta.', answer: false, why: 'Una vista guarda la consulta; se vuelve a ejecutar cada vez sobre los datos actuales. La que guarda filas es la vista materializada.' },
     { topic: 'objects', type: 'mc', q: '¿Qué hace `WITH CHECK OPTION` en una vista?', choices: ['Prohíbe cualquier cambio a través de la vista', 'Rechaza los INSERT y UPDATE a través de la vista que producen filas que la vista no puede ver', 'Comprueba las restricciones de la tabla base', 'Refresca la vista'], answer: 1, why: 'Los cambios a través de la vista deben quedar dentro de su WHERE. La opción que prohíbe todo cambio es WITH READ ONLY.' },
     { topic: 'objects', type: 'mc', q: 'Tu sesión acaba de usar la secuencia `s`. ¿Qué expresión vuelve a dar el mismo número sin sacar uno nuevo?', choices: ['`s.NEXTVAL`', '`s.CURRVAL`', '`s.LASTVAL`', '`SEQUENCE(s)`'], answer: 1, why: 'CURRVAL es el último número que sacó tu sesión con NEXTVAL.' },
-    { topic: 'objects', type: 'fib', q: 'Una expresión de tabla común (CTE) empieza por la palabra clave ___.', accept: ['WITH', 'with'], why: '`WITH nombre AS (SELECT …) SELECT … FROM nombre`.' },
+    { topic: 'subqueries', type: 'fib', q: 'Una expresión de tabla común (CTE) empieza por la palabra clave ___.', accept: ['WITH', 'with'], why: '`WITH nombre AS (SELECT …) SELECT … FROM nombre`.' },
     { topic: 'objects', type: 'mc', q: '¿Qué es un sinónimo?', choices: ['Una copia de una tabla', 'Otro nombre para un objeto', 'Una vista de solo lectura', 'Una secuencia compartida por varias tablas'], answer: 1, why: 'Un apodo como `grades` para `hr.enrolment`. Por sí solo no concede ningún privilegio.' },
     { topic: 'plsql', type: 'mc', q: '¿Cuál es el ciclo de vida de un cursor explícito?', choices: ['OPEN → DECLARE → FETCH → CLOSE', 'DECLARE → OPEN → FETCH (en un bucle) → CLOSE', 'DECLARE → FETCH → OPEN → CLOSE', 'FETCH → OPEN → CLOSE → DECLARE'], answer: 1, why: 'Declara la consulta, ábrela, recupera fila tras fila hasta %NOTFOUND y ciérrala. Un bucle FOR de cursor hace los pasos intermedios por ti.' },
     { topic: 'plsql', type: 'fib', q: 'Un `SELECT … INTO` que no encuentra ninguna fila lanza la excepción ___.', accept: ['NO_DATA_FOUND', 'no_data_found', 'no data found'], why: 'Si encuentra varias filas, lanza TOO_MANY_ROWS.' },
@@ -2362,16 +2735,16 @@ FETCH FIRST 5 ROWS ONLY;`,
     { topic: 'plsql', type: 'mc', q: 'Todas las notas deben pasar a ser `LEAST(grade + 1, 10)`. ¿Cuál es la mejor forma?', choices: ['Un bucle con cursor que actualice las filas de una en una', 'Una sola sentencia UPDATE', 'Un disparador sobre enrolment', 'Una variable de paquete'], answer: 1, why: 'Cuando basta una fórmula sobre los valores de la propia fila, un único UPDATE de conjunto es más sencillo y mucho más rápido que un bucle con cursor.' },
     { topic: 'languages', type: 'mc', q: '¿A qué sublenguaje pertenece `ALTER TABLE`?', choices: ['DDL', 'DML', 'DCL', 'TCL'], answer: 0, why: 'Cambia la estructura de una tabla, así que es definición de datos.' },
     { topic: 'languages', type: 'mc', q: '¿Qué sentencia forma parte de DCL?', choices: ['`COMMIT`', '`GRANT`', '`TRUNCATE`', '`MERGE`'], answer: 1, why: 'GRANT y REVOKE controlan los privilegios. COMMIT es TCL, TRUNCATE es DDL y MERGE es DML.' },
-    { topic: 'languages', type: 'tf', q: 'Un `DELETE` sin cláusula WHERE elimina todas las filas de la tabla.', answer: true, why: 'Sin filtro, todas las filas cumplen la condición.' },
-    { topic: 'languages', type: 'fib', q: 'Para deshacer todos los cambios de la transacción actual se ejecuta ___.', accept: ['ROLLBACK', 'rollback'], why: 'ROLLBACK deshace todo desde que empezó la transacción; ROLLBACK TO SAVEPOINT deshace solo lo posterior al punto de guardado.' },
-    { topic: 'languages', type: 'mc', q: 'En Oracle, ¿cuándo empieza una transacción?', choices: ['Con la sentencia BEGIN', 'Con tu primer INSERT, UPDATE o DELETE', 'Con cada SELECT', 'Solo tras SET TRANSACTION'], answer: 1, why: 'Oracle no tiene BEGIN para transacciones (BEGIN inicia un bloque PL/SQL): el primer DML abre una, y COMMIT o ROLLBACK la cierra.' },
-    { topic: 'languages', type: 'tf', q: 'En Oracle, un CREATE TABLE en mitad de una transacción se puede deshacer con ROLLBACK.', answer: false, why: 'El DDL confirma la transacción abierta antes y después de ejecutarse, así que ya no se puede deshacer nada de lo anterior.' },
-    { topic: 'languages', type: 'mc', q: '¿Qué consulta devuelve las 5 primeras filas en Oracle?', choices: ['`SELECT * FROM t LIMIT 5`', '`SELECT TOP 5 * FROM t`', '`SELECT * FROM t FETCH FIRST 5 ROWS ONLY`', '`SELECT * FROM t LIMIT 0, 5`'], answer: 2, why: 'LIMIT y TOP son de otros SGBD. Oracle usa el estándar FETCH FIRST … ROWS ONLY (desde 12c).' },
-    { topic: 'languages', type: 'fib', q: 'El nombre en Oracle del operador de conjuntos que SQLite y PostgreSQL llaman EXCEPT es ___.', accept: ['MINUS', 'minus'], why: 'Oracle usa MINUS (las versiones recientes también aceptan EXCEPT).' },
-    { topic: 'languages', type: 'mc', q: '¿Dónde hay que filtrar los grupos por un agregado, como `AVG(grade) > 7`?', choices: ['WHERE', 'HAVING', 'ORDER BY', 'FROM'], answer: 1, why: 'WHERE se aplica antes de agrupar; HAVING filtra los grupos después.' },
+    { topic: 'dml', type: 'tf', q: 'Un `DELETE` sin cláusula WHERE elimina todas las filas de la tabla.', answer: true, why: 'Sin filtro, todas las filas cumplen la condición.' },
+    { topic: 'tcl', type: 'fib', q: 'Para deshacer todos los cambios de la transacción actual se ejecuta ___.', accept: ['ROLLBACK', 'rollback'], why: 'ROLLBACK deshace todo desde que empezó la transacción; ROLLBACK TO SAVEPOINT deshace solo lo posterior al punto de guardado.' },
+    { topic: 'tcl', type: 'mc', q: 'En Oracle, ¿cuándo empieza una transacción?', choices: ['Con la sentencia BEGIN', 'Con tu primer INSERT, UPDATE o DELETE', 'Con cada SELECT', 'Solo tras SET TRANSACTION'], answer: 1, why: 'Oracle no tiene BEGIN para transacciones (BEGIN inicia un bloque PL/SQL): el primer DML abre una, y COMMIT o ROLLBACK la cierra.' },
+    { topic: 'tcl', type: 'tf', q: 'En Oracle, un CREATE TABLE en mitad de una transacción se puede deshacer con ROLLBACK.', answer: false, why: 'El DDL confirma la transacción abierta antes y después de ejecutarse, así que ya no se puede deshacer nada de lo anterior.' },
+    { topic: 'querying', type: 'mc', q: '¿Qué consulta devuelve las 5 primeras filas en Oracle?', choices: ['`SELECT * FROM t LIMIT 5`', '`SELECT TOP 5 * FROM t`', '`SELECT * FROM t FETCH FIRST 5 ROWS ONLY`', '`SELECT * FROM t LIMIT 0, 5`'], answer: 2, why: 'LIMIT y TOP son de otros SGBD. Oracle usa el estándar FETCH FIRST … ROWS ONLY (desde 12c).' },
+    { topic: 'subqueries', type: 'fib', q: 'El nombre en Oracle del operador de conjuntos que SQLite y PostgreSQL llaman EXCEPT es ___.', accept: ['MINUS', 'minus'], why: 'Oracle usa MINUS (las versiones recientes también aceptan EXCEPT).' },
+    { topic: 'aggregation', type: 'mc', q: '¿Dónde hay que filtrar los grupos por un agregado, como `AVG(grade) > 7`?', choices: ['WHERE', 'HAVING', 'ORDER BY', 'FROM'], answer: 1, why: 'WHERE se aplica antes de agrupar; HAVING filtra los grupos después.' },
     { topic: 'languages', type: 'mc', q: '¿Cuál de estas sentencias se puede deshacer con ROLLBACK?', choices: ['`TRUNCATE TABLE member`', '`DELETE FROM member`', '`DROP TABLE member PURGE`', '`ALTER TABLE member DROP COLUMN fee`'], answer: 1, why: 'DELETE es DML y espera al COMMIT. Las otras tres son DDL: confirman en el acto.' },
-    { topic: 'languages', type: 'tf', q: 'Una clave primaria compuesta, como `(team_id, shirt)`, debe escribirse como restricción fuera de línea, tras las columnas.', answer: true, why: 'Una restricción en línea pertenece a una sola columna; una clave de varias columnas va después de la lista de columnas.' },
-    { topic: 'languages', type: 'mc', q: '¿Qué hábito te protege antes de ejecutar un UPDATE o un DELETE?', choices: ['Ejecutarlo dos veces', 'Ejecutar primero su WHERE como un SELECT', 'Escribir COMMIT antes', 'Borrar los índices'], answer: 1, why: 'El SELECT muestra exactamente las filas que cambiará la sentencia; después mantén el mismo WHERE.' },
+    { topic: 'ddl', type: 'tf', q: 'Una clave primaria compuesta, como `(team_id, shirt)`, debe escribirse como restricción fuera de línea, tras las columnas.', answer: true, why: 'Una restricción en línea pertenece a una sola columna; una clave de varias columnas va después de la lista de columnas.' },
+    { topic: 'dml', type: 'mc', q: '¿Qué hábito te protege antes de ejecutar un UPDATE o un DELETE?', choices: ['Ejecutarlo dos veces', 'Ejecutar primero su WHERE como un SELECT', 'Escribir COMMIT antes', 'Borrar los índices'], answer: 1, why: 'El SELECT muestra exactamente las filas que cambiará la sentencia; después mantén el mismo WHERE.' },
     { topic: 'constraints', type: 'tf', q: 'Una tabla puede tener varias restricciones UNIQUE pero solo una clave primaria.', answer: true, why: 'Hay una única clave primaria; cualquier otra clave candidata se declara UNIQUE.' },
     { topic: 'constraints', type: 'mc', q: 'Una matrícula referencia a un estudiante con `ON DELETE CASCADE`. ¿Qué ocurre al borrar ese estudiante?', choices: ['Se rechaza el borrado', 'Se borran también sus matrículas', 'La clave ajena de sus matrículas pasa a NULL', 'Nada: las matrículas conservan el identificador antiguo'], answer: 1, why: 'CASCADE propaga el borrado a las filas hijas.' },
     { topic: 'constraints', type: 'mc', q: 'En Oracle, ¿qué ocurre al borrar una fila padre con hijas si la clave ajena no tiene cláusula ON DELETE?', choices: ['Se borran las hijas', 'La clave ajena de las hijas pasa a NULL', 'El borrado falla con ORA-02292', 'El padre se marca como borrado'], answer: 2, why: 'Sin acción, Oracle rechaza el borrado mientras haya hijas: «child record found».' },
@@ -2399,6 +2772,57 @@ FETCH FIRST 5 ROWS ONLY;`,
     { topic: 'efficiency', type: 'tf', q: 'El optimizador elige un plan usando estadísticas sobre los datos.', answer: true, why: 'Estima los costes a partir del número de filas y de la distribución de los valores; ANALYZE las actualiza.' },
     { topic: 'efficiency', type: 'fib', q: 'En Oracle, la sentencia que guarda el plan de una consulta sin ejecutarla es EXPLAIN ___ FOR.', accept: ['PLAN', 'plan'], why: 'Después SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY) lo muestra. PostgreSQL y MySQL usan EXPLAIN a secas.' },
     { topic: 'efficiency', type: 'mc', q: 'Un plan de Oracle muestra TABLE ACCESS FULL sobre una tabla grande dentro de una combinación selectiva. La solución habitual es…', choices: ['un índice bitmap en todas las columnas', 'un índice sobre la columna filtrada o combinada', 'hacer COMMIT antes de la consulta', 'SELECT *'], answer: 1, why: 'Una lectura completa de una tabla grande suele indicar que falta un índice en la columna del filtro o de la combinación.' },
+    { topic: 'languages', type: 'mc', q: '¿Qué sentencia es DDL?', choices: ['`TRUNCATE TABLE loan`', '`DELETE FROM loan`', '`MERGE INTO loan …`', '`SAVEPOINT s1`'], answer: 0, why: 'TRUNCATE actúa sobre la tabla como objeto, así que Oracle la cuenta como DDL. DELETE y MERGE son DML; SAVEPOINT es TCL.' },
+    { topic: 'languages', type: 'mc', q: '`COMMENT ON COLUMN course.credits IS \'ECTS\'` pertenece a…', choices: ['DDL', 'DML', 'DCL', 'TCL'], answer: 0, why: 'Escribe documentación en el diccionario de datos, como todas las sentencias DDL.' },
+    { topic: 'languages', type: 'tf', q: 'Algunos libros tratan SELECT como un sublenguaje propio, DQL; en este curso forma parte de DML.', answer: true, why: 'SELECT solo lee filas; de ahí el nombre de lenguaje de consulta de datos.' },
+    { topic: 'languages', type: 'mc', q: '¿Qué pareja de sentencias confirma en ambos casos la transacción abierta en Oracle?', choices: ['`GRANT` y `CREATE INDEX`', '`INSERT` y `UPDATE`', '`SELECT` y `SAVEPOINT`', '`DELETE` y `MERGE`'], answer: 0, why: 'GRANT es DCL y CREATE INDEX es DDL: las dos confirman de forma implícita. Las demás se quedan dentro de la transacción.' },
+    { topic: 'languages', type: 'fib', q: 'GRANT y REVOKE pertenecen al sublenguaje ___.', accept: ['DCL', 'dcl', 'data control language', 'LCD'], why: 'Lenguaje de control de datos: decide quién puede hacer qué.' },
+    { topic: 'languages', type: 'mc', q: 'Ejecutas `DELETE FROM t`, después `TRUNCATE TABLE u` y después `ROLLBACK`. ¿Qué se deshace?', choices: ['Solo el DELETE', 'Solo el TRUNCATE', 'Los dos', 'Ninguno'], answer: 3, why: 'TRUNCATE es DDL: confirma la transacción abierta, DELETE incluido, antes de ejecutarse, y él mismo no se puede deshacer.' },
+    { topic: 'ddl', type: 'mc', q: '¿Qué tipo de Oracle conviene para un precio como 1234.50?', choices: ['`NUMBER(6,2)`', '`VARCHAR2(7)`', '`INTEGER(6,2)`', '`CHAR(7)`'], answer: 0, why: 'NUMBER(p, s): 6 dígitos, 2 de ellos decimales, así que hasta 9999.99. Un texto no se puede sumar ni comparar como número.' },
+    { topic: 'ddl', type: 'mc', q: '¿Cuál es el mayor valor que cabe en una columna `NUMBER(5,2)`?', choices: ['99999', '999.99', '99.999', '5.2'], answer: 1, why: '5 dígitos en total, 2 de ellos tras el punto.' },
+    { topic: 'ddl', type: 'tf', q: 'Una columna DATE de Oracle guarda la hora del día además de la fecha.', answer: true, why: 'DATE guarda todo hasta el segundo; TIMESTAMP añade fracciones de segundo. TRUNC(d) quita la hora.' },
+    { topic: 'ddl', type: 'mc', q: 'Oracle 21c no tiene tipo de columna BOOLEAN. ¿Cuál es el sustituto habitual?', choices: ['`CHAR(1)` con `CHECK (x IN (\'Y\', \'N\'))`', '`BIT`', '`VARCHAR2(5)` con \'true\' o \'false\', sin comprobación', '`DATE`'], answer: 0, why: 'Un código de una letra más un CHECK limita los valores a Y y N. Oracle 23ai añade BOOLEAN.' },
+    { topic: 'ddl', type: 'mc', q: 'La columna es `id NUMBER GENERATED ALWAYS AS IDENTITY`. ¿Qué hace `INSERT INTO t (id, name) VALUES (7, \'Ana\')`?', choices: ['La fila recibe el id 7', 'Oracle ignora el 7 y numera la fila', 'Falla: a una columna GENERATED ALWAYS no se le puede dar valor', 'El 7 pasa a ser el nuevo START WITH'], answer: 2, why: 'ORA-32795. Omite la columna, o declárala GENERATED BY DEFAULT.' },
+    { topic: 'ddl', type: 'mc', q: '¿Qué modo de identidad numera también la fila cuando el INSERT da NULL de forma explícita?', choices: ['`GENERATED ALWAYS`', '`GENERATED BY DEFAULT`', '`GENERATED BY DEFAULT ON NULL`', 'Ninguno'], answer: 2, why: 'ON NULL trata un NULL como «no se ha dado valor»; BY DEFAULT a secas lo rechaza (ORA-01400).' },
+    { topic: 'ddl', type: 'fib', q: 'Con `GENERATED ALWAYS AS IDENTITY (START WITH 100 INCREMENT BY 10)`, la segunda fila insertada recibe el id ___.', accept: ['110'], why: 'La serie es 100, 110, 120…' },
+    { topic: 'ddl', type: 'mc', q: 'Quieres eliminar la columna `fee` de `member` y conservar sus filas. ¿Qué sentencia usas?', choices: ['`ALTER TABLE member DROP COLUMN fee`', '`DROP COLUMN member.fee`', '`DELETE fee FROM member`', '`TRUNCATE COLUMN fee`'], answer: 0, why: 'ALTER TABLE cambia la estructura; las filas se quedan, sin esa columna.' },
+    { topic: 'ddl', type: 'mc', q: '`name` es `VARCHAR2(40)` y su valor más largo tiene 25 caracteres. ¿Qué cambio rechaza Oracle?', choices: ['`MODIFY (name VARCHAR2(60))`', '`MODIFY (name VARCHAR2(30))`', '`MODIFY (name VARCHAR2(20))`', '`MODIFY (name VARCHAR2(25))`'], answer: 2, why: 'Una columna solo se puede estrechar mientras todos los valores sigan cabiendo: 20 es menos que 25 (ORA-01441).' },
+    { topic: 'ddl', type: 'tf', q: 'Después de `DROP TABLE loan` (sin PURGE), `FLASHBACK TABLE loan TO BEFORE DROP` recupera la tabla con sus filas.', answer: true, why: 'Sin PURGE la tabla va a la papelera de reciclaje, y FLASHBACK la recupera de allí.' },
+    { topic: 'ddl', type: 'mc', q: 'Otras tablas tienen claves ajenas hacia `team`. ¿Qué sentencia elimina `team` de todos modos?', choices: ['`DROP TABLE team PURGE`', '`DROP TABLE team CASCADE CONSTRAINTS`', '`TRUNCATE TABLE team`', '`DELETE FROM team`'], answer: 1, why: 'CASCADE CONSTRAINTS elimina también las claves ajenas que apuntan a ella; las tablas hijas y sus filas se quedan.' },
+    { topic: 'ddl', type: 'mc', q: '¿Qué vista del diccionario de datos da el tipo (P, R, U, C) de cada restricción de tus tablas?', choices: ['`USER_TABLES`', '`USER_TAB_COLUMNS`', '`USER_CONSTRAINTS`', '`USER_INDEXES`'], answer: 2, why: 'Su columna CONSTRAINT_TYPE: P clave primaria, R clave ajena, U única, C comprobación o NOT NULL. USER_CONS_COLUMNS lista las columnas.' },
+    { topic: 'ddl', type: 'tf', q: '`SELECT * FROM user_tables WHERE table_name = \'player\'` encuentra la tabla creada con `CREATE TABLE player (…)`.', answer: false, why: 'Los nombres sin comillas se guardan en mayúsculas: escribe \'PLAYER\'.' },
+    { topic: 'ddl', type: 'mc', q: '¿Qué sentencia cambia el nombre de la tabla `player` a `member`?', choices: ['`RENAME player TO member`', '`ALTER TABLE player NAME member`', '`UPDATE user_tables SET table_name = \'MEMBER\'`', '`CREATE TABLE member AS player`'], answer: 0, why: '`ALTER TABLE player RENAME TO member` hace lo mismo. El diccionario es de solo lectura: cambia con DDL, nunca con UPDATE.' },
+    { topic: 'ddl', type: 'mc', q: '¿Por qué hay que crear la tabla padre antes que la hija?', choices: ['Oracle crea las tablas por orden alfabético', 'Una FOREIGN KEY solo puede apuntar a una tabla que ya existe', 'La hija necesita las filas del padre', 'Da igual el orden'], answer: 1, why: 'Si no, el CREATE falla con ORA-00942. Añadir las claves ajenas después con ALTER TABLE … ADD CONSTRAINT evita el problema.' },
+    { topic: 'constraints', type: 'tf', q: 'En Oracle una columna UNIQUE puede tener NULL en varias filas.', answer: true, why: 'NULL no es igual a nada, así que dos NULL no son duplicados. (SQL Server solo admite uno.)' },
+    { topic: 'constraints', type: 'mc', q: 'Desactivas `ck_loan_days`, insertas un préstamo de 90 días y ejecutas `ALTER TABLE loan ENABLE CONSTRAINT ck_loan_days`. ¿Qué pasa?', choices: ['Se activa y la fila se queda', 'Falla, porque una fila incumple la regla', 'Oracle borra la fila incorrecta', 'Oracle cambia 90 por 60'], answer: 1, why: 'ENABLE comprueba todas las filas que ya existen (ORA-02293). Corrige antes la fila.' },
+    { topic: 'constraints', type: 'mc', q: '¿Cómo haces obligatoria una columna que ya existe?', choices: ['`ALTER TABLE t ADD CONSTRAINT nn NOT NULL (col)`', '`ALTER TABLE t MODIFY (col NOT NULL)`', '`ALTER TABLE t SET col REQUIRED`', '`UPDATE t SET col NOT NULL`'], answer: 1, why: 'NOT NULL es una propiedad de la columna y se cambia con MODIFY. Falla mientras alguna fila tenga NULL.' },
+    { topic: 'constraints', type: 'mc', q: '¿Qué ganas escribiendo `CONSTRAINT fk_player_team FOREIGN KEY …` en lugar de una clave ajena sin nombre?', choices: ['Velocidad', 'Los errores y el diccionario muestran un nombre legible, y puedes eliminarla o desactivarla por ese nombre', 'Admite NULL', 'Borra en cascada'], answer: 1, why: 'Las restricciones sin nombre reciben nombres de sistema como SYS_C008123.' },
+    { topic: 'objects', type: 'mc', q: '¿Cómo cambias la consulta de una vista existente sin perder sus permisos?', choices: ['`ALTER VIEW v AS SELECT …`', '`CREATE OR REPLACE VIEW v AS SELECT …`', '`UPDATE VIEW v …`', '`DROP VIEW v` y luego `CREATE VIEW v`'], answer: 1, why: 'ALTER VIEW solo recompila una vista; borrarla y crearla de nuevo pierde sus permisos.' },
+    { topic: 'objects', type: 'tf', q: 'Cuando se elimina la tabla base de una vista, la vista sigue existiendo pero deja de funcionar.', answer: true, why: 'La vista pasa a INVALID; consultarla falla hasta que la tabla vuelva a existir.' },
+    { topic: 'dml', type: 'mc', q: '¿Qué INSERT sigue funcionando cuando se añade una columna a `student`?', choices: ['`INSERT INTO student VALUES (\'S04\', \'Marta Paz\', NULL)`', '`INSERT INTO student (student_id, name) VALUES (\'S04\', \'Marta Paz\')`', 'Los dos', 'Ninguno'], answer: 1, why: 'Con lista de columnas, la columna nueva recibe su DEFAULT, o NULL. Sin ella, los valores deben corresponder a todas las columnas.' },
+    { topic: 'dml', type: 'mc', q: '¿Qué sentencia copia las mejores notas a `honours` sin cláusula VALUES?', choices: ['`INSERT INTO honours (student_id, course_id) SELECT student_id, course_id FROM enrolment WHERE grade >= 8.5`', '`COPY enrolment TO honours WHERE grade >= 8.5`', '`UPDATE honours SET … FROM enrolment`', '`SELECT student_id, course_id INTO honours FROM enrolment`'], answer: 0, why: 'INSERT … SELECT inserta todas las filas que devuelve la consulta. SELECT … INTO es PL/SQL: una fila en variables.' },
+    { topic: 'dml', type: 'tf', q: '`UPDATE enrolment SET grade = 10` cambia todas las filas de la tabla.', answer: true, why: 'Sin WHERE, todas las filas cumplen.' },
+    { topic: 'dml', type: 'mc', q: 'Borrar una asignatura falla con ORA-02292. ¿Por qué?', choices: ['La asignatura no existe', 'Aún hay matrículas que la referencian y la clave ajena no tiene acción ON DELETE', 'DELETE necesita antes un COMMIT', 'Las asignaturas nunca se pueden borrar'], answer: 1, why: '«Se ha encontrado un registro hijo»: borra antes las filas hijas, o declara la clave ajena con ON DELETE CASCADE.' },
+    { topic: 'dml', type: 'mc', q: '¿Qué hace `UPDATE course SET credits = credits * 1.5 WHERE dept_id = \'D02\'`?', choices: ['Pone 1.5 créditos a todas las asignaturas', 'Multiplica por 1.5 los créditos de las asignaturas de D02', 'Suma 1.5 créditos a las asignaturas de D02', 'Falla: una columna no puede estar a los dos lados'], answer: 1, why: 'El lado derecho usa el valor antiguo de cada fila.' },
+    { topic: 'dml', type: 'fib', q: 'DELETE elimina filas enteras. Para vaciar una columna de algunas filas se usa ___ … SET col = NULL.', accept: ['UPDATE', 'update'], why: 'DELETE nunca elimina columnas sueltas.' },
+    { topic: 'dml', type: 'tf', q: 'Hasta que haces COMMIT, las demás sesiones no ven las filas que ha añadido tu INSERT.', answer: true, why: 'Los cambios sin confirmar solo los ve tu propia sesión.' },
+    { topic: 'dcl', type: 'mc', q: '¿Cuál de estos es un privilegio de sistema?', choices: ['`CREATE TABLE`', '`SELECT ON hr.emp`', '`UPDATE ON course`', '`EXECUTE ON pay_raise`'], answer: 0, why: 'Un privilegio de sistema permite una clase de acción; uno de objeto nombra su objeto con ON.' },
+    { topic: 'dcl', type: 'mc', q: '¿Qué cláusula permite a quien recibe un privilegio de objeto concederlo a otros?', choices: ['`WITH ADMIN OPTION`', '`WITH GRANT OPTION`', '`WITH CHECK OPTION`', '`CASCADE`'], answer: 1, why: 'WITH GRANT OPTION es para privilegios de objeto; WITH ADMIN OPTION, para privilegios de sistema y roles.' },
+    { topic: 'dcl', type: 'tf', q: 'Revocar un privilegio de objeto a un usuario que lo recibió WITH GRANT OPTION se lo quita también a los usuarios a los que ese usuario lo concedió.', answer: true, why: 'Los REVOKE de privilegios de objeto se propagan. Un privilegio de sistema concedido WITH ADMIN OPTION no se propaga.' },
+    { topic: 'dcl', type: 'mc', q: 'Un usuario que solo tiene los roles CONNECT y RESOURCE ejecuta `CREATE VIEW`. ¿Qué pasa?', choices: ['Funciona', 'Falla con ORA-01031: RESOURCE no incluye CREATE VIEW', 'Crea una tabla en su lugar', 'Oracle pide la contraseña del DBA'], answer: 1, why: 'Concede CREATE VIEW de forma explícita.' },
+    { topic: 'dcl', type: 'fib', q: 'Para poder conectarse a la base de datos, un usuario necesita el privilegio de sistema CREATE ___.', accept: ['SESSION', 'session'], why: 'Sin CREATE SESSION (o el rol CONNECT) se rechaza el inicio de sesión.' },
+    { topic: 'dcl', type: 'mc', q: '¿Qué vista lista los privilegios que tu sesión puede usar ahora mismo?', choices: ['`SESSION_PRIVS`', '`USER_TABLES`', '`USER_RECYCLEBIN`', '`DUAL`'], answer: 0, why: 'SESSION_ROLES lista los roles activos.' },
+    { topic: 'dcl', type: 'mc', q: '¿Por qué conceder los privilegios a roles en lugar de a cada usuario?', choices: ['Los roles aceleran las consultas', 'Un cambio en el rol llega a todos sus miembros, y mover a alguien es cambiar solo sus roles', 'Los usuarios no pueden recibir privilegios directamente', 'Los roles nunca caducan'], answer: 1, why: 'Además, así es fácil ver quién puede hacer qué.' },
+    { topic: 'dcl', type: 'tf', q: 'Un sinónimo da a sus usuarios el derecho a leer la tabla a la que apunta.', answer: false, why: 'Un sinónimo es solo otro nombre: sigue haciendo falta SELECT sobre la tabla.' },
+    { topic: 'dcl', type: 'mc', q: 'Se ejecuta un GRANT en mitad de una transacción con INSERT pendientes. ¿Qué pasa con los INSERT?', choices: ['Siguen pendientes', 'Se confirman', 'Se deshacen', 'El GRANT falla'], answer: 1, why: 'DCL confirma de forma implícita, igual que DDL.' },
+    { topic: 'tcl', type: 'mc', q: 'Ejecutas `UPDATE …; SAVEPOINT s1; DELETE …; ROLLBACK TO SAVEPOINT s1; COMMIT;`. ¿Qué queda permanente?', choices: ['Nada', 'Solo el UPDATE', 'Solo el DELETE', 'Los dos'], answer: 1, why: 'ROLLBACK TO s1 deshace el trabajo posterior al punto de guardado; COMMIT conserva el resto.' },
+    { topic: 'tcl', type: 'tf', q: 'Después de `ROLLBACK TO SAVEPOINT s1` la transacción sigue abierta.', answer: true, why: 'Solo un COMMIT o un ROLLBACK completo la terminan.' },
+    { topic: 'tcl', type: 'mc', q: 'Ejecutas un INSERT, luego `CREATE TABLE x (…)` y luego `ROLLBACK`. ¿Qué queda?', choices: ['Ni la fila ni la tabla', 'La fila y la tabla', 'Solo la tabla', 'Solo la fila'], answer: 1, why: 'El CREATE confirma el INSERT anterior y se confirma a sí mismo. El ROLLBACK no tiene nada que deshacer.' },
+    { topic: 'tcl', type: 'mc', q: 'La tercera sentencia de una transacción falla por una restricción. ¿Qué deshace Oracle?', choices: ['Toda la transacción', 'Solo la sentencia que falla', 'Nada', 'Todas las sentencias desde la primera'], answer: 1, why: 'Un rollback a nivel de sentencia: las dos primeras siguen pendientes hasta tu COMMIT o ROLLBACK.' },
+    { topic: 'tcl', type: 'mc', q: '¿Qué pasa con una transacción abierta cuando se pierde la conexión?', choices: ['Se confirma', 'Se deshace', 'Espera a que vuelvas a conectarte', 'Se guarda como punto de guardado'], answer: 1, why: 'Oracle deshace el trabajo abierto de una sesión que termina de forma anormal.' },
+    { topic: 'tcl', type: 'tf', q: 'Con el autocommit activado, cada sentencia DML se confirma en cuanto se ejecuta.', answer: true, why: 'El autocommit es un ajuste del cliente (SET AUTOCOMMIT ON en SQL*Plus). Con él activado, ROLLBACK no puede deshacer una sentencia anterior.' },
+    { topic: 'tcl', type: 'fib', q: 'La sentencia TCL que marca un punto al que después se puede volver es ___.', accept: ['SAVEPOINT', 'savepoint'], why: '`SAVEPOINT nombre`, y después `ROLLBACK TO SAVEPOINT nombre`.' },
+    { topic: 'tcl', type: 'mc', q: '¿Qué propiedad ACID significa «o se aplican todas las sentencias de la transacción, o ninguna»?', choices: ['Atomicidad', 'Consistencia', 'Aislamiento', 'Durabilidad'], answer: 0, why: 'Atomicidad: COMMIT hace permanente todo, ROLLBACK nada.' },
   ];
 
   DATA.es.SQL_SANDBOX = {

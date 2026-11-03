@@ -19,7 +19,10 @@
    plus whatever cfg.figure / cfg.extra / cfg.tryIt read.
    cfg: { base, title(), blurb(), badge, groups: [{ key, label, icon, ids?, part? }] (without ids, a
           hub takes the cards whose `hub` is its key; consecutive groups with the same `part`
-          share a heading in the rail), concepts,
+          share a heading in the rail), parts?: { [part label]: { tab, sub?, tag?, icon?, short? } } (with a
+          tab for every part, the rail shows the parts as tabs: tab = short name, sub = the line under it,
+          tag = a level chip on the overview and part headings; collapsed to icons, one icon per part with
+          `short` (or `tab`) under it and a flyout of the part), concepts,
           videos?: [{ id, group (hub key), title, mp4, poster, duration, chapters: [{ t, title }] }],
           quiz?, topics?, quizKey?, figure(item) → svg | '', extra(card) → html,
           tryIt(card) → { html, label } | null (a closed "Try it" box at the end of the card),
@@ -69,6 +72,9 @@ const RAIL_ICON = {
   fx: '<path d="M14 4h-1.5A2.5 2.5 0 0 0 10 6.5V20"/><path d="M7 10h6"/><path d="M15 13l5 6M20 13l-5 6"/>',
   view: '<path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
   braces: '<path d="M8 4H7a2 2 0 0 0-2 2v4l-2 2 2 2v4a2 2 0 0 0 2 2h1"/><path d="M16 4h1a2 2 0 0 1 2 2v4l2 2-2 2v4a2 2 0 0 1-2 2h-1"/>',
+  rowedit: '<rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M3 9h18M3 14.5h7"/><path d="M13 19.5l.6-2.6 5-5 2 2-5 5Z"/>',
+  user: '<circle cx="12" cy="8" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>',
+  timeline: '<path d="M3 12h18"/><circle cx="6" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><path d="M18 8v8"/>',
   pdf: '<path d="M7 3h7l4 4v14H7Z"/><path d="M14 3v4h4"/><path d="M12.5 10v6"/><path d="M10 13.8l2.5 2.5 2.5-2.5"/>',
   quiz: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 1c0 1.8-2.5 2.2-2.5 3.7"/><circle cx="12" cy="17.2" r=".6" fill="currentColor"/>',
   collapse: '<path d="M14 6l-6 6 6 6"/><path d="M20 6l-6 6 6 6"/>',
@@ -76,11 +82,107 @@ const RAIL_ICON = {
 };
 
 /* This viewer's layout choices, shared by every concept section: the rail collapsed (sideCollapsed),
-   every concept of a group shown (allOpen), "Try it" boxes open (tryOpen). */
+   every concept of a group shown (allOpen), "Try it" boxes open (tryOpen), and the rail parts opened
+   by hand (openParts: { [section base]: [part label, …] }). */
 const railUi = (() => {
   const store = makeStore('er-ui-v1');
   const ui = Object.assign({ sideCollapsed: false }, store.load());
   return { ui, save: () => store.save(ui) };
+})();
+
+/* Rail flyouts, shared by every concept section. The rail scrolls on short screens, so a flyout is fixed
+   next to its group head (an absolutely placed one would be clipped) and kept inside the window.
+   Keyboard: → opens the flyout of a group head, ← or Escape goes back to the head and closes it,
+   ↑ / ↓ move through the visible links of the rail. aria-expanded follows the flyout. */
+(() => {
+  const FLY = '.rail-hub:not(.is-active) > .rail-pages, .is-collapsed .rail-hub > .rail-pages';
+  const hubOf = (el) => (el && el.closest ? el.closest('.rail-hub') : null);
+  const flyOf = (hub) => {
+    const p = hub.querySelector(':scope > .rail-pages');
+    return p && p.matches(FLY) ? p : null;
+  };
+  const headOf = (hub) => hub.querySelector(':scope > .rail-head');
+  const shown = (el) => el.getClientRects().length > 0;
+  function place(hub) {
+    const p = flyOf(hub);
+    if (!p) return;
+    const r = headOf(hub).getBoundingClientRect();
+    // Never above the rail, where the app bar would cover it; a taller flyout scrolls inside.
+    const minTop = Math.max(0, hub.closest('.rail').getBoundingClientRect().top) + 8;
+    const room = innerHeight - minTop - 8;
+    const h = Math.min(p.offsetHeight, room);
+    hub.style.setProperty('--fly-max', `${Math.round(room)}px`);
+    hub.style.setProperty('--fly-x', `${Math.round(r.right)}px`);
+    hub.style.setProperty('--fly-y', `${Math.round(Math.max(minTop, Math.min(r.top, innerHeight - h - 8)))}px`);
+  }
+  function show(hub, on) {
+    if (on) {
+      hub.classList.remove('fly-off');
+      place(hub);
+      requestAnimationFrame(() => place(hub));   // again, now that the flyout has its height
+    }
+    const head = headOf(hub);
+    if (head && head.hasAttribute('aria-expanded')) head.setAttribute('aria-expanded', String(on && !!flyOf(hub)));
+  }
+  document.addEventListener('mouseover', (e) => {
+    const hub = hubOf(e.target);
+    if (hub && !hub.contains(e.relatedTarget)) show(hub, true);
+  });
+  document.addEventListener('mouseout', (e) => {
+    const hub = hubOf(e.target);
+    if (hub && !hub.contains(e.relatedTarget) && !hub.contains(document.activeElement)) show(hub, false);
+  });
+  document.addEventListener('focusin', (e) => {
+    const hub = hubOf(e.target);
+    if (hub && !hub.classList.contains('fly-off')) show(hub, true);
+  });
+  document.addEventListener('focusout', (e) => {
+    const hub = hubOf(e.target);
+    if (hub && !hub.contains(e.relatedTarget)) { show(hub, false); hub.classList.remove('fly-off'); }
+  });
+  document.addEventListener('keydown', (e) => {
+    const rail = e.target.closest && e.target.closest('.rail');
+    if (!rail || e.altKey || e.ctrlKey || e.metaKey) return;
+    // Tabs (parts shown as tabs): ← → Home End move between them and show their panel; ↓ enters the panel.
+    if (e.target.getAttribute('role') === 'tab') {
+      const tabs = [...rail.querySelectorAll('[role="tab"]')];
+      const i = tabs.indexOf(e.target);
+      const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+      if (to !== undefined) {
+        e.preventDefault();
+        const next = tabs[(to + tabs.length) % tabs.length];
+        next.focus();
+        next.click();
+        return;
+      }
+      if (e.key === 'ArrowDown') {
+        const first = rail.querySelector('[role="tabpanel"] a[href]');
+        if (first) { e.preventDefault(); first.focus(); }
+        return;
+      }
+    }
+    const hub = hubOf(e.target);
+    const fly = hub && flyOf(hub);
+    const inFly = !!(fly && fly.contains(e.target));
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      // Only the chosen tab takes part, so ↑ from the top of a panel goes back to its tab.
+      const all = [...rail.querySelectorAll('a[href], button')].filter((el) => shown(el) && !el.closest('.fly-off > .rail-pages') && !(el.getAttribute('role') === 'tab' && el.getAttribute('aria-selected') !== 'true'));
+      const i = all.indexOf(e.target);
+      const next = all[i + (e.key === 'ArrowDown' ? 1 : -1)];
+      if (next) { e.preventDefault(); next.focus(); }
+    } else if (e.key === 'ArrowRight' && fly && !inFly) {
+      hub.classList.remove('fly-off');
+      show(hub, true);
+      const first = fly.querySelector('a[href]');
+      if (first) { e.preventDefault(); first.focus(); }
+    } else if ((e.key === 'ArrowLeft' || e.key === 'Escape') && fly) {
+      e.preventDefault();
+      hub.classList.add('fly-off');
+      show(hub, false);
+      if (inFly) headOf(hub).focus();
+    }
+  });
+  addEventListener('resize', () => document.querySelectorAll('.rail-hub').forEach((hub) => { if (flyOf(hub) && hub.matches(':hover, :focus-within')) place(hub); }));
 })();
 
 function ConceptSection(cfg) {
@@ -146,39 +248,162 @@ function ConceptSection(cfg) {
     return list;
   })();
   const partOf = (k) => PARTS.findIndex((pt) => pt.hubs.some((h) => h.items.includes(k)));
-  const openParts = new Set();                          // parts opened by hand on this visit
+  /* Parts opened by hand, remembered on this device by their label (the part being read is always open). */
+  const openParts = new Set(Array.isArray((ui.openParts || {})[BASE]) ? ui.openParts[BASE] : []);
+  const saveOpenParts = () => {
+    ui.openParts = { ...(ui.openParts || {}), [BASE]: [...openParts] };
+    railUi.save();
+  };
+  /* Parts as tabs (cfg.parts: { [part label]: { tab, sub?, tag? } }): a tab per part at the top of the rail,
+     and under it every group of the chosen part with all its concepts: two levels, no flyouts. The tab of
+     the concept being read is chosen; elsewhere (overview, quiz, practice) the last tab chosen by hand. */
+  const PART_CFG = cfg.parts || {};
+  const TAGS = Object.fromEntries(Object.entries(PART_CFG).filter(([, v]) => v.tag).map(([k, v]) => [k, v.tag]));
+  const TABS = PARTS.length > 0 && PARTS.every((pt) => PART_CFG[pt.label] && PART_CFG[pt.label].tab);
+  const tagClass = (tag) => String(tag).toLowerCase().replace(/[^a-z]+/g, '-');
+  const currentTab = () => {
+    if (route.page === 'concept') return partOf(route.concept);
+    const i = PARTS.findIndex((pt) => pt.label === (ui.railTab || {})[BASE]);
+    return i < 0 ? 0 : i;
+  };
 
-  function partHtml(pt, i, hubHtml) {
-    const open = openParts.has(i) || partOf(route.concept) === i;
+  /* Reading progress in the rail: a check on each concept read, and "read / total" on groups and parts. */
+  const readIds = () => {
+    const all = readStore.load();
+    return all[BASE] && typeof all[BASE] === 'object' ? all[BASE] : {};
+  };
+  const readCount = (ks, mine) => ks.filter((k) => mine[CONCEPTS[k].id]).length;
+  const partItems = (pt) => pt.hubs.flatMap((h) => h.items);
+  const progText = (n, total) => t('{n} of {total} read', { n, total });
+  const progHtml = (cls, key, n, total) => `<span class="${cls}${n === total ? ' is-done' : ''}${n === 0 ? ' is-zero' : ''}" data-prog="${key}" title="${esc(progText(n, total))}"><span aria-hidden="true">${n === total ? '✓' : `${n}/${total}`}</span><span class="sr-only">${esc(progText(n, total))}</span></span>`;
+
+  function partHtml(pt, i, hubHtml, mine) {
+    const open = openParts.has(pt.label) || partOf(route.concept) === i;
     const label = esc(t(pt.label));
+    const tag = TAGS[pt.label];
+    const ks = partItems(pt);
     return `<li class="rail-part${open ? ' is-open' : ''}">
-        <button type="button" class="rail-part-head" data-action="toggle-part" data-part="${i}" data-fid="part-${i}" aria-expanded="${open}" aria-controls="rail-part-${i}"><span class="rail-label">${label}</span><span class="rail-part-n" aria-hidden="true">${pt.hubs.length}</span><svg class="rail-part-chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"/></svg></button>
+        <button type="button" class="rail-part-head" data-action="toggle-part" data-part="${i}" data-fid="part-${i}" aria-expanded="${open}" aria-controls="rail-part-${i}"><span class="rail-label">${label}</span>${tag ? `<span class="rail-tag is-${tagClass(tag)}">${esc(t(tag))}</span>` : ''}${progHtml('rail-part-n', `part-${i}`, readCount(ks, mine), ks.length)}<svg class="rail-part-chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"/></svg></button>
         <ul class="rail-part-hubs" id="rail-part-${i}">${pt.hubs.map(hubHtml).join('')}</ul>
       </li>`;
   }
 
-  /* Opens or closes a part of the rail in place. */
+  /* Opens or closes a part of the rail in place; the choice is remembered. */
   function togglePart(btn) {
-    const i = +btn.dataset.part;
+    const pt = PARTS[+btn.dataset.part];
     const li = btn.closest('.rail-part');
     const open = !li.classList.contains('is-open');
-    if (open) openParts.add(i); else openParts.delete(i);
+    if (open) openParts.add(pt.label); else openParts.delete(pt.label);
+    saveOpenParts();
     li.classList.toggle('is-open', open);
     btn.setAttribute('aria-expanded', String(open));
+  }
+
+  /* A concept in the rail: its link, a check once read, and its number (in the flyouts of the parts view). */
+  const cardLink = (k, mine, current, numbered) => `<li><a href="${conceptHref(k)}" data-card="${esc(CONCEPTS[k].id)}"${mine[CONCEPTS[k].id] ? ' class="is-read"' : ''}${k === current ? ' aria-current="page"' : ''}>${numbered ? `<span class="rail-n">${numberOf(k)}</span>` : ''}<span class="rail-text">${esc(CONCEPTS[k].title)}</span><span class="rail-check" aria-hidden="true">✓</span><span class="rail-read sr-only">${esc(t('(read)'))}</span></a></li>`;
+
+  /* The panel of a tab: each group of the part as a heading (a link to the group's page) over all its concepts. */
+  function tabPanelHtml(i, mine) {
+    const current = route.page === 'concept' ? route.concept : -1;
+    return PARTS[i].hubs.map((h) => {
+      const g = HUBS.indexOf(h);
+      const active = h.items.includes(current);
+      return `<li class="rail-sect${active ? ' is-active' : ''}">
+          <a class="rail-sect-head" href="${conceptHref(h.items[0])}"${active ? ' aria-current="true"' : ''}>${icon(h.icon)}<span class="rail-text">${esc(t(h.label))}</span>${progHtml('rail-prog', `hub-${g}`, readCount(h.items, mine), h.items.length)}</a>
+          <ol>${h.items.map((k) => cardLink(k, mine, current, false)).join('')}</ol>
+        </li>`;
+    }).join('');
+  }
+
+  /* The rail collapsed to icons, with tabs: one icon per part (its short name under it), and a flyout with
+     the part's groups and all their concepts, as in its tab. The part being read is marked. */
+  function collapsedTabsHtml(mine) {
+    const current = route.page === 'concept' ? partOf(route.concept) : -1;
+    return `<ul class="rail-hubs rail-tabicons">${PARTS.map((pt, i) => {
+      const c = PART_CFG[pt.label];
+      const label = esc(t(pt.label));
+      const active = i === current;
+      return `<li class="rail-hub${active ? ' is-active' : ''}">
+          <a class="rail-head rail-tabhead" href="${conceptHref(pt.hubs[0].items[0])}"${active ? ' aria-current="true"' : ''} aria-haspopup="true" aria-expanded="false" aria-controls="rail-fly-p${i}" title="${label}">${icon(c.icon || pt.hubs[0].icon)}<span class="rail-label">${label}</span><span class="rail-abbr" aria-hidden="true">${esc(t(c.short || c.tab))}</span></a>
+          <div class="rail-pages" id="rail-fly-p${i}">
+            <p class="rail-fly-title" aria-hidden="true">${label}</p>
+            <ul>${tabPanelHtml(i, mine)}</ul>
+          </div>
+        </li>`;
+    }).join('')}</ul>`;
+  }
+
+  function tabsHtml(mine) {
+    const sel = currentTab();
+    const tabs = PARTS.map((pt, i) => {
+      const c = PART_CFG[pt.label];
+      const on = i === sel;
+      const sub = c.sub || c.tag;
+      return `<button type="button" role="tab" class="rail-tab" id="rail-tab-${i}" data-action="rail-tab" data-tab="${i}" data-fid="rail-tab-${i}" aria-selected="${on}" aria-controls="rail-tabpanel" tabindex="${on ? 0 : -1}" title="${esc(t(pt.label))}"><span class="rail-tab-name">${esc(t(c.tab))}</span><span class="rail-tab-sub">${sub ? esc(t(sub)) : '&nbsp;'}</span></button>`;
+    }).join('');
+    return `<div class="rail-tabs" role="tablist" aria-label="${esc(t('Parts of {section}', { section: cfg.title() }))}">${tabs}</div>
+      <ul class="rail-hubs rail-tabpanel" id="rail-tabpanel" role="tabpanel" aria-labelledby="rail-tab-${sel}">${tabPanelHtml(sel, mine)}</ul>`;
+  }
+
+  /* Shows another tab in place (no navigation); the choice is remembered for the pages without a concept. */
+  function switchTab(btn) {
+    const i = +btn.dataset.tab;
+    ui.railTab = { ...(ui.railTab || {}), [BASE]: PARTS[i].label };
+    railUi.save();
+    const rail = $('#er-side');
+    const panel = rail && rail.querySelector('#rail-tabpanel');
+    if (!panel) return;
+    rail.querySelectorAll('.rail-tab').forEach((b, j) => {
+      b.setAttribute('aria-selected', String(j === i));
+      b.tabIndex = j === i ? 0 : -1;
+    });
+    panel.innerHTML = tabPanelHtml(i, readIds());
+    panel.setAttribute('aria-labelledby', `rail-tab-${i}`);
+    rail.scrollTop = 0;
+  }
+
+  /* After a concept is read: its check and the counts of its group and part, in place. */
+  function refreshProgress() {
+    const rail = $('#er-side');
+    if (!rail) return;
+    const mine = readIds();
+    rail.querySelectorAll('a[data-card]').forEach((a) => a.classList.toggle('is-read', !!mine[a.dataset.card]));
+    const set = (key, ks) => {
+      const el = rail.querySelector(`[data-prog="${key}"]`);
+      if (el) el.outerHTML = progHtml(el.classList.contains('rail-part-n') ? 'rail-part-n' : 'rail-prog', key, readCount(ks, mine), ks.length);
+    };
+    HUBS.forEach((h, g) => set(`hub-${g}`, h.items));
+    PARTS.forEach((pt, i) => set(`part-${i}`, partItems(pt)));
+  }
+
+  /* Keeps the current concept of the rail in sight when the rail scrolls on its own (short screens).
+     Only the rail moves, never the page. */
+  function revealCurrent() {
+    const rail = $('#er-side');
+    // The first one shown (in a closed flyout the current concept has no box).
+    const a = rail && [...rail.querySelectorAll('a[data-card][aria-current="page"], .rail-hub.is-active > .rail-head, .rail-sect.is-active > .rail-sect-head')].find((el) => el.getClientRects().length);
+    if (!a || rail.scrollHeight <= rail.clientHeight) return;
+    const tabs = rail.querySelector('.rail-tabs');
+    const top = a.getBoundingClientRect().top - rail.getBoundingClientRect().top;
+    if (top < 48 + (tabs ? tabs.offsetHeight : 0) || top > rail.clientHeight - 96) rail.scrollTop += top - rail.clientHeight / 3;
   }
 
   function sideHtml() {
     const noConcept = route.page !== 'concept';      // the overview, a quiz or a practice page: no concept is current
     const onQuizPage = route.page === 'quiz';
     const collapsed = ui.sideCollapsed;
-    const conceptLink = (k) => `<li><a href="${conceptHref(k)}"${!noConcept && k === route.concept ? ' aria-current="page"' : ''}><span class="rail-n">${numberOf(k)}</span><span class="rail-text">${esc(CONCEPTS[k].title)}</span></a></li>`;
+    const mine = readIds();
+    const conceptLink = (k) => cardLink(k, mine, noConcept ? -1 : route.concept, true);
 
+    /* A group that is not being read shows its concepts in a flyout (hover, focus, or → from its head). */
     const hubHtml = (h) => {
+      const g = HUBS.indexOf(h);
       const active = !noConcept && h.items.includes(route.concept);
       const label = esc(t(h.label));
+      const fly = !active || collapsed;
       return `<li class="rail-hub${active ? ' is-active' : ''}">
-          <a class="rail-head" href="${conceptHref(h.items[0])}"${active ? ' aria-current="true"' : ''} title="${label}">${icon(h.icon)}<span class="rail-label">${label}</span></a>
-          <div class="rail-pages">
+          <a class="rail-head" href="${conceptHref(h.items[0])}"${active ? ' aria-current="true"' : ''}${fly ? ` aria-haspopup="true" aria-expanded="false" aria-controls="rail-fly-${g}"` : ''} title="${label}">${icon(h.icon)}<span class="rail-label">${label}</span>${progHtml('rail-prog', `hub-${g}`, readCount(h.items, mine), h.items.length)}</a>
+          <div class="rail-pages" id="rail-fly-${g}">
             <p class="rail-fly-title" aria-hidden="true">${label}</p>
             <ol>${h.items.map(conceptLink).join('')}</ol>
           </div>
@@ -209,7 +434,13 @@ function ConceptSection(cfg) {
       </li>`;
 
     const toggle = collapsed ? t('Expand') : t('Collapse');
-    const groupOption = (h) => `<option value="${conceptHref(h.items[0])}"${!noConcept && h.items.includes(route.concept) ? ' selected' : ''}>${HUBS.indexOf(h) + 1}. ${esc(t(h.label))}</option>`;
+    /* The dropdown lists every group, and the concepts of the group being read under it. */
+    const groupOption = (h) => {
+      const here = !noConcept && h.items.includes(route.concept);
+      const head = `<option value="${conceptHref(h.items[0])}"${here && route.concept === h.items[0] ? ' selected' : ''}>${HUBS.indexOf(h) + 1}. ${esc(t(h.label))}</option>`;
+      if (!here) return head;
+      return head + h.items.slice(1).map((k) => `<option value="${conceptHref(k)}"${k === route.concept ? ' selected' : ''}>   ${numberOf(k)} ${esc(CONCEPTS[k].title)}</option>`).join('');
+    };
     const groupOptions = PARTS.length
       ? PARTS.map((pt) => `<optgroup label="${esc(t(pt.label))}">${pt.hubs.map(groupOption).join('')}</optgroup>`).join('')
       : `<optgroup label="${esc(t('Groups'))}">${HUBS.map(groupOption).join('')}</optgroup>`;
@@ -218,7 +449,9 @@ function ConceptSection(cfg) {
       <nav class="rail" id="er-side" aria-label="${esc(cfg.title())}">
         <a class="rail-top" href="${BASE}" title="${esc(cfg.title())}"${route.page === 'overview' ? ' aria-current="page"' : ''}><span class="rail-badge" aria-hidden="true">${esc(cfg.badge)}</span><span class="rail-label">${esc(cfg.title())}</span></a>
         ${pdfLink('rail-pdf')}
-        ${PARTS.length ? `<ul class="rail-hubs rail-parts">${PARTS.map((pt, i) => partHtml(pt, i, hubHtml)).join('')}</ul>` : `<ul class="rail-hubs">${HUBS.map(hubHtml).join('')}</ul>`}
+        ${TABS ? (collapsed ? collapsedTabsHtml(mine) : tabsHtml(mine))
+          : PARTS.length ? `<ul class="rail-hubs rail-parts">${PARTS.map((pt, i) => partHtml(pt, i, hubHtml, mine)).join('')}</ul>`
+          : `<ul class="rail-hubs">${HUBS.map(hubHtml).join('')}</ul>`}
         <ul class="rail-hubs rail-hubs-end">${practiceHub}${quizHub}</ul>
         <button type="button" class="rail-toggle" data-action="toggle-side" data-fid="toggle-side" aria-expanded="${!collapsed}" title="${esc(toggle)}">${icon(collapsed ? 'expand' : 'collapse')}<span class="rail-label">${esc(toggle)}</span></button>
       </nav>
@@ -252,6 +485,12 @@ function ConceptSection(cfg) {
     railUi.save();
     const label = ui.sideCollapsed ? t('Expand') : t('Collapse');
     $('.er-layout')?.classList.toggle('is-collapsed', ui.sideCollapsed);
+    // With tabs, the icons-only rail has one icon per part: draw the rail again, and keep focus on the button.
+    if (TABS && $('.er-aside')) {
+      $('.er-aside').innerHTML = sideHtml();
+      $('.rail-toggle')?.focus();
+      revealCurrent();
+    }
     const btn = $('.rail-toggle');
     if (btn) {
       btn.setAttribute('aria-expanded', String(!ui.sideCollapsed));
@@ -350,6 +589,7 @@ function ConceptSection(cfg) {
     all[BASE] = { ...mine, [id]: 1 };
     readStore.save(all);
     ProgressPage.updateButton();
+    refreshProgress();
   }
 
   /* Reading time: the card's own text (not the runnable examples), at 200 words a minute. */
@@ -418,14 +658,25 @@ function ConceptSection(cfg) {
         </p>
       </header>
       ${VideoHtml.list(VIDEOS, { t, hrefFor: videoHref, watched })}
-      <ol class="ov-groups">
-        ${HUBS.map((h, g) => `<li class="ov-group">
-            <h2><span class="ov-n" aria-hidden="true">${g + 1}</span><a href="${conceptHref(h.items[0])}">${esc(t(h.label))}</a></h2>
-            <p class="group-meta">${esc(groupMeta(h))}</p>
-            <ul class="ov-list">${h.items.map((k) => `<li><a href="${conceptHref(k)}">${esc(CONCEPTS[k].title)}</a><span class="ov-sum">${md(CONCEPTS[k].summary)}</span></li>`).join('')}</ul>
-          </li>`).join('')}
-      </ol>`, 'is-overview');
+      ${PARTS.length
+        ? PARTS.map((pt) => {
+          const tag = TAGS[pt.label];
+          return `<section class="ov-part" aria-labelledby="ov-part-${tagClass(pt.label)}">
+              <h2 class="ov-part-h" id="ov-part-${tagClass(pt.label)}">${esc(t(pt.label))}${tag ? ` <span class="rail-tag is-${tagClass(tag)}">${esc(t(tag))}</span>` : ''}</h2>
+              ${ovGroups(pt.hubs, 'h3')}
+            </section>`;
+        }).join('')
+        : ovGroups(HUBS, 'h2')}`, 'is-overview');
   }
+
+  /* The groups of the overview, numbered as in the rail. */
+  const ovGroups = (hs, hx) => `<ol class="ov-groups" start="${HUBS.indexOf(hs[0]) + 1}">
+      ${hs.map((h) => `<li class="ov-group">
+          <${hx}><span class="ov-n" aria-hidden="true">${HUBS.indexOf(h) + 1}</span><a href="${conceptHref(h.items[0])}">${esc(t(h.label))}</a></${hx}>
+          <p class="group-meta">${esc(groupMeta(h))}</p>
+          <ul class="ov-list">${h.items.map((k) => `<li><a href="${conceptHref(k)}">${esc(CONCEPTS[k].title)}</a><span class="ov-sum">${md(CONCEPTS[k].summary)}</span></li>`).join('')}</ul>
+        </li>`).join('')}
+    </ol>`;
 
   /* A group page: its videos, its concepts one after another, then its quiz and the next group. */
   function renderGroup() {
@@ -493,10 +744,14 @@ function ConceptSection(cfg) {
   function setCurrent(k) {
     if (k < 0 || k === route.concept || route.page !== 'concept') return;
     route = { ...route, concept: k, rest: CONCEPTS[k].id };
-    view().querySelectorAll('.rail-pages a[aria-current="page"]').forEach((a) => a.removeAttribute('aria-current'));
-    view().querySelector(`.rail-pages a[href="${conceptHref(k)}"]`)?.setAttribute('aria-current', 'page');
+    view().querySelectorAll('#er-side a[data-card][aria-current="page"]').forEach((a) => a.removeAttribute('aria-current'));
+    view().querySelector(`#er-side a[data-card="${CSS.escape(CONCEPTS[k].id)}"]`)?.setAttribute('aria-current', 'page');
     const sel = $('#side-go');
-    if (sel) sel.value = conceptHref(HUBS[hubOf(k)].items[0]);
+    if (sel) {
+      sel.value = conceptHref(k);
+      if (sel.value !== conceptHref(k)) sel.value = conceptHref(HUBS[hubOf(k)].items[0]);
+    }
+    revealCurrent();
     try { history.replaceState(null, '', conceptHref(k)); } catch (e) { /* file:// or sandbox */ }
   }
 
@@ -542,6 +797,7 @@ function ConceptSection(cfg) {
      first of its group scrolls to it. Focus goes to the heading the reader lands on. */
   let target = null;
   function afterNavigate() {
+    revealCurrent();
     const t0 = target;
     target = null;
     if (!t0) return;
@@ -806,6 +1062,7 @@ function ConceptSection(cfg) {
       }
       case 'concepts-all': toggleAll(el); break;
       case 'toggle-part': togglePart(el); break;
+      case 'rail-tab': switchTab(el); break;
       case 'video-watched': break;              // js/video-player.js saves it
       case 'restart':
       case 'retry-missed':
