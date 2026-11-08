@@ -2,7 +2,7 @@
    One button for who you are, how far you have got and the settings:
    - the centre is an outline person when signed out, your initials on ink when signed in
      (the competition's session, kept by supabase-js in localStorage['game-comp-auth']);
-   - the ring around it is the course progress (ProgressPage.ring);
+   - its border carries the course progress as an arc (same box as the search field and the Claude button);
    - the panel shows the account (and today's competitive attempts), the progress and the
      settings (language, course, theme: their logic stays in js/main.js).
    It never loads supabase-js: it reads the stored session and the last `status` the game cached
@@ -90,10 +90,21 @@ const AccountMenu = (() => {
       <p class="account-sub">${esc(t('{n} of 5 badges', { n: got }))}</p>${links}`;
   }
 
+  /* The button's progress: an arc laid over its 1.5px border (the border is the track), so the
+     button keeps the size and edge of the search box and the Claude button beside it. The 3px arc
+     covers the border (r 20.5 ± 1.5 reaches the 44px edge) and nothing is drawn at 0%. */
+  function edgeRing() {
+    const r = 20.5;
+    const c = 2 * Math.PI * r;
+    return `<svg class="pring" viewBox="0 0 44 44" aria-hidden="true" focusable="false">
+        <circle class="pring-fill" cx="22" cy="22" r="${r}" stroke-width="3" stroke-dasharray="${c}"
+          stroke-dashoffset="${c * (1 - pct / 100)}" transform="rotate(-90 22 22)"${pct > 0 ? '' : ' opacity="0"'}/>
+      </svg>`;
+  }
+
   function drawProgress() {
     const ring = typeof ProgressPage !== 'undefined' ? ProgressPage.ring : null;
-    // Drawn at 40 (the thin-stroke ring) and scaled to the 44px button by CSS.
-    if (ring) btn.querySelector('.account-ring').innerHTML = ring(pct, 40);
+    btn.querySelector('.account-ring').innerHTML = edgeRing();
     prog.innerHTML = `<p class="account-h">${esc(t('Progress'))}</p>
       <a class="account-prog" href="#/progress"${location.hash === '#/progress' ? ' aria-current="page"' : ''}>
         ${ring ? ring(pct, 28) : ''}<span><b>${esc(t('{pct}% of the course', { pct }))}</b><span class="account-link">${esc(t('See your progress'))}</span></span>

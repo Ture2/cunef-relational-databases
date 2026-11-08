@@ -200,16 +200,15 @@ code { font: 500 .9em var(--mono); }
    course progress, in the ring language of #/progress. Its menu holds the account, today's
    competitive attempts, the progress and the settings (language, course, theme). */
 .account { position: relative; flex: none; }
+/* Same box as the search field and the Claude button: 44px, a 1.5px --rule-strong border, 22px corners. */
 .account-btn {
   position: relative; display: grid; place-items: center; width: 44px; height: 44px; padding: 0;
-  border: 0; border-radius: 50%; background: var(--surface); color: var(--ink); cursor: pointer;
+  border: 1.5px solid var(--rule-strong); border-radius: 22px; background: var(--surface); color: var(--ink); cursor: pointer;
 }
-.account-btn:hover, .account-btn[aria-expanded="true"] { background: var(--hover); }
-.account-ring { position: absolute; inset: 0; pointer-events: none; }
+.account-btn:hover, .account-btn[aria-expanded="true"] { border-color: var(--ink); background: var(--hover); }
+/* The ring covers the border box (inset by minus the border), so its arc lies on the border. */
+.account-ring { position: absolute; inset: -1.5px; pointer-events: none; }
 .account-ring .pring { width: 44px; height: 44px; }
-/* The track is the button's edge, as thin as the other buttons' border (3:1 like a control border);
-   the progress arc is drawn heavier over it. */
-.account-ring .pring-track { stroke: var(--rule-strong); stroke-width: 1.4; }
 .account-face {
   position: relative; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
   font-size: .76rem; font-weight: 700; letter-spacing: .02em; line-height: 1;
