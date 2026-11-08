@@ -14,7 +14,7 @@
 
    Screens  attract: the title over the blurred game, a pixel prize ladder, Start the briefing /
             Skip to the game. Then, numbered: game (15 questions, 3 bands, safe rungs, walk away) ·
-            modes (the five modes, Mixed and how it unlocks) · comp (study and competitive: badges, one
+            modes (the five modes, Mixed) · comp (study and competitive: badges, one
             hour, no paste, the diploma by form; only over the select screen) · loop (Read → Query → Lock in) ·
             spot (the screen and controls: a spotlight on each real element, a clip-path hole in
             the blur layer, a caption next to it; only when a run is on screen, not on the mode
@@ -196,13 +196,10 @@ const GameIntro = (() => {
       ${foot(S.screen)}`;
   }
 
-  // A pixel padlock for the locked Mixed mode.
-  const LOCK = '<svg class="gi-pix" viewBox="0 0 16 16" aria-hidden="true" shape-rendering="crispEdges"><path fill-rule="evenodd" d="M5 1h6v2h1v4h2v8H2V7h2V3h1zM6 3v4h4V3zM7 9v3h2V9z"/></svg>';
-
   function modesHtml() {
     const T = tour().modes;
     const items = MODE_KEYS.map((k) => `<li class="gi-mode is-${k}">
-        <span class="gi-kw" aria-hidden="true">${k === 'mixed' ? LOCK : ''}${h(modeKw(k))}</span>
+        <span class="gi-kw" aria-hidden="true">${h(modeKw(k))}</span>
         <div><strong class="gi-opt-n">${h(modeName(k))}</strong><p class="gi-opt-t">${m((T.kinds || {})[k] || '')}</p></div>
       </li>`).join('');
     return `${bar(S.screen, T.title)}

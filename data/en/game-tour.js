@@ -55,7 +55,7 @@
         ddl: 'Build with `CREATE` and `ALTER`: tables, columns, views and indexes.',
         mixed: 'Every rung asks for a different kind of statement.',
       },
-      unlock: '**Mixed** unlocks when you reach rung 5 in all five modes. **Modes** takes you back to the first screen; your run waits for you.',
+      unlock: '**Mixed** is open from the start: it mixes the five modes in one run. **Modes** takes you back to the first screen; your run waits for you.',
     },
     comp: {
       title: 'Study or competitive',

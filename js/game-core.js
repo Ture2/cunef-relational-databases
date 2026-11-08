@@ -35,7 +35,7 @@
    kindOf(statementText)          'SELECT' | 'INSERT' | … | 'CREATE TABLE' | 'ALTER TABLE ADD' | 'DROP TABLE' …
    checkAnswer(sql, mode)         { ok } | { ok: false, reason: 'empty' | 'many' | 'wrong-kind' | 'unsupported' |
                                   'lint', expected?: 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'CREATE', detail? }
-   defaultChecks(q)               the probes that grade q (DML: snapshots of the three tables)
+   defaultChecks(q, db?)          the probes that grade q (DML: a snapshot of every table of db, else the shop's three)
    gradeChecks(got, want)         { ok, reason: null | 'error' | 'probe', probe, detail } on executeChecks results
    diagnose({ …, checks: { got, want, probes } })   adds table {table, got, want} | table-values {table} |
                                   constraint {ora} | probe {index, expectError}
@@ -605,8 +605,34 @@ const GameCore = (() => {
     'SELECT game_id, title, genre, ROUND(price, 2) AS price, ROUND(stock) AS stock, ROUND(rating, 1) AS rating FROM games ORDER BY game_id',
     'SELECT sale_id, customer_id, game_id, sale_date, ROUND(quantity) AS quantity, ROUND(total_paid, 2) AS total_paid FROM sales ORDER BY sale_id',
   ];
-  const snapshotTable = (probe) => { const i = SNAPSHOT.indexOf(probe); return i < 0 ? null : ['customers', 'games', 'sales'][i]; };
-  const defaultChecks = (q) => (q && Array.isArray(q.checks) ? [...q.checks] : ['insert', 'update', 'delete'].includes(modeOf(q)) ? [...SNAPSHOT] : []);
+  const SNAP_TABLE = new Map(SNAPSHOT.map((p, i) => [p, ['customers', 'games', 'sales'][i]]));
+  /* The snapshots of another database (the competitive side draws one of several, docs/game-quiz.md §16):
+     db = { schema: { table: [cols] }, types: { table: ['NUMBER(6,2)', …] } }. Every column of every table, the
+     first (the key) as it is and the other NUMBER(p,s) columns rounded to their scale, ordered by the key. The shop's
+     tables (or no db) keep the probes above, unchanged. */
+  const SHOP_TABLES = 'customers,games,sales';
+  const snapCache = new Map();
+  function snapshotsOf(db) {
+    const sc = db && db.schema;
+    if (!sc || Object.keys(sc).join() === SHOP_TABLES) return SNAPSHOT;
+    const key = JSON.stringify([sc, db.types || null]);
+    if (!snapCache.has(key)) {
+      const out = Object.keys(sc).map((tb) => {
+        const cols = sc[tb].map((c, i) => {
+          const m = /^NUMBER\s*\(\s*\d+\s*(?:,\s*(\d+)\s*)?\)/i.exec(((db.types || {})[tb] || [])[i] || '');
+          if (!i || !m) return c;
+          return m[1] && +m[1] > 0 ? `ROUND(${c}, ${+m[1]}) AS ${c}` : `ROUND(${c}) AS ${c}`;
+        });
+        const probe = `SELECT ${cols.join(', ')} FROM ${tb} ORDER BY ${sc[tb][0]}`;
+        SNAP_TABLE.set(probe, tb);
+        return probe;
+      });
+      snapCache.set(key, out);
+    }
+    return snapCache.get(key);
+  }
+  const snapshotTable = (probe) => SNAP_TABLE.get(probe) || null;
+  const defaultChecks = (q, db) => (q && Array.isArray(q.checks) ? [...q.checks] : ['insert', 'update', 'delete'].includes(modeOf(q)) ? [...snapshotsOf(db)] : []);
 
   /* gradeChecks(got, want): two executeChecks results. Right when neither answer failed, both have the same number of
      probes and every probe is equal: rows by grade(…, ordered = true), errors by ORA code only.
@@ -766,7 +792,7 @@ const GameCore = (() => {
   return {
     LADDER, SAFE, BANDS, band, prize, safePrize, rng, draw, newRun, pass, fail, rescue, walkAway, useLifeline,
     checkQuery, unsafe, oracleCheck, grade, diagnose, nearest,
-    MODES, modeOf, ready, drawMixed, mixedUnlocked, answered, migrateV1, kindOf, checkAnswer, defaultChecks, gradeChecks,
+    MODES, modeOf, ready, drawMixed, mixedUnlocked, answered, migrateV1, kindOf, checkAnswer, defaultChecks, snapshotsOf, gradeChecks,
   };
 })();
 

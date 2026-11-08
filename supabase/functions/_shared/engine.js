@@ -2,7 +2,8 @@
 // the same file runs in the Edge Function (Deno, supabase/functions/_shared/load.js wires it) and in Node
 // (tools/check-comp-server.mjs, tools/comp-build.mjs wire it with tools/node_modules/sql.js and js/*.js).
 //
-//   const E = makeEngine({ SQL, O: OracleDialect, G: GameCore, schema })
+//   const E = makeEngine({ SQL, O: OracleDialect, G: GameCore, schema, types })   one engine per database (§16):
+//                                      schema/types of that database; without them, the shop's three tables
 //   E.build(setup)                     a sql.js database with `setup` run (cached image per setup, per instance)
 //   E.execute(setup, sql)              { cols, rows } | { error: { code?, text }, raw }  (a SELECT answer)
 //   E.executeChecks(setup, sql, probes){ error?, changes, results }                   (a DML / DDL answer)
@@ -17,7 +18,7 @@
 //                                      are prefixed self: (self:no-runs, self:pasted, self:left-tab)
 //
 // q is a server question: { id, mode, level, ordered, checks, solution, keywords, main_only }.
-export const BASE_TABLES = ['customers', 'games', 'sales'];
+export const BASE_TABLES = ['customers', 'games', 'sales'];   // the shop's (the default database)
 
 /* ---- Bounded execution ------------------------------------------------------------------------------
    sql.js cannot interrupt a running statement (no progress handler), so every FROM / JOIN source of every statement
@@ -32,7 +33,9 @@ const STOP = `${TIMEOUT}: user requested cancel of current operation`;
 export const SLOW_TEXT = 'This query takes too long to run here (it reads far more rows than the game needs). Join fewer tables at once, or filter first.';
 const ALIAS_STOP = new Set('WHERE ON USING JOIN INNER LEFT RIGHT FULL CROSS NATURAL OUTER GROUP ORDER HAVING LIMIT UNION EXCEPT INTERSECT WINDOW SET VALUES RETURNING AND OR INDEXED NOT'.split(' '));
 
-export function makeEngine({ SQL, O, G, schema = null }) {
+export function makeEngine({ SQL, O, G, schema = null, types = null }) {
+  const TABLES = schema ? Object.keys(schema) : BASE_TABLES;
+  const DB = schema ? { schema, types } : null;   // GameCore.defaultChecks(q, DB): the snapshots of these tables
   let budget = null;   // { until, ticks } while a run is bounded
   const tick = (_row) => {   // one argument (a rowid): sql.js registers the arity from fn.length
     if (budget) {
@@ -175,7 +178,7 @@ export function makeEngine({ SQL, O, G, schema = null }) {
   const timedOut = (r) => !!r && ((r.error && r.error.code === TIMEOUT) || (Array.isArray(r.results) && r.results.some((x) => x && x.error && x.error.code === TIMEOUT)));
 
   const isSelect = (q) => G.modeOf(q) === 'select';
-  const probesOf = (q) => G.defaultChecks(q);
+  const probesOf = (q) => G.defaultChecks(q, DB);
   const runOn = (q, setup, sql) => (isSelect(q) ? execute(setup, sql) : executeChecks(setup, sql, probesOf(q)));
 
   // Reference results, per question and setup (a warm instance runs each solution once per dataset).
@@ -249,7 +252,7 @@ export function makeEngine({ SQL, O, G, schema = null }) {
   }
 
   /* Key clause: the shape of the answer (counts only, on the main dataset). */
-  const SNAP = BASE_TABLES.map((t, i) => [t, G.defaultChecks({ mode: 'insert' })[i]]);
+  const SNAP = TABLES.map((t, i) => [t, G.defaultChecks({ mode: 'insert' }, DB)[i]]);
   function shape(q, main) {
     const mode = G.modeOf(q);
     if (mode === 'select') {
@@ -286,12 +289,12 @@ export function makeEngine({ SQL, O, G, schema = null }) {
     if (Number(t.paste) > 0) f.push('self:pasted');
     if (Number(t.blur) >= 3) f.push('self:left-tab');
     const code = String(sql || '').replace(/'(?:[^']|'')*'|--[^\n]*|\/\*[\s\S]*?\*\//g, ' ');   // strings and comments aside
-    if (mode !== 'ddl' && !new RegExp(`\\b(${BASE_TABLES.join('|')})\\b`, 'i').test(code)) f.push('no-table');
+    if (mode !== 'ddl' && !new RegExp(`\\b(${TABLES.join('|')})\\b`, 'i').test(code)) f.push('no-table');
     if (/\bIN\s*\(\s*-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?){2,}\s*\)/i.test(code)) f.push('literal-list');
     const kws = Array.isArray(q.keywords) ? q.keywords : [];
     if (kws.length && !kws.some((k) => new RegExp(`\\b${String(k).trim().split(/\s+/).join('\\s+')}\\b`, 'i').test(code))) f.push('no-clause');
     return f;
   }
 
-  return { build, execute, executeChecks, reference, refusal, judge, diagnose, shape, flags, probesOf, arm, timedOut };
+  return { build, execute, executeChecks, reference, refusal, judge, diagnose, shape, flags, probesOf, arm, timedOut, tables: TABLES };
 }

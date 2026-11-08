@@ -77,7 +77,7 @@ const GamePage = (() => {
   let endInfo = null;                 // { best, newBest } for the end screen
   const memo = {};                    // per side and mode: the transient values above, kept while another run is shown
   const refs = new Map();             // question id → Promise of the reference result (select) or checks (DML, DDL)
-  let baseline = null;                // Promise of the setup's snapshot (the Run diff compares against it)
+  let baseline = null;                // { setup, p }: the promise of that setup's snapshot (the Run diff compares against it)
 
   /* The game route: '' (select screen), 'insert', 'comp/insert', 'profesor', or null when the page is not the game. */
   const routeMode = () => { const r = /^#\/game(?:\/((?:comp\/)?[a-z]+))?$/.exec(location.hash); return r ? (r[1] || '') : null; };
@@ -95,6 +95,21 @@ const GamePage = (() => {
   // clause and template once their lifeline is used; never its solution).
   const isComp = () => side === 'comp' || side === 'test';
   const question = (id) => (isComp() ? compQuestion(id) : GAME_BANK.questions.find((q) => q.id === id) || null);
+  /* The database on screen (docs/game-quiz.md §16): the one a competitive attempt drew (GAME_COMP_DBS[att.db],
+     data/game-comp-db-*.js), else the study shop. { key, name, setup, schema, types, join } */
+  const SHOP_DB = { key: 'shop', name: null, join: 'SELECT <columns>\nFROM sales s\nJOIN games g ON g.game_id = s.game_id;' };
+  function curDb() {
+    const key = isComp() && att && att.db ? att.db : 'shop';
+    const d = isComp() && typeof GAME_COMP_DBS !== 'undefined' ? GAME_COMP_DBS[key] : null;
+    return d || { ...SHOP_DB, setup: GAME_BANK.setup, schema: GAME_BANK.schema, types: GAME_BANK.types };
+  }
+  // The database's name for the page: its own name, or the shop's.
+  const dbName = (d = curDb()) => (d.name ? loc([d.name.en, d.name.es]) : t('The shop database'));
+  // A small tag with the database an attempt drew (history and teacher rows).
+  const dbTag = (key) => {
+    const d = typeof GAME_COMP_DBS !== 'undefined' ? GAME_COMP_DBS[key || 'shop'] : null;
+    return `<span class="wr-dtag wr-db-tag" data-db="${esc(key || 'shop')}">${esc(d && d.name ? loc([d.name.en, d.name.es]) : (key || 'shop'))}</span>`;
+  };
   const qMode = (q) => (q && q.mode) || 'select';
   const qText = (id) => (isComp() ? compText(id) : ((GAME_TEXT.questions || {})[id] || {}));
   const currentId = () => (state && state.ids ? state.ids[state.level - 1] : null);
@@ -209,10 +224,6 @@ const GamePage = (() => {
     return ready_[m];
   }
   const reached = () => (data && data.reached) || {};
-  function mixedOpen() {
-    if (typeof GameCore.mixedUnlocked === 'function') return !!GameCore.mixedUnlocked(reached());
-    return PLAY_MODES.every((k) => (Number(reached()[k]) || 0) >= 5);
-  }
 
   /* The v2 store; on the first load the v1 run, best score, draft and pending rescue move to the select mode. */
   function loadData() {
@@ -347,7 +358,7 @@ const GamePage = (() => {
       compOpen('');
       return undefined;
     } else if (r) {
-      if (!MODES.includes(r) || !modeReady(r) || (r === 'mixed' && !mixedOpen())) return back();
+      if (!MODES.includes(r) || !modeReady(r)) return back();
       sd = 'study'; m = r; v = 'run';
     }
     try { enter(sd, m); } catch (e) { showBroken(e); return undefined; }
@@ -366,8 +377,17 @@ const GamePage = (() => {
     try {
       html = view === 'run' ? pageHtml() : view === 'start' ? startHtml() : view === 'teacher' ? teacherHtml() : view === 'history' ? historyHtml() : view === 'wait' ? waitHtml() : selectHtml();
     } catch (e) { showBroken(e); return; }
+    // A text field being typed in (the teacher's search) keeps the focus and the caret when the server's answer
+    // redraws the page meanwhile.
+    const ae = document.activeElement;
+    const keep = ae && ae.id && /^(INPUT|TEXTAREA)$/.test(ae.tagName) && ae.closest('#view') && ae.id !== 'wr-sql'
+      ? { id: ae.id, start: ae.selectionStart, end: ae.selectionEnd } : null;
     $('#view').innerHTML = html;
     flash = null;
+    if (keep) {
+      const el = document.getElementById(keep.id);
+      if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(keep.start, keep.end); } catch (e) { /* type without a caret */ } }
+    }
     if (view === 'run') { bindEditor(); afterChange(); if (isComp()) startClock(); }
     if (view === 'start') { const b = document.querySelector('#view [data-fid="game-comp-start"]'); if (b) b.focus({ preventScroll: true }); }
     if (document.getElementById('wr-captcha')) guard(mountCaptcha);
@@ -494,8 +514,6 @@ const GamePage = (() => {
 
   /* ---- The select screen ("choose your stage") -------------------------------------------- */
 
-  const LOCK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" d="M5 1h6v2h1v4h2v8H2V7h2V3h1zM6 3v4h4V3zM7 9v3h2V9z"/></svg>';
-  const TICK = '<svg viewBox="0 0 9 8" aria-hidden="true"><path d="M0 3h2v1h1v1h1V4h1V3h1V2h1V1h1V0h1v3H8v1H7v1H6v1H5v1H4v1H3V7H2V6H1V5H0z"/></svg>';
 
   function tileHtml(m) {
     const run = data.runs[m];
@@ -509,18 +527,11 @@ const GamePage = (() => {
           <span class="wr-tile-go">${esc(loc(['Coming soon', 'Muy pronto']))}</span></div></li>`;
     }
     if (m === 'mixed') {
-      const open = mixedOpen();
-      const ticks = PLAY_MODES.map((k) => {
-        const ok = (Number(reached()[k]) || 0) >= 5;
-        return `<li class="${ok ? 'is-on' : ''}"><span class="wr-box" aria-hidden="true">${ok ? TICK : ''}</span>${esc(modeKw(k))}<span class="sr-only">: ${esc(ok ? t('rung 5 reached') : t('rung 5 not reached yet'))}</span></li>`;
-      }).join('');
-      const body = `<span class="wr-tile-kw">${open ? '' : LOCK}${esc(modeKw(m))}</span>
+      // Mixed is open from the start (it no longer waits for rung 5 in every mode).
+      return `<li class="wr-tile-li is-boss"><a class="wr-tile is-mixed${live ? ' is-live' : ''}" href="#/game/mixed" data-fid="game-mode-mixed">
+          <span class="wr-tile-kw">${esc(modeKw(m))}</span>
           <span class="wr-tile-name">${esc(modeName(m))}</span>
-          ${open ? `<span class="wr-tile-go">${esc(go)}</span>${bestLine}` : `<span class="wr-tile-need">${esc(t('Reach rung 5 in every mode'))}</span>`}
-          <ul class="wr-ticks" aria-label="${esc(t('Rung 5 in each mode'))}">${ticks}</ul>`;
-      return open
-        ? `<li class="wr-tile-li is-boss"><a class="wr-tile is-mixed" href="#/game/mixed" data-fid="game-mode-mixed">${body}</a></li>`
-        : `<li class="wr-tile-li is-boss"><div class="wr-tile is-mixed is-locked" data-fid="game-mode-mixed" aria-disabled="true">${body}</div></li>`;
+          <span class="wr-tile-go">${esc(go)}</span>${bestLine}</a></li>`;
     }
     return `<li class="wr-tile-li"><a class="wr-tile is-${m}${live ? ' is-live' : ''}" href="#/game/${m}" data-fid="game-mode-${m}">
         <span class="wr-tile-kw">${esc(modeKw(m))}</span>
@@ -557,7 +568,7 @@ const GamePage = (() => {
         <section class="wr-question" id="wr-question" aria-labelledby="wr-q-h">${questionHtml()}</section>
         ${consoleHtml()}
       </div>
-      <section class="wr-schema" id="wr-schema" aria-label="${esc(t('The shop database'))}">${schemaHtml()}</section>`;
+      <section class="wr-schema" id="wr-schema" aria-label="${esc(dbName())}" data-db="${esc(curDb().key)}">${isComp() ? `<p class="wr-db-name">${esc(t('Database: {name}', { name: dbName() }))}</p>` : ''}${schemaHtml()}</section>`;
   }
 
   /* The hero: the rung and its prize, the band, the question. */
@@ -690,9 +701,10 @@ const GamePage = (() => {
   /* Runs SQL on a fresh copy of the shop; a query Oracle would reject for its GROUP BY (SQLite accepts it)
      comes back as that ORA error, so Run, Lock in and Review agree with Oracle. */
   async function runSql(sql) {
-    const res = await SqlRunner.execute(GAME_BANK.setup, sql);
+    const d = curDb();
+    const res = await SqlRunner.execute(d.setup, sql);
     if (res && !res.error) {
-      const ora = GameCore.oracleCheck(sql);
+      const ora = GameCore.oracleCheck(sql, d.schema);
       if (ora) return { error: { code: ora.code, text: ora.text, column: ora.column || null }, raw: null };
     }
     return res;
@@ -701,17 +713,19 @@ const GamePage = (() => {
   /* ---- Console --------------------------------------------------------------------------- */
 
   // Ready SQL for the console; the SQL stays in English (the schema is English in both languages).
-  const SNIPPETS = [
-    { v: 'customers', label: () => 'customers', code: true, sql: () => 'SELECT *\nFROM customers\nFETCH FIRST 5 ROWS ONLY;' },
-    { v: 'games', label: () => 'games', code: true, sql: () => 'SELECT *\nFROM games\nFETCH FIRST 5 ROWS ONLY;' },
-    { v: 'sales', label: () => 'sales', code: true, sql: () => 'SELECT *\nFROM sales\nFETCH FIRST 5 ROWS ONLY;' },
-    { v: 'count', label: () => t('Count rows'), sql: () => 'SELECT COUNT(*)\nFROM <table>;' },
-    { v: 'join', label: () => t('Join two tables'), sql: () => 'SELECT <columns>\nFROM sales s\nJOIN games g ON g.game_id = s.game_id;' },
-  ];
+  // One chip per table of the database on screen, then Count rows and Join two tables.
+  function snippets() {
+    const d = curDb();
+    return [
+      ...Object.keys(d.schema).map((tb) => ({ v: tb, label: () => tb, code: true, sql: () => `SELECT *\nFROM ${tb}\nFETCH FIRST 5 ROWS ONLY;` })),
+      { v: 'count', label: () => t('Count rows'), sql: () => 'SELECT COUNT(*)\nFROM <table>;' },
+      { v: 'join', label: () => t('Join two tables'), sql: () => d.join || SHOP_DB.join },
+    ];
+  }
 
   function snippetsHtml() {
     return `<div class="wr-snips" role="group" aria-label="${esc(t('Quick queries'))}">
-        ${SNIPPETS.map((s) => `<button type="button" class="wr-chip${s.code ? ' is-table' : ''}" data-action="game-snippet" data-snip="${s.v}" data-value="${s.v}" data-fid="game-snippet-${s.v}">${esc(s.label())}</button>`).join('')}
+        ${snippets().map((s) => `<button type="button" class="wr-chip${s.code ? ' is-table' : ''}" data-action="game-snippet" data-snip="${s.v}" data-value="${s.v}" data-fid="game-snippet-${s.v}">${esc(s.label())}</button>`).join('')}
       </div>`;
   }
 
@@ -737,20 +751,21 @@ const GamePage = (() => {
 
   /* The three tables: every name is a button that types itself into the console at the cursor. */
   function schemaHtml() {
-    const tables = Object.keys(GAME_BANK.schema);
-    const pk = Object.fromEntries(tables.map((n) => [n, GAME_BANK.schema[n][0]]));
+    const d = curDb();
+    const tables = Object.keys(d.schema);
+    const pk = Object.fromEntries(tables.map((n) => [n, d.schema[n][0]]));
     const fkOf = (n, c) => tables.find((o) => o !== n && pk[o] === c);
     const block = (n) => `<li class="wr-tbl">
         <button type="button" class="wr-tbl-h" data-action="game-name" data-name="${esc(n)}" data-fid="game-name-${esc(n)}" title="${esc(t('Insert {name}', { name: n }))}"><code>${esc(n)}</code></button>
-        <ul class="wr-cols">${GAME_BANK.schema[n].map((c, i) => {
+        <ul class="wr-cols">${d.schema[n].map((c, i) => {
           const fk = fkOf(n, c);
-          const type = ((GAME_BANK.types || {})[n] || [])[i] || '';
+          const type = ((d.types || {})[n] || [])[i] || '';
           const key = c === pk[n] ? `<abbr class="wr-key is-pk" title="${esc(t('primary key'))}">PK</abbr>`
             : fk ? `<abbr class="wr-key is-fk" title="${esc(t('foreign key to {table}', { table: fk }))}">FK</abbr>` : '';
           return `<li><button type="button" class="wr-col" data-action="game-name" data-name="${esc(c)}" data-fid="game-name-${esc(n)}-${esc(c)}" title="${esc(`${c} ${type}`)}"><code>${esc(c)}</code>${key}<span class="sr-only"> ${esc(type)}</span></button></li>`;
         }).join('')}</ul>
       </li>`;
-    return `<ul class="wr-tables">${tables.map(block).join('')}</ul>`;
+    return `<ul class="wr-tables${tables.length === 3 ? '' : ` is-n${tables.length}`}">${tables.map(block).join('')}</ul>`;
   }
 
   /* Types a table or column name into the console at the cursor (at the end if the console was not used yet). */
@@ -1174,8 +1189,8 @@ const GamePage = (() => {
 
   /* ---- Run: DML diff and DDL view (§13.5) -------------------------------------------------------- */
 
-  const TABLES = () => Object.keys(GAME_BANK.schema);
-  const snapSql = (tb) => `SELECT * FROM ${tb} ORDER BY ${GAME_BANK.schema[tb][0]}`;
+  const TABLES = () => Object.keys(curDb().schema);
+  const snapSql = (tb) => `SELECT * FROM ${tb} ORDER BY ${curDb().schema[tb][0]}`;
 
   /* The verbs of the statements in a text, upper case (comments and strings ignored). */
   function verbsOf(sql) {
@@ -1191,11 +1206,13 @@ const GamePage = (() => {
 
   /* The three tables as the setup leaves them (one snapshot, kept). */
   function baseSnap() {
-    if (!baseline) {
-      baseline = Promise.all(TABLES().map((tb) => SqlRunner.execute(GAME_BANK.setup, snapSql(tb))));
-      baseline.catch(() => { baseline = null; });
+    const setup = curDb().setup;
+    if (!baseline || baseline.setup !== setup) {
+      const p = Promise.all(TABLES().map((tb) => SqlRunner.execute(setup, snapSql(tb))));
+      baseline = { setup, p };
+      p.catch(() => { if (baseline && baseline.p === p) baseline = null; });
     }
-    return baseline;
+    return baseline.p;
   }
 
   const cellText = (v) => (v === null || v === undefined ? 'NULL' : String(v));
@@ -1244,7 +1261,7 @@ const GamePage = (() => {
 
   /* A DML Run: the text runs on a fresh copy, then each table is compared with the setup. */
   async function runDml(sql, verbs) {
-    const [before, ...after] = await Promise.all([baseSnap(), ...TABLES().map((tb) => SqlRunner.execute(GAME_BANK.setup, sql, snapSql(tb)))]);
+    const [before, ...after] = await Promise.all([baseSnap(), ...TABLES().map((tb) => SqlRunner.execute(curDb().setup, sql, snapSql(tb)))]);
     const err = after.find((r) => r.error);
     if (err) return { res: err, html: resultHtml(err, sql) };
     const parts = TABLES().map((tb, i) => diffTable(tb, before[i], after[i]));
@@ -1272,9 +1289,9 @@ const GamePage = (() => {
       ...views.map((n) => ({ n, kind: 'view', sql: `SELECT * FROM ${n} FETCH FIRST 5 ROWS ONLY` })),
       ...indexes.map((n) => ({ n, kind: 'index', sql: `SELECT index_name, table_name FROM user_indexes WHERE index_name = '${n}'` })),
     ];
-    const first = await SqlRunner.execute(GAME_BANK.setup, sql);
+    const first = await SqlRunner.execute(curDb().setup, sql);
     if (first.error) return { res: first, html: resultHtml(first, sql) };
-    const got = await Promise.all(probes.map((p) => SqlRunner.execute(GAME_BANK.setup, sql, p.sql)));
+    const got = await Promise.all(probes.map((p) => SqlRunner.execute(curDb().setup, sql, p.sql)));
     const label = { table: 'columns', view: 'first rows', index: 'index' };
     const html = probes.map((p, i) => {
       const r = got[i];
@@ -1672,7 +1689,7 @@ const GamePage = (() => {
   }
 
   function insertSnippet(v) {
-    const s = SNIPPETS.find((x) => x.v === v);
+    const s = snippets().find((x) => x.v === v);
     if (!s) return;
     const sql = s.sql();
     putSql(sql, sql.includes('<')
@@ -2120,7 +2137,7 @@ const GamePage = (() => {
       const mins = minutesOf(a.started_at, a.finished_at);
       return `<li class="wr-trow"><div class="wr-trow-main">
           <span class="wr-tr-date">${esc(fmtDate(a.started_at))}</span>
-          ${kindChip(a.mode)}
+          ${kindChip(a.mode)}${dbTag(a.db)}
           <span class="wr-tr-res is-${esc(a.status)}">${a.badge ? medal(a.mode, 'earned') : ''}${esc(statusText(a.status))}</span>
           <span class="wr-tr-num">${esc(t('Rung {n}', { n: a.rung }))}</span>
           <span class="wr-tr-num">${esc(money(a.prize))}</span>
@@ -2217,6 +2234,7 @@ const GamePage = (() => {
       t('You have {n} minutes from the moment you start.', { n: minutes() }),
       t('Paste is off: type your SQL.'),
       t('The three lifelines work once each, as in study.'),
+      t('The database is drawn at random: one of five.'),
       t('Reach the million for the badge. No solutions are shown at the end.'),
     ];
     const can = side === 'test' || left > 0;
@@ -2762,7 +2780,7 @@ const GamePage = (() => {
     return `<li class="wr-trow${open ? ' is-open' : ''}${a.test ? ' is-test' : ''}">
         <div class="wr-trow-main">
           <span class="wr-tr-date">${esc(fmtDate(a.started_at))}</span>
-          ${kindChip(a.mode)}
+          ${kindChip(a.mode)}${dbTag(a.db)}
           ${a.test ? '<span class="wr-stamp is-test is-small">TEST</span>' : ''}
           <span class="wr-tr-res is-${esc(a.status)}">${a.badge ? medal(a.mode, 'earned') : ''}${esc(statusText(a.status))}</span>
           <span class="wr-tr-num">${esc(t('Rung {n}', { n: a.rung }))}</span>
@@ -2805,7 +2823,7 @@ const GamePage = (() => {
       </li>`).join('');
     const mins = minutesOf(a.started_at, a.finished_at);
     return `<section class="wr-tdetail" aria-labelledby="wr-td-h">
-        <p class="wr-tdetail-m" id="wr-td-h" tabindex="-1">${esc(fmtDate(a.started_at))} → ${esc(a.finished_at ? fmtDate(a.finished_at) : '—')} · ${esc(mins === null ? '—' : t('{n} min', { n: mins }))}</p>
+        <p class="wr-tdetail-m" id="wr-td-h" tabindex="-1">${esc(fmtDate(a.started_at))} → ${esc(a.finished_at ? fmtDate(a.finished_at) : '—')} · ${esc(mins === null ? '—' : t('{n} min', { n: mins }))} · ${esc(t('Database: {name}', { name: dbName((typeof GAME_COMP_DBS !== 'undefined' && GAME_COMP_DBS[a.db || 'shop']) || { name: null }) }))}</p>
         <ol class="wr-vlist">${items}</ol>
       </section>`;
   }

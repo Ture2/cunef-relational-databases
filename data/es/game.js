@@ -48,9 +48,9 @@
       update: { name: 'Modificar', keyword: 'UPDATE', blurb: 'Cambia precios, stock y niveles con SET y WHERE.', welcome: 'Esta noche cambias filas. ¡Ojo con el WHERE!' },
       delete: { name: 'Borrar', keyword: 'DELETE', blurb: 'Borra justo las filas correctas, si las claves ajenas lo permiten.', welcome: 'Esta noche borras filas. ¡Cuidado, aquí no hay vuelta atrás!' },
       ddl: { name: 'Estructura', keyword: 'CREATE', blurb: 'Crea tablas, columnas, vistas e índices.', welcome: 'Esta noche construyes tablas, vistas e índices.' },
-      mixed: { name: 'Mixto', keyword: 'MIX', blurb: 'Los cinco tipos juntos. Se abre con el peldaño 5 en todas.', welcome: 'Fase mixta: todo tipo de SQL en una sola partida.' },
+      mixed: { name: 'Mixto', keyword: 'MIX', blurb: 'Los cinco tipos juntos, abierto desde el principio.', welcome: 'Fase mixta: todo tipo de SQL en una sola partida.' },
     },
-    stage: { title: 'Elige tu fase', locked: 'Llega al peldaño 5 en todas las fases para desbloquearla.' },
+    stage: { title: 'Elige tu fase' },
 
     lifelines: {
       clause: { name: 'Cláusula clave', blurb: 'SQL-Bot te dice qué cláusula necesita la respuesta y la forma del resultado.' },

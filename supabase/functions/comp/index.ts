@@ -53,15 +53,32 @@ async function bank() {
   if (cache && cache.sig === sig) return cache;
   const meta = must(await db.from('comp_meta').select('key, value'), 'comp_meta');
   const M: any = Object.fromEntries(meta.map((r: any) => [r.key, r.value]));
-  if (!M.main_setup) fail('server', 'The competition bank is not uploaded yet.');
-  if (!M.hidden_setup) console.error('comp_meta.hidden_setup is missing: only main_only questions can be graded');
+  // The databases (§16): comp_meta.dbs = { <db>: { main_setup, hidden_setup, schema, types } }; a bank uploaded before
+  // §16 has only the shop's main_setup, hidden_setup and schema.
+  const specs: any = M.dbs && typeof M.dbs === 'object' ? { ...M.dbs } : {};
+  if (!specs.shop && M.main_setup) specs.shop = { main_setup: M.main_setup, hidden_setup: M.hidden_setup || null, schema: M.schema || null, types: null };
+  const dbs: any = {};
+  for (const [key, d] of Object.entries<any>(specs)) {
+    if (!d || !d.main_setup) continue;
+    if (!d.hidden_setup) console.error(`comp_meta.dbs.${key}.hidden_setup is missing: only its main_only questions can be graded`);
+    dbs[key] = { key, main: d.main_setup, hidden: d.hidden_setup || null, schema: d.schema || null, E: await loadEngine(d.schema || null, d.types || null) };
+  }
+  if (!Object.keys(dbs).length) fail('server', 'The competition bank is not uploaded yet.');
   const rows = must(await db.from('comp_questions').select('*'), 'comp_questions');
-  const Q = new Map(rows.map((r: any) => [r.id, r]));
-  const E = await loadEngine(M.schema || null);
-  cache = { sig, version: M.version || null, Q, main: M.main_setup, hidden: M.hidden_setup || null, E };
+  const Q = new Map(rows.map((r: any) => [r.id, { ...r, db: r.db || 'shop' }]));
+  cache = { sig, version: M.version || null, Q, dbs };
   return cache;
 }
 const question = (B: any, id: string) => B.Q.get(id) || fail('server', `question ${id} is missing from the bank`);
+/* The database of a question or an attempt: { key, main, hidden, schema, E }. */
+const dbOf = (B: any, key: string | null | undefined) => B.dbs[key || 'shop'] || fail('server', `database ${key} is missing from the bank`);
+/* The databases a new attempt of `mode` can draw: every one with a question of that mode at each of the 15 rungs. */
+function drawableDbs(B: any, mode: string) {
+  return Object.keys(B.dbs).filter((k) => {
+    const levels = new Set([...B.Q.values()].filter((q: any) => q.db === k && q.mode === mode).map((q: any) => q.level));
+    return levels.size === 15;
+  });
+}
 
 /* ---- Game state <-> rows ------------------------------------------------------------------------ */
 
@@ -106,11 +123,12 @@ function view(a: any, answers: any[], B: any) {
   if (qid) {
     const q = question(B, qid);
     qv = { id: q.id, mode: q.mode, level: q.level, prompt: { en: q.prompt_en, es: q.prompt_es }, ordered: !!q.ordered };
-    if (a.used.clause && a.shown.clause === qid) qv.clause = { text: { en: q.clause_en, es: q.clause_es }, shape: B.E.shape(q, B.main) };
+    const D = dbOf(B, q.db);
+    if (a.used.clause && a.shown.clause === qid) qv.clause = { text: { en: q.clause_en, es: q.clause_es }, shape: D.E.shape(q, D.main) };
     if (a.used.template && a.shown.template === qid) qv.template = { sql: q.template, note: { en: q.template_note_en, es: q.template_note_es } };
   }
   return {
-    id: a.id, mode: a.mode, level: a.level, status: a.status, prize: a.prize, used: a.used, deadline: a.deadline,
+    id: a.id, mode: a.mode, db: a.db || 'shop', level: a.level, status: a.status, prize: a.prize, used: a.used, deadline: a.deadline,
     startedAt: a.started_at, finishedAt: a.finished_at, test: a.test, question: qv,
     answered: answers.filter((x) => x.answered_at).map((x) => ({ level: x.level, ok: !!x.ok })),
   };
@@ -173,9 +191,17 @@ async function opStart(me: any, body: any) {
   // Stale attempts of this mode end first, so they do not block the new one.
   const act = must(await db.from('attempts').select('*').eq('user_id', me.user_id).eq('mode', mode).in('status', ['playing', 'pending']), 'attempts');
   await Promise.all(act.map(expireIfDue));
+  // The database, uniformly among those with a full ladder of this mode (§16); a teacher's test may ask for one.
+  const pool = drawableDbs(B, mode);
+  if (!pool.length) fail('server', 'The competition bank has no full ladder for this mode yet.');
+  let dbKey = pool[crypto.getRandomValues(new Uint32Array(1))[0] % pool.length];
+  if (test && body.db !== undefined) {
+    if (!pool.includes(body.db)) fail('bad-request', `db must be one of ${pool.join(', ')}.`);
+    dbKey = body.db;
+  }
   const seed = crypto.getRandomValues(new Uint32Array(1))[0];
-  const ids = G().draw({ questions: [...B.Q.values()].map((q: any) => ({ id: q.id, mode: q.mode, level: q.level })) }, seed, mode);
-  const r = must(await db.rpc('comp_start', { p_user: me.user_id, p_mode: mode, p_ids: ids, p_test: test, p_minutes: LIMIT_MINUTES, p_daily: DAILY }), 'comp_start');
+  const ids = G().draw({ questions: [...B.Q.values()].filter((q: any) => q.db === dbKey).map((q: any) => ({ id: q.id, mode: q.mode, level: q.level })) }, seed, mode);
+  const r = must(await db.rpc('comp_start', { p_user: me.user_id, p_mode: mode, p_ids: ids, p_test: test, p_minutes: LIMIT_MINUTES, p_daily: DAILY, p_db: dbKey }), 'comp_start');
   if (r.error === 'limit') fail('limit', `You have used today's ${DAILY} attempts for this mode. Come back tomorrow.`);
   if (r.error === 'state') fail('state', 'An attempt of this mode is already running: continue it.');
   const a = await loadAttempt(r.id, me);
@@ -203,17 +229,18 @@ async function opSubmit(me: any, body: any) {
   if (sql.length > MAX_SQL) fail('bad-request', `The answer is longer than ${MAX_SQL} characters.`);
   let a = await liveAttempt(me, body, ['playing']);
   const q = question(B, a.ids[a.level - 1]);
+  const D = dbOf(B, q.db);
   // Fail closed: a question that is not main_only is never graded without the hidden dataset (nothing is spent).
-  if (!q.main_only && !B.hidden) { console.error(`submit ${q.id}: no hidden dataset`); fail('server', 'The competition bank is incomplete: try again later.'); }
+  if (!q.main_only && !D.hidden) { console.error(`submit ${q.id}: no hidden dataset for ${D.key}`); fail('server', 'The competition bank is incomplete: try again later.'); }
   await claimSql(me);
   const now = new Date();
-  const j = B.E.judge(q, sql, { main: B.main, hidden: B.hidden });
+  const j = D.E.judge(q, sql, { main: D.main, hidden: D.hidden });
   if (j.refusal) return { verdict: 'refused', refusal: j.refusal, attempt: await viewOf(a, B) };
   const row = await openRow(a);
   const ms = now.getTime() - Date.parse(row.shown_at);
   const t = body.tele && typeof body.tele === 'object' ? body.tele : {};
   const tele = { ms: Number(t.ms) || 0, runs: Number(t.runs) || 0, paste: Number(t.paste) || 0, blur: Number(t.blur) || 0, serverMs: ms };
-  const flags = B.E.flags(q, sql, tele, ms);
+  const flags = D.E.flags(q, sql, tele, ms);
   // Server-measured: the third answer in a row given under a minute after its question was shown.
   const prev = must(await db.from('answers').select('tele').eq('attempt_id', a.id).not('answered_at', 'is', null).order('id', { ascending: false }).limit(2), 'answers');
   if (ms < 60000 && prev.length === 2 && prev.every((x: any) => x.tele && Number(x.tele.serverMs) < 60000)) flags.push('streak');
@@ -249,8 +276,9 @@ async function opRescue(me: any, body: any) {
     const s = G().rescue(stateOf(a), last ? last.sql : '');
     a = await save(a, { status: 'playing', used: s.used });
     await openQuestion(a);   // the retry on the same rung gets its own row and clock
-    const out: any = { attempt: await viewOf(a, B), diag: last && last.sql ? (B.E.diagnose(q, last.sql, B.main) || []) : [] };
-    if (q.mode !== 'select') out.checks = B.E.probesOf(q);
+    const D = dbOf(B, q.db);
+    const out: any = { attempt: await viewOf(a, B), diag: last && last.sql ? (D.E.diagnose(q, last.sql, D.main) || []) : [] };
+    if (q.mode !== 'select') out.checks = D.E.probesOf(q);
     return out;
   }
   if (body.use !== false) fail('bad-request', 'use must be true or false.');
@@ -266,23 +294,24 @@ async function opLifeline(me: any, body: any) {
   let a = await liveAttempt(me, body, ['playing']);
   if (a.used[name]) fail('state', `${name} is already used in this attempt.`);
   const q = question(B, a.ids[a.level - 1]);
+  const D = dbOf(B, q.db);
   if (name === 'review') {
     const sql = typeof body.sql === 'string' ? body.sql : '';
     if (!sql.trim()) return { attempt: await viewOf(a, B), diag: null };   // nothing to review: not spent
     if (sql.length > MAX_SQL) fail('bad-request', `The query is longer than ${MAX_SQL} characters.`);
     await claimSql(me);
-    const diag = B.E.diagnose(q, sql, B.main);
+    const diag = D.E.diagnose(q, sql, D.main);
     // Too heavy to run (refused statically or stopped by the limits): Review is not spent.
     if (diag === null) return { attempt: await viewOf(a, B), diag: null, refusal: { reason: 'unsupported', detail: 'This query is too heavy to run here: join fewer tables at once.' } };
     const s = G().useLifeline(stateOf(a), 'review');
     a = await save(a, { used: s.used });
     const out: any = { attempt: await viewOf(a, B), diag };
-    if (q.mode !== 'select') out.checks = B.E.probesOf(q);
+    if (q.mode !== 'select') out.checks = D.E.probesOf(q);
     return out;
   }
   const s = G().useLifeline(stateOf(a), name);
   a = await save(a, { used: s.used, shown: s.shown });
-  if (name === 'clause') return { attempt: await viewOf(a, B), text: { en: q.clause_en, es: q.clause_es }, shape: B.E.shape(q, B.main) };
+  if (name === 'clause') return { attempt: await viewOf(a, B), text: { en: q.clause_en, es: q.clause_es }, shape: D.E.shape(q, D.main) };
   return { attempt: await viewOf(a, B), sql: q.template, note: { en: q.template_note_en, es: q.template_note_es } };
 }
 
@@ -299,7 +328,7 @@ const rungOf = (a: any) => (a.status === 'won' ? 15 : Math.max(0, a.level - 1));
 /* My attempts (the student's own record, #/game/historial): per mode the count, the last start, the best rung and the
    badge; then every real attempt, newest first, with its answer counts. Counts only: no SQL, no questions. */
 async function opMyStats(me: any) {
-  let atts = await fetchAll('attempts', () => db.from('attempts').select('id, mode, status, level, prize, used, test, started_at, deadline, finished_at, rev')
+  let atts = await fetchAll('attempts', () => db.from('attempts').select('id, mode, db, status, level, prize, used, test, started_at, deadline, finished_at, rev')
     .eq('user_id', me.user_id).eq('test', false).order('started_at').order('id'));
   atts = await Promise.all(atts.map(expireIfDue));
   const badges = must(await db.from('badges').select('mode, earned_at, attempt_id').eq('user_id', me.user_id), 'badges');
@@ -326,7 +355,7 @@ async function opMyStats(me: any) {
   const attempts = atts.slice().reverse().map((a: any) => {
     const c = counts.get(a.id) || { answered: 0, right: 0 };
     return {
-      id: a.id, mode: a.mode, status: a.status, rung: rungOf(a), prize: a.prize, badge: badgeOf.has(a.id),
+      id: a.id, mode: a.mode, db: a.db || 'shop', status: a.status, rung: rungOf(a), prize: a.prize, badge: badgeOf.has(a.id),
       answered: c.answered, right: c.right, used: a.used, started_at: a.started_at, finished_at: a.finished_at,
     };
   });
@@ -349,7 +378,7 @@ async function fetchAll(label: string, build: () => any, page = 1000) {
 /* Everything the teacher's views and exports need: profiles, attempts (real and test), badges, answers. */
 async function teacherData(answerCols: string) {
   const profiles = await fetchAll('profiles', () => db.from('profiles').select('user_id, email, name, role, created_at').order('email').order('user_id'));
-  const atts = await fetchAll('attempts', () => db.from('attempts').select('id, user_id, mode, status, level, prize, used, test, started_at, deadline, finished_at').order('started_at').order('id'));
+  const atts = await fetchAll('attempts', () => db.from('attempts').select('id, user_id, mode, db, status, level, prize, used, test, started_at, deadline, finished_at').order('started_at').order('id'));
   const badges = await fetchAll('badges', () => db.from('badges').select('user_id, mode, earned_at, attempt_id').order('user_id').order('mode'));
   const answers = await fetchAll('answers', () => db.from('answers').select(answerCols).order('id'));
   return { profiles, atts, badges, answers };
@@ -385,7 +414,7 @@ async function opTList() {
     const p: any = byUser.get(a.user_id) || {};
     const c = counts.get(a.id) || { answered: 0, right: 0 };
     return {
-      id: a.id, user_id: a.user_id, email: p.email, name: p.name, role: p.role, mode: a.mode, status: a.status, test: a.test,
+      id: a.id, user_id: a.user_id, email: p.email, name: p.name, role: p.role, mode: a.mode, db: a.db || 'shop', status: a.status, test: a.test,
       rung: rungOf(a), prize: a.prize, badge: badgeOf.has(a.id), answered: c.answered, right: c.right, used: a.used,
       started_at: a.started_at, deadline: a.deadline, finished_at: a.finished_at,
     };
@@ -410,7 +439,7 @@ async function opTAttempt(body: any) {
     };
   });
   return {
-    attempt: { id: a.id, user_id: a.user_id, email: p.email, name: p.name, mode: a.mode, status: a.status, level: a.level, prize: a.prize, used: a.used, test: a.test, started_at: a.started_at, deadline: a.deadline, finished_at: a.finished_at },
+    attempt: { id: a.id, user_id: a.user_id, email: p.email, name: p.name, mode: a.mode, db: a.db || 'shop', status: a.status, level: a.level, prize: a.prize, used: a.used, test: a.test, started_at: a.started_at, deadline: a.deadline, finished_at: a.finished_at },
     version: B.version,
     questions,
   };
@@ -451,11 +480,11 @@ async function opTCsv(body: any = {}) {
     const badgeOf = new Set(badges.map((b: any) => b.attempt_id));
     const byAttempt = new Map<string, any[]>();
     for (const x of answers) { if (!byAttempt.has(x.attempt_id)) byAttempt.set(x.attempt_id, []); byAttempt.get(x.attempt_id)!.push(x); }
-    const rows: any[][] = [['role', 'email', 'name', 'attempt_id', 'mode', 'test', 'status', 'rung', 'prize', 'badge', 'started_at', 'deadline', 'finished_at', 'minutes',
+    const rows: any[][] = [['role', 'email', 'name', 'attempt_id', 'mode', 'db', 'test', 'status', 'rung', 'prize', 'badge', 'started_at', 'deadline', 'finished_at', 'minutes',
       'used_clause', 'used_template', 'used_review', 'level', 'question_id', 'ok', 'reason', 'shown_at', 'answered_at', 'seconds', 'runs', 'flags', 'bank_version', 'sql']];
     for (const a of atts) {
       const p: any = byUser.get(a.user_id) || {};
-      const head = [p.role, p.email, p.name, a.id, a.mode, a.test ? 'yes' : 'no', a.status, rungOf(a), a.prize, badgeOf.has(a.id) ? 'yes' : 'no',
+      const head = [p.role, p.email, p.name, a.id, a.mode, a.db || 'shop', a.test ? 'yes' : 'no', a.status, rungOf(a), a.prize, badgeOf.has(a.id) ? 'yes' : 'no',
         a.started_at, a.deadline, a.finished_at, minutesBetween(a.started_at, a.finished_at),
         a.used && a.used.clause ? 'yes' : 'no', a.used && a.used.template ? 'yes' : 'no', a.used && a.used.review ? 'yes' : 'no'];
       const list = byAttempt.get(a.id) || [];

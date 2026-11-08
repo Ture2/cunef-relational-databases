@@ -20,7 +20,7 @@
 // upload, teacher role, anon key): supabase/README-deploy.md.
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { engine, readTexts, readPrivate, rowOf, MODES } from './comp-build.mjs';
+import { engine, readTexts, readPrivate, rowOf, MODES, bankDbs } from './comp-build.mjs';
 import { compare as compareCopies } from './supabase-sync.mjs';
 import { localStack, upload } from './comp-upload.mjs';
 
@@ -41,6 +41,15 @@ const { G, E, MAIN, HIDDEN } = X;
 const texts = readTexts();
 const Q = new Map();
 MODES.forEach((m) => (readPrivate(m) || []).forEach((p) => Q.set(p.id, rowOf(m, p, texts))));
+// Every database's questions and engine (§16): an attempt on the server may draw any of them.
+const ENG = { shop: X };
+const QALL = new Map(Q);
+for (const db of bankDbs().filter((d) => d !== 'shop')) {
+  ENG[db] = await engine(db);
+  const tx = readTexts(MODES, db);
+  MODES.forEach((m) => (readPrivate(m, db) || []).forEach((p) => QALL.set(p.id, rowOf(m, p, tx, db))));
+}
+const engOf = (q) => ENG[(q && q.db) || 'shop'];
 
 /* ---- 1. Copies --------------------------------------------------------------------------------- */
 section('Synced engine copies');
@@ -66,6 +75,44 @@ for (const q of Q.values()) {
   q.hidden_traps.forEach((t, i) => { nHidden++; const j = judge(q, t); expect(j.main && j.main.ok && !j.ok, `[${q.id}] hidden trap ${i + 1}: right on the public data, wrong on the hidden data`); });
 }
 console.log(`${nTraps} traps, ${nAlts} alts, ${nHidden} hidden traps graded`);
+
+/* ---- 2b. The other databases (§16) ---------------------------------------------------------------- */
+section('Other databases: their public definition and their bank on both datasets');
+for (const db of bankDbs().filter((d) => d !== 'shop')) {
+  const Y = await engine(db);
+  const def = Y.BANK;
+  const tx = readTexts(MODES, db);
+  const QD = new Map();
+  MODES.forEach((m) => (readPrivate(m, db) || []).forEach((p) => QD.set(p.id, rowOf(m, p, tx, db))));
+  expect(def.key === db && def.name && def.name.en && def.name.es && typeof def.join === 'string', `[${db}] data/game-comp-db-${db}.js: key, name in EN and ES, join snippet`);
+  const tables = Object.keys(def.schema);
+  tables.forEach((tb) => {
+    const r = Y.E.execute(Y.MAIN, `SELECT * FROM ${tb}`);
+    expect(!r.error && r.cols.map((c) => c.toLowerCase()).join() === def.schema[tb].join() && def.types[tb].length === def.schema[tb].length && r.rows.length > 0,
+      `[${db}] ${tb}: the schema and types match the setup, and it has rows`);
+  });
+  expect(!!Y.HIDDEN, `[${db}] the hidden dataset exists (node comp-hidden.mjs --db ${db})`);
+  const snaps = G.defaultChecks({ mode: 'insert' }, { schema: def.schema, types: def.types });
+  expect(snaps.length === tables.length && snaps.every((p, i) => !Y.E.execute(Y.MAIN, p).error && p.includes(` FROM ${tables[i]} `)), `[${db}] the DML snapshots read every table`);
+  expect(QD.size === 150, `[${db}] 150 questions (${QD.size})`);
+  MODES.forEach((m) => expect(new Set([...QD.values()].filter((q) => q.mode === m).map((q) => q.level)).size === 15, `[${db}] [${m}] a question on each of the 15 rungs`));
+  let n = 0;
+  for (const q of QD.values()) {
+    let s;
+    try { s = Y.E.judge(q, q.solution, { main: Y.MAIN, hidden: Y.HIDDEN }); } catch (e) { expect(false, `[${q.id}] grading throws: ${e.message}`); continue; }
+    expect(s.ok && s.hidden && s.hidden.ok && !q.main_only, `[${q.id}] the solution is right on both datasets`);
+    q.traps.forEach((t, i) => expect(!Y.E.judge(q, t, { main: Y.MAIN, hidden: Y.HIDDEN }).ok, `[${q.id}] trap ${i + 1} is wrong`));
+    q.alts.forEach((a, i) => expect(Y.E.judge(q, a, { main: Y.MAIN, hidden: Y.HIDDEN }).ok, `[${q.id}] alt ${i + 1} is right`));
+    q.hidden_traps.forEach((t, i) => { const j = Y.E.judge(q, t, { main: Y.MAIN, hidden: Y.HIDDEN }); expect(j.main && j.main.ok && !j.ok, `[${q.id}] hidden trap ${i + 1}: right on the public data, wrong on the hidden data`); });
+    if (q.mode !== 'ddl') expect(Y.E.flags(q, q.solution, { runs: 1 }, 120000).every((f) => f !== 'no-table'), `[${q.id}] the solution reads a table of ${db} (no no-table flag)`);
+    n++;
+  }
+  MODES.forEach((m) => {
+    const ids = G.draw({ questions: [...QD.values()].map((q) => ({ id: q.id, mode: q.mode, level: q.level })) }, 12345, m);
+    expect(ids.length === 15 && ids.every((id, i) => QD.get(id) && QD.get(id).level === i + 1 && QD.get(id).mode === m), `[${db}] [${m}] a draw gives 15 questions of ${db}, one per rung`);
+  });
+  console.log(`${db}: ${n} questions graded`);
+}
 
 /* ---- 3. Hard-coded literal answers ---------------------------------------------------------------- */
 section('Hard-coded answers are caught by the hidden dataset');
@@ -361,7 +408,7 @@ async function e2e() {
   const ids = (await svc('GET', `attempts?id=eq.${A.id}&select=ids`)).data[0].ids;
   let last = null;
   for (let lv = 1; lv <= 15; lv++) {
-    const q = Q.get(ids[lv - 1]);
+    const q = QALL.get(ids[lv - 1]);
     const lastText = studentText[studentText.length - 1];
     expect(A.question && A.question.id === q.id && ids.slice(lv).every((id) => !lastText.includes(`"${id}"`)), `rung ${lv}: the view shows ${q.id} and no later question id`);
     if (lv === 1) {
@@ -404,7 +451,7 @@ async function e2e() {
   // A lost attempt: wrong, rescue, wrong again.
   r = await comp(s1.jwt, { op: 'start', mode: 'insert' });
   const B = r.data.attempt;
-  const qi = Q.get(B.question.id);
+  const qi = QALL.get(B.question.id);
   await wait(2100);   // the last SQL run of s1 (rung 15) was just now
   r = await comp(s1.jwt, { op: 'submit', attemptId: B.id, sql: qi.traps[0], tele: { ms: 5000, runs: 0, paste: 1, blur: 4 } });
   expect(r.data.verdict === 'pending' && r.data.attempt.status === 'pending', 'wrong with Review unused: pending');
@@ -435,7 +482,7 @@ async function e2e() {
   r = await comp(s2.jwt, { op: 'start', mode: 'delete' });
   const C = r.data.attempt;
   await svc('PATCH', `attempts?id=eq.${C.id}`, { deadline: new Date(Date.now() - 1000).toISOString() });
-  r = await comp(s2.jwt, { op: 'submit', attemptId: C.id, sql: Q.get(C.question.id).solution });
+  r = await comp(s2.jwt, { op: 'submit', attemptId: C.id, sql: QALL.get(C.question.id).solution });
   expect(err(r) === 'expired', 'an answer after the deadline is refused (expired)');
   r = await comp(s2.jwt, { op: 'current', attemptId: C.id });
   expect(r.data.attempt && r.data.attempt.status === 'expired' && r.data.attempt.question === null, 'the attempt is expired, with no question');
@@ -494,7 +541,7 @@ async function e2e() {
   expect(sumLines.some((l) => l.startsWith(`${s1.email},Student One,student,`)) && sumLines.some((l) => l.startsWith(`${T.email},`) && l.includes(',teacher,')), 't-csv summary: a line per account, students and teachers, with the role');
   r = await comp(T.jwt, { op: 't-csv', kind: 'answers' });
   const ansLines = (r.data.csv || '').trim().split('\n');
-  expect(ansLines[0] === 'role,email,name,attempt_id,mode,test,status,rung,prize,badge,started_at,deadline,finished_at,minutes,used_clause,used_template,used_review,level,question_id,ok,reason,shown_at,answered_at,seconds,runs,flags,bank_version,sql', 't-csv answers: the header');
+  expect(ansLines[0] === 'role,email,name,attempt_id,mode,db,test,status,rung,prize,badge,started_at,deadline,finished_at,minutes,used_clause,used_template,used_review,level,question_id,ok,reason,shown_at,answered_at,seconds,runs,flags,bank_version,sql', 't-csv answers: the header');
   expect(ansLines.filter((l) => l.includes(A.id)).length >= 15 && ansLines.some((l) => l.includes(TT.id) && l.includes(',yes,') && l.startsWith('teacher,')), 't-csv answers: every answer of the won attempt, and the teacher\'s test attempt');
 
   // Fail closed: the engine refuses to grade a non-main_only question without the hidden dataset.
@@ -510,7 +557,7 @@ async function e2e() {
     r = await comp(T.jwt, { op: 'start', mode: 'select', test: true });
     const ta = r.data.attempt;
     r = await comp(T.jwt, { op: 't-jump', attemptId: ta.id, level: lv });
-    const qq = Q.get(r.data.attempt.question.id);
+    const qq = QALL.get(r.data.attempt.question.id);
     if (qq.hidden_traps.length && !qq.main_only) HT = { a: ta, q: qq };
     else await comp(T.jwt, { op: 'walk', attemptId: ta.id });
   }
@@ -522,11 +569,31 @@ async function e2e() {
     await comp(T.jwt, { op: 'rescue', attemptId: HT.a.id, use: false });
   }
 
+  // Several databases (§16): a teacher's test may ask for one; every real attempt records the one it drew.
+  for (const want of Object.keys(ENG)) {
+    r = await comp(T.jwt, { op: 'start', mode: 'delete', test: true, db: want });
+    const ta = r.data.attempt;
+    expect(ta && ta.db === want && QALL.get(ta.question.id) && (QALL.get(ta.question.id).db || 'shop') === want, `a test attempt on ${want}: the view says db ${want} and shows one of its questions`);
+    if (ta) {
+      const tq = QALL.get(ta.question.id);
+      await wait(2100);   // one SQL run per user every 2 s
+      r = await comp(T.jwt, { op: 'submit', attemptId: ta.id, sql: tq.solution, tele: {} });
+      expect(r.data.verdict === 'pass', `[${tq.id}] its solution passes through the function (${r.data.verdict || JSON.stringify(r.data.error)})`);
+      await comp(T.jwt, { op: 'walk', attemptId: ta.id });
+    }
+  }
+  r = await comp(T.jwt, { op: 'start', mode: 'delete', test: true, db: 'nope' });
+  expect(err(r) === 'bad-request', 'a test attempt on an unknown database is refused');
+  await wait(2100);
+  const drawn = (await svc('GET', 'attempts?test=eq.false&select=db')).data.map((x) => x.db);
+  expect(drawn.length > 0 && drawn.every((d) => Object.keys(ENG).includes(d)), `every real attempt records a known database (${[...new Set(drawn)].join(', ')})`);
+
   // Re-uploading a changed question: the next grading (on a warm instance) uses it at once.
   r = await comp(s4.jwt, { op: 'start', mode: 'update' });
   const D = r.data.attempt;
-  const qd0 = Q.get(D.question.id);
-  const newSol = qd0.traps.find((t) => !E.executeChecks(MAIN, t, E.probesOf(qd0)).error && !E.executeChecks(HIDDEN, t, E.probesOf(qd0)).error);
+  const qd0 = QALL.get(D.question.id);
+  const X0 = engOf(qd0);
+  const newSol = qd0.traps.find((t) => !X0.E.executeChecks(X0.MAIN, t, X0.E.probesOf(qd0)).error && !X0.E.executeChecks(X0.HIDDEN, t, X0.E.probesOf(qd0)).error);
   r = await comp(s4.jwt, { op: 'current', attemptId: D.id });   // warm
   const up = await upload({ url: API, key: SERVICE, log: () => {}, mutate: (rows) => rows.map((x) => (x.id === qd0.id ? { ...x, solution: newSol } : x)) });
   r = await comp(s4.jwt, { op: 'submit', attemptId: D.id, sql: newSol, tele: {} });
@@ -542,10 +609,14 @@ async function e2e() {
   // No hidden dataset in comp_meta: grading refuses with a server error and spends nothing.
   r = await comp(s4.jwt, { op: 'current', attemptId: D.id });
   const before = r.data.attempt;
-  const qd1 = Q.get(before.question.id);
+  const qd1 = QALL.get(before.question.id);
   if (qd1.main_only) expect(true, `[${qd1.id}] is main_only: the missing-hidden-dataset check needs another draw (skipped this run)`);
   else {
-    await svc('DELETE', 'comp_meta?key=eq.hidden_setup');
+    // The question's database loses its hidden dataset (comp_meta.dbs, §16; and the shop's old key).
+    const dbsRow = (await svc('GET', 'comp_meta?key=eq.dbs&select=value')).data[0];
+    const k1 = qd1.db || 'shop';
+    await svc('PATCH', 'comp_meta?key=eq.dbs', { value: { ...dbsRow.value, [k1]: { ...dbsRow.value[k1], hidden_setup: null } } });
+    if (k1 === 'shop') await svc('DELETE', 'comp_meta?key=eq.hidden_setup');
     await wait(2100);
     r = await comp(s4.jwt, { op: 'submit', attemptId: D.id, sql: qd1.solution, tele: {} });
     expect(r.status === 500 && err(r) === 'server', `without the hidden dataset, grading refuses with a server error (HTTP ${r.status} ${err(r)})`);
@@ -562,7 +633,7 @@ async function e2e() {
   const s6 = await user('s6');
   r = await comp(s6.jwt, { op: 'start', mode: 'select' });
   const P = r.data.attempt;
-  const qp = Q.get(P.question.id);
+  const qp = QALL.get(P.question.id);
   const par = await Promise.all(Array.from({ length: 6 }, () => comp(s6.jwt, { op: 'submit', attemptId: P.id, sql: qp.traps[0], tele: {} })));
   const graded = par.filter((x) => x.status === 200);
   expect(graded.length === 1 && graded[0].data.verdict === 'pending' && par.filter((x) => ['limit', 'state'].includes(err(x))).length === 5, `six parallel submits: one graded, five refused (limit, or state once the first made it pending) (${par.map((x) => x.data.verdict || err(x)).join(' ')})`);
@@ -570,14 +641,19 @@ async function e2e() {
   await comp(s6.jwt, { op: 'rescue', attemptId: P.id, use: false });
   r = await comp(s6.jwt, { op: 'start', mode: 'select' });
   const P2 = r.data.attempt;
-  for (const [sql, label] of [['SELECT COUNT(*) FROM sales a, sales b, sales c, sales d, sales e', 'five tables (static)'], ['WITH t AS (SELECT a.sale_id FROM sales a, sales b, sales c) SELECT COUNT(*) FROM t x, t y', 'a product of WITH results (stopped)']]) {
+  // The drawn database's last table (its biggest: sales, results, transactions, time_entries) and its key.
+  const sc2 = engOf(QALL.get(P2.question.id)).BANK.schema;
+  const big = Object.keys(sc2).pop();
+  const bigKey = sc2[big][0];
+  const heavyWith = `WITH t AS (SELECT a.${bigKey} FROM ${big} a, ${big} b, ${big} c) SELECT COUNT(*) FROM t x, t y`;
+  for (const [sql, label] of [[`SELECT COUNT(*) FROM ${big} a, ${big} b, ${big} c, ${big} d, ${big} e`, 'five tables (static)'], [heavyWith, 'a product of WITH results (stopped)']]) {
     await wait(2100);
     const t0 = Date.now();
     r = await comp(s6.jwt, { op: 'submit', attemptId: P2.id, sql, tele: {} });
     expect(r.status === 200 && r.data.verdict === 'refused' && r.data.refusal.reason === 'unsupported' && Date.now() - t0 < 3000, `heavy SQL through the function, ${label}: refused at no cost in ${Date.now() - t0} ms`);
   }
   await wait(2100);
-  r = await comp(s6.jwt, { op: 'lifeline', attemptId: P2.id, name: 'review', sql: 'WITH t AS (SELECT a.sale_id FROM sales a, sales b, sales c) SELECT COUNT(*) FROM t x, t y' });
+  r = await comp(s6.jwt, { op: 'lifeline', attemptId: P2.id, name: 'review', sql: heavyWith });
   expect(r.status === 200 && r.data.diag === null && r.data.refusal && !r.data.attempt.used.review, 'Review of heavy SQL: not run, not spent');
   r = await req('PATCH', `/rest/v1/profiles?user_id=eq.${s6.id}`, { jwt: s6.jwt, body: { name: '=HYPERLINK("http://x","y")' } });
   r = await comp(T.jwt, { op: 't-csv' });
@@ -586,7 +662,7 @@ async function e2e() {
   // No student response ever carried a solution (compared with the private files).
   const norm = (s) => String(s).replace(/\\n/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
   const all = norm(studentText.join('\n'));
-  const leaks = [...Q.values()].filter((q) => all.includes(norm(JSON.stringify(q.solution).slice(1, -1))) || all.includes(norm(q.solution)));
+  const leaks = [...QALL.values()].filter((q) => all.includes(norm(JSON.stringify(q.solution).slice(1, -1))) || all.includes(norm(q.solution)));
   expect(studentText.length > 40 && !leaks.length, `no student response contains a solution (${studentText.length} responses${leaks.length ? `; LEAK ${leaks.map((q) => q.id).join(' ')}` : ''})`);
   expect(!/"(solution|ids|traps|alts|hidden_setup|main_setup|keywords)"/.test(studentText.join('')), 'no student response has a solution, ids, traps, alts, keywords or dataset field');
 }

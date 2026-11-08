@@ -48,9 +48,9 @@
       update: { name: 'Update', keyword: 'UPDATE', blurb: 'Change prices, stock and levels with SET and WHERE.', welcome: 'Tonight you change rows. Mind your WHERE!' },
       delete: { name: 'Delete', keyword: 'DELETE', blurb: 'Remove exactly the right rows, foreign keys permitting.', welcome: 'Tonight you delete rows. Careful, no undo here!' },
       ddl: { name: 'Structure', keyword: 'CREATE', blurb: 'Create tables, columns, views and indexes.', welcome: 'Tonight you build tables, views and indexes.' },
-      mixed: { name: 'Mixed', keyword: 'MIX', blurb: 'All five kinds in one run. Reach rung 5 everywhere first.', welcome: 'Mixed stage: every kind of SQL, all in one run!' },
+      mixed: { name: 'Mixed', keyword: 'MIX', blurb: 'All five kinds in one run, open from the start.', welcome: 'Mixed stage: every kind of SQL, all in one run!' },
     },
-    stage: { title: 'Choose your stage', locked: 'Reach rung 5 in every stage to unlock it.' },
+    stage: { title: 'Choose your stage' },
 
     lifelines: {
       clause: { name: 'Key clause', blurb: 'SQL-Bot names the clause the answer needs and the shape of the result.' },

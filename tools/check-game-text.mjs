@@ -110,7 +110,7 @@ LANGS.forEach((l) => {
     expect(t.welcome === undefined || t.welcome === (h.modes || {})[m], `[${l}] modes.${m}.welcome is host.modes.${m}`);
     expect(words(t.blurb || '') <= 12 && !/\n/.test(t.blurb || ''), `[${l}] modes.${m}.blurb ≤ 12 words (${words(t.blurb || '')})`);
   });
-  expect(keysAre(g.stage, ['title', 'locked']) && filled(g.stage.title) && filled(g.stage.locked) && words(g.stage.title) <= 5 && words(g.stage.locked) <= 14, `[${l}] stage: a short title and locked line`);
+  expect(keysAre(g.stage, ['title']) && filled(g.stage.title) && words(g.stage.title) <= 5, `[${l}] stage: a short title (Mixed has no lock)`);
 
   // One text per question of every bank file present (the select bank first, then insert, update, delete, ddl).
   const qs = g.questions || {};

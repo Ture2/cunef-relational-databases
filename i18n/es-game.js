@@ -91,6 +91,8 @@ Object.assign(UI.es, {
 
   // ---- The schema ----
   "The shop database": "La base de datos de la tienda",
+  "Database: {name}": "Base de datos: {name}",
+  "The database is drawn at random: one of five.": "La base de datos se sortea: una de cinco.",
   "foreign key to {table}": "clave ajena a {table}",
 
   // ---- Home and search ----
@@ -121,10 +123,6 @@ Object.assign(UI.es, {
   "Modes": "Modos",
   "Choose a mode": "Elige un modo",
   "Continue · rung {n}": "Seguir · peldaño {n}",
-  "Reach rung 5 in every mode": "Llega al peldaño 5 en todos los modos",
-  "Rung 5 in each mode": "Peldaño 5 en cada modo",
-  "rung 5 reached": "peldaño 5 alcanzado",
-  "rung 5 not reached yet": "peldaño 5 aún no alcanzado",
   "Statement:": "Sentencia:",
   "Choose another mode": "Elegir otro modo",
   "This question takes a SELECT query.": "Esta pregunta pide una consulta SELECT.",

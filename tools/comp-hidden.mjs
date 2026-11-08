@@ -15,8 +15,15 @@
 //   hidden-seed.txt   the seed; created at random on the first run. Keep it: the same seed gives the same dataset.
 //   hidden-setup.sql  the result (CREATE TABLE + INSERT, Oracle text, same layout as the public setup).
 //
-//   cd tools && node comp-hidden.mjs           (re)write hidden-setup.sql from the seed
-//   cd tools && node comp-hidden.mjs --check   exit 1 when hidden-setup.sql is not what the seed gives
+//   cd tools && node comp-hidden.mjs                 (re)write the hidden setup of every database from its seed
+//   cd tools && node comp-hidden.mjs --db f1         one database
+//   cd tools && node comp-hidden.mjs --check         exit 1 when a hidden setup is not what its seed gives
+//
+// SEVERAL DATABASES (docs/game-quiz.md §16): the shop (above) and the others of DBS below. Another database <key> has
+//   data/game-comp-db-<key>.js                  its public setup (GAME_COMP_DBS.<key>)
+//   tools/comp-hidden/<key>.mjs                 export function hiddenSetup(publicSetup, seedText, H): its own
+//                                               perturbation, written with the helpers H (HELPERS below)
+//   tools/comp/private/<key>/hidden-seed.txt    its seed, and hidden-setup.sql its result (both private)
 // Then: node comp-build.mjs (validates every question on both datasets) and node comp-upload.mjs (uploads it).
 //
 // The teacher's deploy, step by step (region, SMTP, email code, login, link, db push, functions deploy, auth hook,
@@ -33,6 +40,19 @@ const require = createRequire(import.meta.url);
 export const PRIVATE_DIR = join(HERE, 'comp/private');
 export const SEED_FILE = join(PRIVATE_DIR, 'hidden-seed.txt');
 export const HIDDEN_FILE = join(PRIVATE_DIR, 'hidden-setup.sql');
+// The competitive databases (§16): the shop keeps the original paths; every other one keeps its files in a folder.
+export const DBS = ['shop', 'f1', 'fashion', 'bank', 'law'];
+export const dbDir = (db = 'shop') => (db === 'shop' ? PRIVATE_DIR : join(PRIVATE_DIR, db));
+export const seedFile = (db = 'shop') => join(dbDir(db), 'hidden-seed.txt');
+export const hiddenFile = (db = 'shop') => join(dbDir(db), 'hidden-setup.sql');
+export const dbFile = (db) => join(ROOT, `data/game-comp-db-${db}.js`);
+/* The public definition of a database ({ key, name, setup, schema, types, join }), or null when it has no file yet. */
+export function dbDef(db = 'shop') {
+  const f = dbFile(db);
+  return existsSync(f) ? require(f) : null;
+}
+export const availableDbs = () => DBS.filter((d) => existsSync(dbFile(d)));
+const rel = (f) => `tools/${f.slice(HERE.length + 1).split('\\').join('/')}`;
 
 /* ---- Parsing the public INSERT lines ---------------------------------------------------------- */
 
@@ -61,20 +81,24 @@ function parseValues(s) {
   return out;
 }
 
+/* { head (every line but the INSERTs), rows: { table: [[values…]] } } with the tables in the order they are filled.
+   Each INSERT is one line: INSERT INTO t VALUES (…); values are numbers, 'text', DATE 'YYYY-MM-DD' ({date}) or NULL. */
 export function parseSetup(setup) {
   const lines = setup.split('\n');
   const head = lines.filter((l) => !/^INSERT INTO/.test(l)).join('\n');
-  const rows = { customers: [], games: [], sales: [] };
+  const rows = {};
   lines.filter((l) => /^INSERT INTO/.test(l)).forEach((l) => {
     const m = /^INSERT INTO (\w+) VALUES \((.*)\);?$/.exec(l);
-    rows[m[1]].push(parseValues(m[2]));
+    if (!m) throw new Error(`each INSERT must be one line, INSERT INTO t VALUES (…): ${l.slice(0, 80)}`);
+    (rows[m[1]] = rows[m[1]] || []).push(parseValues(m[2]));
   });
   return { head, rows };
 }
 
 const lit = (v) => (v === null ? 'NULL' : typeof v === 'number' ? String(v) : v && v.date ? `DATE '${v.date}'` : `'${String(v).replace(/'/g, "''")}'`);
+/* The setup text again, the tables in the key order of `rows` (keep parseSetup's order: the foreign keys need it). */
 export function writeSetup(head, rows) {
-  const ins = ['customers', 'games', 'sales'].flatMap((t) => rows[t].map((r) => `INSERT INTO ${t} VALUES (${r.map(lit).join(', ')});`));
+  const ins = Object.keys(rows).flatMap((t) => rows[t].map((r) => `INSERT INTO ${t} VALUES (${r.map(lit).join(', ')});`));
   return `${head.replace(/\s+$/, '')}\n${ins.join('\n')}`.replace(/;$/, '');
 }
 
@@ -175,37 +199,64 @@ export function hiddenSetup(publicSetup, seedText) {
   return writeSetup(head, { customers: C, games: G, sales: S });
 }
 
-export function readSeed({ create = false } = {}) {
-  if (existsSync(SEED_FILE)) return readFileSync(SEED_FILE, 'utf8').trim();
+export function readSeed({ create = false, db = 'shop' } = {}) {
+  const f = seedFile(db);
+  if (existsSync(f)) return readFileSync(f, 'utf8').trim();
   if (!create) return null;
-  mkdirSync(PRIVATE_DIR, { recursive: true });
+  mkdirSync(dbDir(db), { recursive: true });
   const seed = randomBytes(16).toString('hex');
-  writeFileSync(SEED_FILE, `${seed}\n`);
-  console.log('created tools/comp/private/hidden-seed.txt (keep it: it is in the encrypted backup too)');
+  writeFileSync(f, `${seed}\n`);
+  console.log(`created ${rel(f)} (keep it: it is in the encrypted backup too)`);
   return seed;
 }
 
-export function publicSetup() {
-  return require(join(ROOT, 'data/game-bank.js')).setup;
+export function publicSetup(db = 'shop') {
+  if (db === 'shop') return require(join(ROOT, 'data/game-bank.js')).setup;
+  const d = dbDef(db);
+  if (!d) throw new Error(`no public database file data/game-comp-db-${db}.js`);
+  return d.setup;
 }
 
 /* The hidden setup on disk (null when it was never generated). */
-export function readHidden() {
-  return existsSync(HIDDEN_FILE) ? readFileSync(HIDDEN_FILE, 'utf8') : null;
+export function readHidden(db = 'shop') {
+  const f = hiddenFile(db);
+  return existsSync(f) ? readFileSync(f, 'utf8') : null;
 }
 
-function main(argv) {
-  const seed = readSeed({ create: !argv.includes('--check') });
-  if (!seed) { console.log('no tools/comp/private/hidden-seed.txt'); return 1; }
-  const text = hiddenSetup(publicSetup(), seed);
-  if (argv.includes('--check')) {
-    const ok = readHidden() === text;
-    console.log(ok ? 'ok   hidden-setup.sql is the dataset of the seed' : 'FAIL hidden-setup.sql differs from what the seed gives (node comp-hidden.mjs)');
-    return ok ? 0 : 1;
+// What a database's own generator (tools/comp-hidden/<key>.mjs) receives as H.
+export const HELPERS = { parseSetup, writeSetup, parseValues, rngFrom, shuffle, derange, DAY, toDay, fromDay, round2 };
+
+/* The hidden setup that a database's seed gives. */
+export async function hiddenSetupOf(db, seed) {
+  if (db === 'shop') return hiddenSetup(publicSetup('shop'), seed);
+  const f = join(HERE, 'comp-hidden', `${db}.mjs`);
+  if (!existsSync(f)) throw new Error(`no generator ${rel(f)} for the hidden dataset of ${db}`);
+  const mod = await import(pathToFileURL(f).href);
+  return mod.hiddenSetup(publicSetup(db), seed, HELPERS);
+}
+
+async function main(argv) {
+  const i = argv.indexOf('--db');
+  const only = i >= 0 ? argv[i + 1] : null;
+  if (only && !DBS.includes(only)) { console.log(`unknown database ${only}: ${DBS.join(', ')}`); return 1; }
+  const check = argv.includes('--check');
+  let failed = 0;
+  for (const db of only ? [only] : availableDbs()) {
+    const seed = readSeed({ create: !check, db });
+    if (!seed) { console.log(`FAIL ${db}: no ${rel(seedFile(db))}`); failed++; continue; }
+    const text = await hiddenSetupOf(db, seed);
+    if (check) {
+      const ok = readHidden(db) === text;
+      console.log(ok ? `ok   ${db}: ${rel(hiddenFile(db))} is the dataset of the seed` : `FAIL ${db}: ${rel(hiddenFile(db))} differs from what the seed gives (node comp-hidden.mjs --db ${db})`);
+      if (!ok) failed++;
+      continue;
+    }
+    writeFileSync(hiddenFile(db), text);
+    console.log(`wrote ${rel(hiddenFile(db))} (${text.split('\n').filter((l) => l.startsWith('INSERT')).length} rows)`);
   }
-  writeFileSync(HIDDEN_FILE, text);
-  console.log(`wrote tools/comp/private/hidden-setup.sql (${text.split('\n').filter((l) => l.startsWith('INSERT')).length} rows)`);
-  return 0;
+  return failed ? 1 : 0;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) process.exit(main(process.argv.slice(2)));
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  main(process.argv.slice(2)).then((c) => process.exit(c), (e) => { console.error(e); process.exit(1); });
+}

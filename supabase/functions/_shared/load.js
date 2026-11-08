@@ -30,8 +30,8 @@ export async function loadSql() {
 }
 export const wasmSource = () => wasmFrom;
 
-export async function loadEngine(schema) {
+export async function loadEngine(schema, types = null) {
   // deno-lint-ignore no-explicit-any
   const g = globalThis;
-  return makeEngine({ SQL: await loadSql(), O: g.OracleDialect, G: g.GameCore, schema });
+  return makeEngine({ SQL: await loadSql(), O: g.OracleDialect, G: g.GameCore, schema, types });
 }

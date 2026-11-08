@@ -259,6 +259,8 @@ a.wr-btn, a.wr-btn:hover { text-decoration: none; }
 /* ---- The schema: names you can click into the console ------------------------------ */
 
 .wr-schema { padding: 12px 14px; background: var(--wr-panel); border: 2px solid var(--wr-edge); }
+.wr-tables.is-n4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.wr-db-name { margin: 0 0 10px; font: 400 .78rem/1.3 var(--wr-display); color: var(--wr-ink); letter-spacing: .02em; }
 .wr-tables { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .wr-tbl { min-width: 0; }
 .wr-tbl-h {
@@ -470,7 +472,7 @@ a.wr-btn, a.wr-btn:hover { text-decoration: none; }
 
 @media (max-width: 1000px) {
   .wr-grid { grid-template-columns: minmax(0, 1fr) 260px; }
-  .wr-tables { grid-template-columns: minmax(0, 1fr); }
+  .wr-tables, .wr-tables.is-n4 { grid-template-columns: minmax(0, 1fr); }
   .wr-rung { font-size: .85rem; padding: 2px 8px; }
 }
 

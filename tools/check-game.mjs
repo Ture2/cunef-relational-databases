@@ -1,7 +1,7 @@
 // Checks Query for a Million (#/game) in headless Chromium, in both languages, playing only through the page
 // as a student would. Contract: docs/game-quiz.md (§8 hooks, §11 tests, §13 modes) and docs/game-visual.md.
-//   1. The select screen (#/game): six tiles with their keywords, no best score until there is one, Mixed locked
-//      with five boxes, unknown modes and a locked Mixed redirected to #/game.
+//   1. The select screen (#/game): six tiles with their keywords, no best score until there is one, Mixed open
+//      from the start (a link, no lock), unknown modes redirected to #/game.
 //   2. Each of the five modes (#/game/<mode>): the seeded draw, Run of the reference (a table, a diff of the
 //      touched table, or the new columns), a statement of the wrong kind refused at no cost, the reference
 //      passing, Key clause, a known trap of GAME_BANK opening the rescue, Review; per-mode saves, drafts and
@@ -9,8 +9,8 @@
 //   3. A select run in depth (round 4): the loop above the fold at 1440 × 900, no Walk away at rung 1, the
 //      lifeline descriptions, Oracle's rules in Run, the Lock in refusals and dialog, the suspense, the three
 //      lifelines, reload, walking away, Play again and Choose another mode; then a rescue and a loss at rung 7.
-//   4. Delete played to a full win and Structure to rung 6 (reached), the Mixed tile's boxes; Mixed unlocked
-//      from a seeded store: one statement kind per band, the big chip, a pass and a wrong-kind refusal.
+//   4. Delete played to a full win and Structure to rung 6 (reached); Mixed played from a fresh progress (no
+//      unlock needed): one statement kind per band, the big chip, a pass and a wrong-kind refusal.
 //   5. Migration of the v1 keys; the onboarding tour on the select screen (n of 6, with "Study or competitive")
 //      and in a run (n of 6, the spotlight); always light on a dark site; snippets, schema names and the language
 //      switch; the layout at 1440 and 390 px, light and dark site: select screen, tour, run and end screen.
@@ -236,11 +236,14 @@ const tileOf = async (page, m) => (await tiles(page)).find((x) => x.fid === `gam
 const TOOLS = join(ROOT, 'tools');
 const PRIV = {};
 if (COMP) {
-  for (const m of BASE_MODES) {
-    const f = join(TOOLS, 'comp', 'private', `${m}.json`);
-    if (!existsSync(f)) continue;
-    const j = JSON.parse(readFileSync(f, 'utf8'));
-    (Array.isArray(j) ? j : j.questions || []).forEach((q) => { PRIV[q.id] = q; });
+  // Every competitive database (docs/game-quiz.md §16): the shop's files and tools/comp/private/<db>/<mode>.json.
+  for (const dir of ['', 'f1', 'fashion', 'bank', 'law']) {
+    for (const m of BASE_MODES) {
+      const f = join(TOOLS, 'comp', 'private', dir, `${m}.json`);
+      if (!existsSync(f)) continue;
+      const j = JSON.parse(readFileSync(f, 'utf8'));
+      (Array.isArray(j) ? j : j.questions || []).forEach((q) => { PRIV[q.id] = q; });
+    }
   }
 }
 // Every private SQL text (solutions and accepted alternatives): none may reach a student's page, storage or responses.
@@ -369,7 +372,8 @@ const compQid = (page) => page.evaluate(() => { const s = GamePage.debug(); retu
 async function compWrong(page, avoid = []) {
   const id = await compQid(page);
   const q = PRIV[id] || {};
-  const mode = /^cs/.test(id) ? 'select' : /^ci/.test(id) ? 'insert' : /^cu/.test(id) ? 'update' : /^cd/.test(id) ? 'delete' : 'ddl';
+  const bare = String(id || '').replace(/^[a-z0-9]+_/, '');   // f1_cs01a → cs01a (§16)
+  const mode = /^cs/.test(bare) ? 'select' : /^ci/.test(bare) ? 'insert' : /^cu/.test(bare) ? 'update' : /^cd/.test(bare) ? 'delete' : 'ddl';
   const fallback = { select: 'SELECT 1 FROM dual', insert: "INSERT INTO customers VALUES (199, 'Zed Test', 'Spain', DATE '2025-01-01', 0)", update: 'UPDATE games SET stock = stock + 1', delete: 'DELETE FROM sales WHERE sale_id = 1', ddl: 'CREATE TABLE zz_test (id NUMBER(4))' }[mode];
   return page.evaluate(([list, md, skip]) => list.find((x) => !skip.includes(x) && GameCore.checkAnswer(x, md).ok) || null, [[...(q.traps || []), fallback], mode, avoid]);
 }
@@ -490,17 +494,19 @@ for (const lang of LANGS) {
     expect(ts.slice(0, 5).every((x, i) => x.tag === 'A' && x.href === `#/game/${BASE_MODES[i]}` && x.go === play && !x.live), `${L} select screen: the five base tiles link to #/game/<mode> and say "${play}"`);
     expect(ts.every((x) => !x.best), `${L} select screen: no best score on any tile before a run ends`);
     const mix = ts[5];
-    expect(mix.locked && mix.tag === 'DIV' && !mix.href && mix.ticks.length === 5 && mix.ticks.every((x) => x.endsWith('-')) && mix.ticks.map((x) => x.slice(0, -1)).join() === 'SELECT,INSERT,UPDATE,DELETE,CREATE',
-      `${L} select screen: Mixed is locked, with five empty boxes (${mix.ticks.join(' ')})`);
+    expect(!mix.locked && mix.tag === 'A' && mix.href === '#/game/mixed' && mix.go === play && mix.ticks.length === 0,
+      `${L} select screen: Mixed is open from the start (a link that says "${play}", no boxes)`);
     expect(await page.$('[data-fid="game-modes"]') === null && await state(page) === null, `${L} select screen: no "← Modes" button and no run on show`);
     expect(await wrToken(page, '--wr-panel') === LIGHT.panel, `${L} select screen: light`);
-    // Redirects: an unknown mode, and Mixed while locked.
+    // Redirects: an unknown mode; Mixed opens straight away.
     await page.evaluate(() => { location.hash = '#/game/bogus'; });
     await ready(page, '');
     expect(await hash(page) === '#/game', `${L} #/game/bogus goes back to the select screen (${await hash(page)})`);
     await page.evaluate(() => { location.hash = '#/game/mixed'; });
+    await ready(page, 'mixed');
+    expect(await hash(page) === '#/game/mixed', `${L} #/game/mixed opens with no progress (${await hash(page)})`);
+    await page.evaluate(() => { location.hash = '#/game'; });
     await ready(page, '');
-    expect(await hash(page) === '#/game' && await state(page) === null, `${L} #/game/mixed while locked goes back to the select screen`);
 
     // Each base mode: start, Run the reference, a wrong kind refused, pass, Key clause, a trap, the rescue.
     for (const m of BASE_MODES) {
@@ -811,7 +817,7 @@ for (const lang of LANGS) {
     await context.close();
   }
 
-  /* ---- 4. Delete to a full win, Structure to rung 6, the Mixed boxes; Mixed unlocked ------- */
+  /* ---- 4. Delete to a full win, Structure to rung 6; Mixed with no unlock ------------------- */
   {
     const { context, page, problems } = await open(lang);
     await page.goto(`${base}#/game/delete`);
@@ -837,14 +843,11 @@ for (const lang of LANGS) {
     expect(v2.reached.delete === 15 && v2.reached.ddl === 5 && v2.best.delete.prize === 1000000, `${L} reached: delete 15, ddl 5; best.delete 1,000,000`);
     await go(page, '#/game', '');
     let mix = await tileOf(page, 'mixed');
-    expect(mix.locked && mix.ticks.join() === 'SELECT-,INSERT-,UPDATE-,DELETE+,CREATE+', `${L} the Mixed tile ticks DELETE and CREATE, still locked (${mix.ticks.join(' ')})`);
+    expect(!mix.locked && mix.tag === 'A', `${L} the Mixed tile stays open`);
     expect(nbsp((await tileOf(page, 'delete')).best) === nbsp(await tr(page, 'Best {prize}', { prize: M(1000000) })), `${L} the delete tile shows its best score`);
-    // Mixed unlocked from a seeded store (reached 5 in every base mode).
-    await page.evaluate(() => { const d = JSON.parse(localStorage.getItem('game-quiz-v2')); d.reached = { select: 5, insert: 5, update: 5, delete: 15, ddl: 5 }; localStorage.setItem('game-quiz-v2', JSON.stringify(d)); });
-    await page.reload();
-    await ready(page, '');
+    // Mixed needs no unlock: rung 5 was reached in only two modes.
     mix = await tileOf(page, 'mixed');
-    expect(!mix.locked && mix.tag === 'A' && mix.href === '#/game/mixed' && mix.ticks.every((x) => x.endsWith('+')), `${L} reached 5 everywhere: Mixed is a link, five boxes ticked`);
+    expect(!mix.locked && mix.tag === 'A' && mix.href === '#/game/mixed', `${L} Mixed is a link with rung 5 reached in only two modes`);
     await page.click('[data-fid="game-mode-mixed"]');
     await ready(page, 'mixed');
     s = await state(page);
@@ -1168,7 +1171,7 @@ for (const lang of LANGS) {
       await page.click('[data-fid="game-comp-select"]');
       await readyView(page, 'start', 'comp');
       const rules = await page.evaluate(() => ({ n: document.querySelectorAll('.wr-rules li').length, h: document.querySelector('#wr-rules-h').textContent.trim(), start: !!document.querySelector('[data-fid="game-comp-start"]') }));
-      expect(rules.n === 4 && flat(rules.h) === flat(left3) && rules.start, `${W} the rules first: 4 lines, "${rules.h}", Start`);
+      expect(rules.n === 5 && flat(rules.h) === flat(left3) && rules.start, `${W} the rules first: 5 lines (one says the database is drawn), "${rules.h}", Start`);
       await shotAs(page, 'visual-comp-start');
       await page.click('[data-fid="game-comp-start"]');
       await readyView(page, 'run', 'comp');
@@ -1191,7 +1194,11 @@ for (const lang of LANGS) {
       });
       expect(pd.p && pd.d && pd.v === 'SELECT title FROM games' && pd.note && pd.tele.paste === 2, `${W} a paste and a drop are blocked: the editor unchanged, a note, counted (paste ${pd.tele.paste})`);
       const callsBefore = net.count();
-      await run(page, 'SELECT title FROM games WHERE price > 50');
+      // A query on the drawn database (§16): its first table, as the schema panel lists it.
+      const firstTable = await page.$eval('#wr-schema .wr-tbl-h code', (e) => e.textContent.trim());
+      const shownDb = await page.$eval('#wr-schema', (e) => ({ db: e.dataset.db, name: ((e.querySelector('.wr-db-name') || {}).textContent || '').trim() }));
+      expect(!!shownDb.db && shownDb.name.length > 10, `${W} the schema panel names the drawn database (${shownDb.db}: "${shownDb.name}")`);
+      await run(page, `SELECT * FROM ${firstTable}`);
       const tl = await page.evaluate(() => JSON.parse(localStorage.getItem('game-comp-tele-v2') || '{}'));
       expect(await resultRows(page) > 0 && net.count() === callsBefore && tl.runs === 1, `${W} Run is local (rows, no call to the server) and counted (runs ${tl.runs})`);
       await page.click('[data-fid="game-life-clause"]');

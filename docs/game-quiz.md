@@ -360,14 +360,14 @@ It never reveals reference values.
 `GameCore.drawMixed(bank, seed)` returns 15 ids. In each band (1–5, 6–10, 11–15), each of the five modes appears
 exactly once, in a seeded order, and the question of that mode is drawn at that level.
 
-The mode is unlocked when `GameCore.mixedUnlocked(reached)` is true: `reached[m] >= 5` for all five modes.
-`reached[m]` is the highest rung answered right in any run of mode `m`; a walk-away or a loss still counts what
-was answered.
+Mixed is open from the start (round 8): it no longer waits for rung 5 in every mode. `GameCore.mixedUnlocked`
+stays in the core (and its synced server copy) but the page does not use it. `reached[m]` is still kept: the highest
+rung answered right in any run of mode `m`; a walk-away or a loss still counts what was answered.
 
 ### 13.4 Store v2 and routes
 
 - **Routes:** `#/game` is the mode select screen ("choose your stage"); `#/game/<mode>` is a run of that mode.
-  `js/main.js` passes the mode as `rest`. An unknown mode, or the mixed mode while it is locked, redirects to
+  `js/main.js` passes the mode as `rest`. An unknown mode redirects to
   `#/game`.
 - **Store:** `makeStore('game-quiz-v2')` holds `{ v: 2, runs: { <mode>: state }, best: { <mode>: {prize, date}
   }, reached: { <mode>: n } }`. Each state is as in §7, plus `mode`.
@@ -704,3 +704,49 @@ request, memory, cold start).
 | `supabase/**`, `tools/supabase-sync.mjs`, `tools/comp-hidden.mjs`, `tools/comp-upload.mjs`, `tools/comp-build.mjs` (extend), `tools/check-comp-server.mjs` (Node tests of the engine and transitions), `tools/check-no-secrets.mjs`, `tools/package.json` (CLI) | S |
 | `js/game.js`, `game.css`, `i18n/es-game.js`, `js/game-comp.js`, `data/game-comp-config.js`, `js/game-intro.js`, `data/{en,es}/game-tour.js` | P |
 | `tools/check-game.mjs`, `README.md` (including the teacher's setup steps) | T |
+
+## 16. Several competitive databases (round 8)
+
+Every competitive attempt draws **one of five databases** at random (uniformly, by the server, at `start`): the
+video-game shop of study mode and four more, each with its own full bank of the same size and difficulty. Study
+mode is unchanged (always the shop). Mixed mode is open from the start (§13.3).
+
+| key | EN | ES |
+|---|---|---|
+| `shop` | Video-game shop | Tienda de videojuegos |
+| `f1` | Formula 1 team | Escudería de Fórmula 1 |
+| `fashion` | Fashion retail chain | Cadena de moda |
+| `bank` | Retail bank | Banco minorista |
+| `law` | Law firm | Bufete de abogados |
+
+All data is invented (no real people, teams, brands or firms); table and column names and data values are in
+English, texts in EN and ES, as for the shop.
+
+### 16.1 Files
+- **Public:** `data/game-comp-db-<key>.js` adds `GAME_COMP_DBS.<key> = { key, name:{en,es}, setup, schema, types,
+  join }` (browser global and `module.exports`). The page loads all five: Run, the schema panel, the table snippets
+  and the DML diff use the drawn database locally. `shop` points at `GAME_BANK`.
+- **Hidden dataset:** `tools/comp-hidden/<key>.mjs` exports `hiddenSetup(publicSetup, seed, H)` (H: the helpers of
+  `tools/comp-hidden.mjs`); `node comp-hidden.mjs [--db <key>] [--check]`. Seeds and results are private:
+  `tools/comp/private/<key>/hidden-seed.txt`, `hidden-setup.sql` (the shop keeps its old paths).
+- **Private banks:** `tools/comp/private/<key>/<mode>.json` and `<key>/texts/{en,es}-<mode>.js`, ids
+  `<key>_cs01a … <key>_ck15b` (2 per rung, 30 per mode). Each is the twin of the shop question with the same suffix:
+  same concepts, clause keywords, difficulty and kinds of traps. `node comp-build.mjs [--db <key>] [--mode <m>]`
+  validates on both datasets; the encrypted backup carries every database.
+
+### 16.2 Engine and server
+- `GameCore.defaultChecks(q, db)`: the DML snapshots of every table of `db = { schema, types }` (key first, other
+  NUMBER columns rounded to their scale); without `db`, or with the shop's tables, the original three probes.
+- `makeEngine({ …, schema, types })` builds one engine per database (its tables for the snapshots, `shape` and the
+  `no-table` flag).
+- Migration `20261108120000_comp_dbs.sql`: `comp_questions.db`, `attempts.db` (default `shop`), the id check with
+  an optional `<key>_` prefix, `comp_start(…, p_db)`.
+- `comp_meta.dbs = { <key>: { main_setup, hidden_setup, schema, types } }` (the shop's old keys are still written).
+- `start` draws the database among those with a question of the mode on each of the 15 rungs, then the 15 ids from
+  that database only; a teacher's test attempt may pass `db`. Every grading, Review, Key clause shape and flag uses
+  the question's database. The view, `my-stats`, `t-list`, `t-attempt` and the answers CSV carry `db`.
+
+### 16.3 Page
+- The rules dialog has a fifth line: the database is drawn at random, one of five.
+- During an attempt the schema panel starts with "Database: <name>"; four tables show as a 2 × 2 grid.
+- My attempts and the teacher's rows show the database as a tag; the teacher's detail names it.

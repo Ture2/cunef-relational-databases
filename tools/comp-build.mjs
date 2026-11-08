@@ -20,6 +20,7 @@
 //
 //   cd tools && node comp-build.mjs                    validate everything, print the report (exit 1 on a problem)
 //   cd tools && node comp-build.mjs --mode select      one mode
+//   cd tools && node comp-build.mjs --db f1            one database (§16: tools/comp/private/<db>/, ids <db>_cs01a…)
 //   cd tools && node comp-build.mjs --mark             also set main_only on the candidates (private files)
 //   node comp-build.mjs --new-key                                 prints a strong random COMP_KEY once (password manager!)
 //   COMP_KEY='<passphrase>' node comp-build.mjs --encrypt          private files → tools/comp/solutions.enc (commit it);
@@ -37,7 +38,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { makeEngine } from '../supabase/functions/_shared/engine.js';
-import { readHidden, HIDDEN_FILE } from './comp-hidden.mjs';
+import { readHidden, hiddenFile, dbDir, dbDef, DBS, availableDbs } from './comp-hidden.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
@@ -47,39 +48,49 @@ export const PREFIX = { select: 'cs', insert: 'ci', update: 'cu', delete: 'cd', 
 export const PRIVATE_DIR = join(HERE, 'comp/private');
 export const TEXT_DIR = join(PRIVATE_DIR, 'texts');
 export const ENC_FILE = join(HERE, 'comp/solutions.enc');
-const privateFile = (mode) => join(PRIVATE_DIR, `${mode}.json`);
+export { DBS };
+// Several databases (docs/game-quiz.md §16): the shop keeps tools/comp/private/<mode>.json and ids cs01a…; another
+// database <db> keeps tools/comp/private/<db>/<mode>.json, <db>/texts/{en,es}-<mode>.js and ids <db>_cs01a….
+const privateFile = (mode, db = 'shop') => join(dbDir(db), `${mode}.json`);
+const textDir = (db = 'shop') => join(dbDir(db), 'texts');
+export const idPrefix = (mode, db = 'shop') => `${db === 'shop' ? '' : `${db}_`}${PREFIX[mode]}`;
+/* The databases that have at least one private bank file. */
+export const bankDbs = () => availableDbs().filter((d) => MODES.some((m) => existsSync(privateFile(m, d))));
 
 /* ---- Private files ------------------------------------------------------------------------------ */
 
-export function readPrivate(mode) {
-  const f = privateFile(mode);
+export function readPrivate(mode, db = 'shop') {
+  const f = privateFile(mode, db);
   if (!existsSync(f)) return null;
   const j = JSON.parse(readFileSync(f, 'utf8'));
   return Array.isArray(j) ? j : j.questions || [];
 }
 
 /* { en: { id: {prompt, clause, templateNote} }, es: {…} } for the modes whose text files exist. */
-export function readTexts(modes = MODES) {
+export function readTexts(modes = MODES, db = 'shop') {
   const ctx = { DATA: { en: { GAME_TEXT: {} }, es: { GAME_TEXT: {} } } };
   vm.createContext(ctx);
   ['en', 'es'].forEach((l) => modes.forEach((m) => {
-    const f = join(TEXT_DIR, `${l}-${m}.js`);
+    const f = join(textDir(db), `${l}-${m}.js`);
     if (existsSync(f)) vm.runInContext(readFileSync(f, 'utf8'), ctx, { filename: f });
   }));
   return { en: ctx.DATA.en.GAME_TEXT.compQuestions || {}, es: ctx.DATA.es.GAME_TEXT.compQuestions || {} };
 }
 
-/* ---- The engine (the server's, on Node) --------------------------------------------------------------- */
+/* ---- The engine (the server's, on Node), one per database --------------------------------------------- */
 
-let ENGINE = null;
-export async function engine() {
-  if (ENGINE) return ENGINE;
+const ENGINES = new Map();
+let SQLJS = null;
+export async function engine(db = 'shop') {
+  if (ENGINES.has(db)) return ENGINES.get(db);
   const O = require(join(ROOT, 'js/oracle-dialect.js'));
   const G = require(join(ROOT, 'js/game-core.js'));
-  const BANK = require(join(ROOT, 'data/game-bank.js'));
+  const BANK = db === 'shop' ? require(join(ROOT, 'data/game-bank.js')) : dbDef(db);
+  if (!BANK) throw new Error(`no public database file data/game-comp-db-${db}.js`);
   const initSqlJs = require('sql.js');
-  const SQL = await initSqlJs({ locateFile: (f) => join(HERE, 'node_modules/sql.js/dist', f) });
-  const E = makeEngine({ SQL, O, G, schema: BANK.schema });
+  if (!SQLJS) SQLJS = await initSqlJs({ locateFile: (f) => join(HERE, 'node_modules/sql.js/dist', f) });
+  const SQL = SQLJS;
+  const E = makeEngine({ SQL, O, G, schema: BANK.schema, types: BANK.types });
   const reversed = (setup) => {
     const lines = setup.split('\n');
     const head = lines.filter((l) => !/^INSERT INTO/.test(l));
@@ -87,16 +98,17 @@ export async function engine() {
     lines.filter((l) => /^INSERT INTO/.test(l)).forEach((l) => { const tb = /^INSERT INTO (\w+)/.exec(l)[1]; (byTable[tb] = byTable[tb] || []).push(l.replace(/;?$/, ';')); });
     return [...head, ...Object.values(byTable).flatMap((ls) => [...ls].reverse())].join('\n').replace(/;$/, '');
   };
-  ENGINE = { O, G, BANK, SQL, E, reversed, MAIN: BANK.setup, HIDDEN: readHidden() };
-  return ENGINE;
+  const X = { db, O, G, BANK, SQL, E, reversed, MAIN: BANK.setup, HIDDEN: readHidden(db) };
+  ENGINES.set(db, X);
+  return X;
 }
 
 /* The server's question row from a private item and its texts. */
-export function rowOf(mode, p, tx) {
-  const m = new RegExp(`^${PREFIX[mode]}(\\d{2})[ab]$`).exec(String(p.id || ''));
+export function rowOf(mode, p, tx, db = 'shop') {
+  const m = new RegExp(`^${idPrefix(mode, db)}(\\d{2})[ab]$`).exec(String(p.id || ''));
   const t = { en: (tx.en || {})[p.id] || {}, es: (tx.es || {})[p.id] || {} };
   return {
-    id: p.id, mode, level: p.level === undefined ? (m ? +m[1] : 0) : p.level,
+    id: p.id, db, mode, level: p.level === undefined ? (m ? +m[1] : 0) : p.level,
     prompt_en: t.en.prompt || '', prompt_es: t.es.prompt || '', clause_en: t.en.clause || '', clause_es: t.es.clause || '',
     template: p.template || '', template_note_en: t.en.templateNote || '', template_note_es: t.es.templateNote || '',
     ordered: mode === 'select' ? !!p.ordered : false,
@@ -111,27 +123,28 @@ export function rowOf(mode, p, tx) {
 /* ---- Validation of one mode ----------------------------------------------------------------------- */
 
 /* Returns { mode, rows, problems, notes, candidates: [{ id, why }] (main_only), reword: [{ id, why }] }. */
-export async function buildMode(mode, { texts = null } = {}) {
-  const X = await engine();
+export async function buildMode(mode, { texts = null, db = 'shop' } = {}) {
+  const X = await engine(db);
   const { G, E, MAIN, HIDDEN } = X;
-  const tx = texts || readTexts([mode]);
+  const tx = texts || readTexts([mode], db);
   const problems = [];
   const notes = [];
   const candidates = [];
   const reword = [];
-  const items = readPrivate(mode);
-  if (!items) return { mode, rows: [], problems: [`no private file ${privateFile(mode)}`], notes, candidates, reword };
-  if (!HIDDEN) problems.push(`no hidden dataset (${HIDDEN_FILE}): run node comp-hidden.mjs`);
-  const re = new RegExp(`^${PREFIX[mode]}(\\d{2})[ab]$`);
+  const items = readPrivate(mode, db);
+  if (!items) return { mode, db, rows: [], problems: [`no private file ${privateFile(mode, db)}`], notes, candidates, reword };
+  if (!HIDDEN) problems.push(`no hidden dataset (${hiddenFile(db)}): run node comp-hidden.mjs --db ${db}`);
+  const pre = idPrefix(mode, db);
+  const re = new RegExp(`^${pre}(\\d{2})[ab]$`);
   const seen = new Set();
   const rows = [];
   for (const p of items) {
     const bad = (msg) => problems.push(`[${p.id || '?'}] ${msg}`);
     const m = re.exec(String(p.id || ''));
-    if (!m) { bad(`id must be ${PREFIX[mode]}NN(a|b)`); continue; }
+    if (!m) { bad(`id must be ${pre}NN(a|b)`); continue; }
     if (seen.has(p.id)) { bad('duplicate id'); continue; }
     seen.add(p.id);
-    const q = rowOf(mode, p, tx);
+    const q = rowOf(mode, p, tx, db);
     const start = problems.length;
     if (q.level !== +m[1] || q.level < 1 || q.level > 15) bad(`level ${q.level} does not match the id`);
     for (const f of ['solution', 'template']) if (typeof p[f] !== 'string' || !p[f].trim()) bad(`${f} is missing`);
@@ -140,7 +153,7 @@ export async function buildMode(mode, { texts = null } = {}) {
     if (p.alts !== undefined && !Array.isArray(p.alts)) bad('alts must be a list');
     if (mode === 'ddl' && !(Array.isArray(p.checks) && p.checks.length)) bad('a DDL question needs its own checks (probes)');
     if (mode !== 'select' && p.checks !== undefined && p.checks !== null && !Array.isArray(p.checks)) bad('checks must be null or a list');
-    for (const l of ['en', 'es']) for (const f of ['prompt', 'clause', 'templateNote']) if (!String(((tx[l] || {})[p.id] || {})[f] || '').trim()) bad(`text ${l}.${f} is missing (tools/comp/private/texts/${l}-${mode}.js)`);
+    for (const l of ['en', 'es']) for (const f of ['prompt', 'clause', 'templateNote']) if (!String(((tx[l] || {})[p.id] || {})[f] || '').trim()) bad(`text ${l}.${f} is missing (tools/comp/private/${db === 'shop' ? '' : `${db}/`}texts/${l}-${mode}.js)`);
     if (problems.length > start) continue;
 
     // 1. The solution is an answer the server accepts.
@@ -233,28 +246,35 @@ export async function buildMode(mode, { texts = null } = {}) {
     if (problems.length === start) rows.push(q);
   }
   rows.sort((a, b) => a.id.localeCompare(b.id));
-  return { mode, rows, problems, notes, candidates, reword };
+  return { mode, db, rows, problems, notes, candidates, reword };
 }
 
-/* Everything comp-upload.mjs sends: { rows, meta: { version, main_setup, hidden_setup, schema }, problems }. */
-export async function collect(modes = MODES) {
-  const X = await engine();
-  const texts = readTexts(modes);
-  const out = { rows: [], problems: [], notes: [] };
-  for (const m of modes) {
-    const r = await buildMode(m, { texts });
-    out.rows.push(...r.rows);
-    out.problems.push(...r.problems.map((x) => `${m} ${x}`));
-    out.notes.push(...r.notes.map((x) => `${m} ${x}`));
+/* Everything comp-upload.mjs sends: { rows, meta, problems, notes }, for every database with a bank (or `dbs`).
+   meta: { version, dbs: { <db>: { main_setup, hidden_setup, schema, types } } } plus the shop's main_setup,
+   hidden_setup and schema under their old keys (a function deployed before §16 keeps working on the shop). */
+export async function collect(modes = MODES, dbs = bankDbs()) {
+  const out = { rows: [], problems: [], notes: [], meta: { dbs: {} } };
+  for (const db of dbs) {
+    const X = await engine(db);
+    const texts = readTexts(modes, db);
+    for (const m of modes) {
+      if (!existsSync(privateFile(m, db))) { out.problems.push(`${db} ${m} no private file ${privateFile(m, db)}`); continue; }
+      const r = await buildMode(m, { texts, db });
+      out.rows.push(...r.rows);
+      out.problems.push(...r.problems.map((x) => `${db} ${m} ${x}`));
+      out.notes.push(...r.notes.map((x) => `${db} ${m} ${x}`));
+    }
+    out.meta.dbs[db] = { main_setup: X.MAIN, hidden_setup: X.HIDDEN, schema: X.BANK.schema, types: X.BANK.types || null };
   }
-  const version = createHash('sha256').update(JSON.stringify([out.rows, X.MAIN, X.HIDDEN, X.BANK.schema])).digest('hex').slice(0, 16);
-  out.meta = { version, main_setup: X.MAIN, hidden_setup: X.HIDDEN, schema: X.BANK.schema };
+  const shop = out.meta.dbs.shop;
+  if (shop) Object.assign(out.meta, { main_setup: shop.main_setup, hidden_setup: shop.hidden_setup, schema: shop.schema });
+  out.meta.version = createHash('sha256').update(JSON.stringify([out.rows, out.meta.dbs])).digest('hex').slice(0, 16);
   return out;
 }
 
 /* Writes "main_only": true into the private file for these ids (keeps the file's layout as JSON with 2 spaces). */
-function markMainOnly(mode, ids) {
-  const f = privateFile(mode);
+function markMainOnly(mode, ids, db = 'shop') {
+  const f = privateFile(mode, db);
   const j = JSON.parse(readFileSync(f, 'utf8'));
   const qs = Array.isArray(j) ? j : j.questions;
   qs.forEach((q) => { if (ids.includes(q.id)) q.main_only = true; });
@@ -296,6 +316,11 @@ function extraFiles() {
   const out = {};
   ['hidden-seed.txt', 'hidden-setup.sql'].forEach((f) => { if (existsSync(join(PRIVATE_DIR, f))) out[f] = readFileSync(join(PRIVATE_DIR, f), 'utf8'); });
   if (existsSync(TEXT_DIR)) readdirSync(TEXT_DIR).filter((f) => /^(en|es)-\w+\.js$/.test(f)).forEach((f) => { out[`texts/${f}`] = readFileSync(join(TEXT_DIR, f), 'utf8'); });
+  // The other databases (§16): every file of tools/comp/private/<db>/ and <db>/texts/.
+  DBS.filter((d) => d !== 'shop' && existsSync(dbDir(d))).forEach((d) => {
+    readdirSync(dbDir(d)).filter((f) => /\.(json|txt|sql)$/.test(f)).forEach((f) => { out[`${d}/${f}`] = readFileSync(join(dbDir(d), f), 'utf8'); });
+    if (existsSync(textDir(d))) readdirSync(textDir(d)).filter((f) => /^(en|es)-\w+\.js$/.test(f)).forEach((f) => { out[`${d}/texts/${f}`] = readFileSync(join(textDir(d), f), 'utf8'); });
+  });
   return out;
 }
 
@@ -324,6 +349,7 @@ ${newKey()}`);
     for (const [rel, text] of Object.entries(all)) {
       const f = join(PRIVATE_DIR, rel);
       if (existsSync(f) && !has('--force')) { console.log(`kept ${rel} (exists; --force overwrites)`); continue; }
+      mkdirSync(dirname(f), { recursive: true });
       writeFileSync(f, text);
       console.log(`wrote tools/comp/private/${rel}`);
     }
@@ -331,27 +357,32 @@ ${newKey()}`);
   }
   const only = val('--mode');
   if (only && !MODES.includes(only)) { console.log(`unknown mode ${only}: ${MODES.join(', ')}`); return 1; }
-  const modes = only ? [only] : MODES.filter((m) => existsSync(privateFile(m)));
-  const texts = readTexts(modes);
+  const oneDb = val('--db');
+  if (oneDb && !DBS.includes(oneDb)) { console.log(`unknown database ${oneDb}: ${DBS.join(', ')}`); return 1; }
   let failed = 0;
   const allCand = [];
-  for (const m of modes) {
-    const r = await buildMode(m, { texts });
-    r.notes.forEach((n) => console.log(`note ${m} ${n}`));
-    if (has('--mark') && r.candidates.length) {
-      markMainOnly(m, r.candidates.map((c) => c.id));
-      r.candidates.forEach((c) => console.log(`MARK ${m} [${c.id}] main_only (${c.why})`));
-      const again = await buildMode(m, { texts });
-      again.problems.forEach((p) => console.log(`FAIL ${m} ${p}`));
-      failed += again.problems.length;
-      console.log(`${m}: ${again.rows.length} question(s) ok, ${again.problems.length} problem(s) after marking`);
+  for (const db of oneDb ? [oneDb] : bankDbs()) {
+    const modes = only ? [only] : MODES.filter((m) => existsSync(privateFile(m, db)));
+    const texts = readTexts(modes, db);
+    const tag = db === 'shop' ? '' : `${db} `;
+    for (const m of modes) {
+      const r = await buildMode(m, { texts, db });
+      r.notes.forEach((n) => console.log(`note ${tag}${m} ${n}`));
+      if (has('--mark') && r.candidates.length) {
+        markMainOnly(m, r.candidates.map((c) => c.id), db);
+        r.candidates.forEach((c) => console.log(`MARK ${tag}${m} [${c.id}] main_only (${c.why})`));
+        const again = await buildMode(m, { texts, db });
+        again.problems.forEach((p) => console.log(`FAIL ${tag}${m} ${p}`));
+        failed += again.problems.length;
+        console.log(`${tag}${m}: ${again.rows.length} question(s) ok, ${again.problems.length} problem(s) after marking`);
+        allCand.push(...r.candidates.map((c) => ({ mode: m, ...c })));
+        continue;
+      }
+      r.problems.forEach((p) => console.log(`FAIL ${tag}${m} ${p}`));
+      failed += r.problems.length;
       allCand.push(...r.candidates.map((c) => ({ mode: m, ...c })));
-      continue;
+      console.log(`${tag}${m}: ${r.rows.length} question(s) ok${r.problems.length ? `, ${r.problems.length} problem(s)` : ''}`);
     }
-    r.problems.forEach((p) => console.log(`FAIL ${m} ${p}`));
-    failed += r.problems.length;
-    allCand.push(...r.candidates.map((c) => ({ mode: m, ...c })));
-    console.log(`${m}: ${r.rows.length} question(s) ok${r.problems.length ? `, ${r.problems.length} problem(s)` : ''}`);
   }
   if (allCand.length) console.log(`\nmain_only candidates (${allCand.length}): ${allCand.map((c) => c.id).join(', ')}`);
   return failed ? 1 : 0;

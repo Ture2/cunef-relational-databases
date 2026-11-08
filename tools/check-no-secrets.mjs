@@ -22,7 +22,7 @@ import { execFileSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readPrivate, readTexts, MODES } from './comp-build.mjs';
-import { readHidden, publicSetup } from './comp-hidden.mjs';
+import { readHidden, publicSetup, DBS, dbFile } from './comp-hidden.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
@@ -40,22 +40,26 @@ for (const p of ['tools/comp/private/select.json', 'tools/comp/private/hidden-se
 // The private content (normalized: whitespace collapsed, lower case), when this machine has the private files.
 const norm = (s) => String(s).replace(/\s+/g, ' ').trim().toLowerCase();
 const secrets = [];
-MODES.forEach((m) => (readPrivate(m) || []).forEach((q) => {
+// Every competitive database whose public file exists (§16): the shop and the others.
+const DB_LIST = DBS.filter((d) => d === 'shop' || existsSync(dbFile(d)));
+DB_LIST.forEach((db) => MODES.forEach((m) => (readPrivate(m, db) || []).forEach((q) => {
   // Right answers only: traps are wrong answers, often the same common mistakes as in the public study bank.
   [['solution', [q.solution]], ['alt', q.alts || []]].forEach(([what, list]) => list.forEach((s) => {
     if (norm(s).length >= 12) secrets.push([`${what} of ${q.id}`, norm(s)]);
   }));
-}));
-const texts = readTexts();
-// The prompts (the clause hints and template notes are short generic sentences, shared with the study texts).
-['en', 'es'].forEach((l) => Object.entries(texts[l]).forEach(([id, t]) => {
-  if (norm(t.prompt || '').length >= 30) secrets.push([`${l} prompt of ${id}`, norm(t.prompt)]);
-}));
-const hidden = readHidden();
-if (hidden) {
-  const pub = new Set(publicSetup().split('\n').map(norm));
-  hidden.split('\n').filter((l) => /^INSERT INTO/.test(l) && !pub.has(norm(l))).forEach((l) => secrets.push(['row of the hidden dataset', norm(l).replace(/;$/, '')]));
-}
+})));
+DB_LIST.forEach((db) => {
+  const texts = readTexts(MODES, db);
+  // The prompts (the clause hints and template notes are short generic sentences, shared with the study texts).
+  ['en', 'es'].forEach((l) => Object.entries(texts[l]).forEach(([id, t]) => {
+    if (norm(t.prompt || '').length >= 30) secrets.push([`${l} prompt of ${id}`, norm(t.prompt)]);
+  }));
+  const hidden = readHidden(db);
+  if (hidden) {
+    const pub = new Set(publicSetup(db).split('\n').map(norm));
+    hidden.split('\n').filter((l) => /^INSERT INTO/.test(l) && !pub.has(norm(l))).forEach((l) => secrets.push([`row of the hidden dataset of ${db}`, norm(l).replace(/;$/, '')]));
+  }
+});
 // A secret that is also public study material (the same short SQL in a public card) is not a leak of the bank.
 const publicCorpus = norm(files.filter((f) => /^(data|js|i18n)\//.test(f) && !/game-comp/.test(f)).map((f) => readFileSync(join(ROOT, f), 'utf8')).join('\n'));
 const shared = new Set(secrets.filter(([, s]) => s.length < 30 && publicCorpus.includes(s)).map(([, s]) => s));

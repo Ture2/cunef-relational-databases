@@ -100,7 +100,7 @@ LANGS.forEach((l) => {
   const kinds = (t.modes || {}).kinds || {};
   expect(JSON.stringify(Object.keys(kinds)) === JSON.stringify(['select', 'insert', 'update', 'delete', 'ddl', 'mixed']) && Object.values(kinds).every(filled),
     `[${l}] modes.kinds: one line for select, insert, update, delete, ddl and mixed, in tile order`);
-  expect(/(^|\D)5(\D|$)/.test((t.modes || {}).unlock || ''), `[${l}] modes.unlock says the rung (5) that opens Mixed`);
+  expect(!/(^|\D)5(\D|$)/.test((t.modes || {}).unlock || '') && /\*\*(Mixed|Mixto)\*\*/.test((t.modes || {}).unlock || ''), `[${l}] modes.unlock presents Mixed as open (no rung 5 gate)`);
   expect(/\{n\}/.test(t.nav.step) && /\{total\}/.test(t.nav.step), `[${l}] nav.step has {n} and {total}`);
   expect(/\{low\}/.test(t.attract.ladder) && /\{top\}/.test(t.attract.ladder), `[${l}] attract.ladder has {low} and {top}`);
   expect(/\{prize\}/.test(t.example.lead), `[${l}] example.lead has {prize}`);

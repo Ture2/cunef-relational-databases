@@ -54,7 +54,7 @@
         ddl: 'Construye con `CREATE` y `ALTER`: tablas, columnas, vistas e índices.',
         mixed: 'Cada peldaño pide un tipo de sentencia distinto.',
       },
-      unlock: '**Mixto** se desbloquea al llegar al peldaño 5 en los cinco modos. **Modos** te lleva a la primera pantalla; tu partida te espera.',
+      unlock: '**Mixto** está abierto desde el principio: mezcla los cinco modos en una partida. **Modos** te lleva a la primera pantalla; tu partida te espera.',
     },
     comp: {
       title: 'Estudio o competición',

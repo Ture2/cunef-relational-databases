@@ -1,6 +1,7 @@
 // Uploads the competitive bank to Supabase (docs/game-quiz.md §15.5): every question of tools/comp/private/<mode>.json
 // with its texts (tools/comp/private/texts/) into public.comp_questions, and the datasets into public.comp_meta
-// (main_setup, hidden_setup, schema, version). It validates first (tools/comp-build.mjs, both datasets) and uploads
+// (dbs: every database's main_setup, hidden_setup, schema and types (§16); the shop's main_setup, hidden_setup and
+// schema again under their old keys; version). It validates first (tools/comp-build.mjs, both datasets) and uploads
 // nothing when a question has a problem. Upserts by id: run it again after any edit. --prune also deletes the rows
 // of questions no longer in the private files. --dry-run validates and prints what it would send.
 //
@@ -46,7 +47,7 @@ export function uploadRows(rows) {
    any change gives a new version. The function also reloads on any updated_at change (see its bank()). */
 export function versionOf(rows, meta) {
   const strip = rows.map(({ updated_at: _u, ...r }) => r).sort((a, b) => a.id.localeCompare(b.id));
-  return createHash('sha256').update(JSON.stringify([strip, meta.main_setup, meta.hidden_setup, meta.schema])).digest('hex').slice(0, 16);
+  return createHash('sha256').update(JSON.stringify([strip, meta.dbs || null, meta.main_setup, meta.hidden_setup, meta.schema])).digest('hex').slice(0, 16);
 }
 
 // mutate(rows) => rows: for tests only (check-comp-server --e2e changes a question and uploads it).
@@ -56,7 +57,8 @@ export async function upload({ url, key, prune = false, log = console.log, mutat
     c.problems.forEach((p) => log(`FAIL ${p}`));
     throw new Error(`${c.problems.length} problem(s): nothing uploaded (node comp-build.mjs for the report)`);
   }
-  if (!c.meta.hidden_setup) throw new Error('no hidden dataset: run node comp-hidden.mjs first');
+  const noHidden = Object.keys(c.meta.dbs).filter((d) => !c.meta.dbs[d].hidden_setup);
+  if (noHidden.length) throw new Error(`no hidden dataset for ${noHidden.join(', ')}: run node comp-hidden.mjs first`);
   const H = headersFor(key);
   const rest = `${url.replace(/\/+$/, '')}/rest/v1`;
   const send = async (method, path, body, prefer) => {
@@ -95,7 +97,8 @@ async function main(argv) {
   if (argv.includes('--dry-run')) {
     const c = await collect();
     c.problems.forEach((p) => console.log(`FAIL ${p}`));
-    console.log(`${c.rows.length} question(s), version ${c.meta.version}, hidden dataset ${c.meta.hidden_setup ? 'present' : 'MISSING'}`);
+    Object.entries(c.meta.dbs).forEach(([d, x]) => console.log(`${d}: ${c.rows.filter((r) => r.db === d).length} question(s), hidden dataset ${x.hidden_setup ? 'present' : 'MISSING'}`));
+  console.log(`${c.rows.length} question(s), version ${c.meta.version}`);
     return c.problems.length ? 1 : 0;
   }
   if (!url || !key) {
