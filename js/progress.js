@@ -160,18 +160,14 @@ const ProgressPage = (() => {
     location.reload();               // every section keeps its state in memory
   }
 
-  /* The app-bar button: a small ring and the overall percentage. */
+  /* The app bar: the overall percentage is the ring around the account button (js/account.js). */
   let shownPct = null;
   function updateButton() {
-    const btn = $('#progress-btn');
-    if (!btn) return;
+    if (typeof AccountMenu === 'undefined') return;
     const s = summary();
     if (s.pct === shownPct) return;
     shownPct = s.pct;
-    btn.querySelector('.progress-ring').innerHTML = ring(s.pct, 28);
-    btn.querySelector('.progress-pct').textContent = `${s.pct}%`;
-    btn.setAttribute('aria-label', t('Your progress: {pct}%', { pct: s.pct }));
-    btn.title = t('Your progress: {pct}%', { pct: s.pct });
+    AccountMenu.setProgress(s.pct);
   }
   /* Only stores that count towards progress can change the ring (not saved work or layout). */
   window.addEventListener('progress-change', (e) => { if (PROGRESS_KEYS.includes(e.detail)) updateButton(); });

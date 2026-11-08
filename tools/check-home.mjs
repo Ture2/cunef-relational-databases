@@ -72,7 +72,7 @@ for (const lang of ['en', 'es']) {
   expect(m.w >= 370 && m.overflow <= 1, `[375px] the section menu spans the screen (${Math.round(m.w)}px) without horizontal scroll`);
   await page.close();
 }
-// App bar layout: Progress, Ask Claude and Settings form one group at the right end, evenly spaced;
+// App bar layout: Ask Claude and Account form one group at the right end, evenly spaced;
 // on narrow screens the summary PDF shares a row with the "Go to" menu.
 for (const width of [375, 768, 1280]) {
   const page = await browser.newPage({ viewport: { width, height: 800 } });
@@ -81,17 +81,56 @@ for (const width of [375, 768, 1280]) {
   const m = await page.evaluate(() => {
     const r = (sel) => document.querySelector(sel).getBoundingClientRect();
     const bar = r('.appbar .appbar-row');
-    const items = ['#progress-btn', '#ask-btn', '#settings-btn'].map(r);
+    const items = ['#ask-btn', '#account-btn'].map(r);
     const gaps = items.slice(1).map((b, i) => b.left - items[i].right);
     const side = document.querySelector('#side-go');
     const pdf = document.querySelector('.side-select .side-pdf');
     const sameRow = side && pdf && side.offsetParent && Math.abs(side.getBoundingClientRect().top - pdf.getBoundingClientRect().top) < 4;
-    return { right: bar.right - items[2].right, gaps, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, sameRow, sideShown: !!(side && side.offsetParent) };
+    return { right: bar.right - items[1].right, gaps, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, sameRow, sideShown: !!(side && side.offsetParent) };
   });
   expect(m.right >= 0 && m.right <= 20, `[${width}px] the app bar actions sit at the right end (${Math.round(m.right)}px from it)`);
-  expect(m.gaps.every((g) => g >= 6 && g <= 12), `[${width}px] even gaps between Progress, Ask Claude and Settings (${m.gaps.map(Math.round).join(', ')}px)`);
+  expect(m.gaps.every((g) => g >= 6 && g <= 12), `[${width}px] even gaps between Ask Claude and Account (${m.gaps.map(Math.round).join(', ')}px)`);
   expect(m.overflow <= 1, `[${width}px] no horizontal scroll`);
   if (m.sideShown) expect(m.sameRow, `[${width}px] the summary PDF is on the same row as the "Go to" menu`);
+  await page.close();
+}
+// Account menu: who you are (signed out / initials), the progress ring, the settings; Esc closes it.
+for (const [width, signed] of [[1280, false], [375, true]]) {
+  const page = await browser.newPage({ viewport: { width, height: 800 } });
+  if (signed) {
+    await page.addInitScript(() => {
+      localStorage.setItem('game-comp-auth', JSON.stringify({ access_token: 'x', refresh_token: 'y', expires_at: 1, user: { id: 'u', email: 'ana.garcia@cunef.edu' } }));
+    });
+  }
+  await page.goto(`${base}?lang=en#/relational/er/cardinality`);
+  await page.waitForSelector('.concept');
+  const btn = await page.evaluate(() => {
+    const b = document.querySelector('#account-btn');
+    return { label: b.getAttribute('aria-label'), face: b.querySelector('.account-face').textContent.trim(), ring: !!b.querySelector('.account-ring .pring-fill') };
+  });
+  expect(signed ? /Ana Garcia|ana\.garcia@cunef\.edu/.test(btn.label) && btn.face === 'AG' : /not signed in/.test(btn.label) && btn.face === '',
+    `[${width}px] the account button shows ${signed ? 'the initials' : 'signed out'} (${btn.label}, "${btn.face}")`);
+  expect(btn.ring && /progress \d+%/.test(btn.label), `[${width}px] the account button carries the progress ring and percentage`);
+  await page.click('#account-btn');
+  const p = await page.evaluate(() => {
+    const panel = document.querySelector('#account-panel');
+    const r = panel.getBoundingClientRect();
+    return {
+      open: !panel.hidden, expanded: document.querySelector('#account-btn').getAttribute('aria-expanded'),
+      sets: ['lang', 'course', 'theme'].every((k) => panel.querySelector(`[data-set="${k}"]`)),
+      signIn: !!panel.querySelector('a[href="#/game/entrar"]'), out: !panel.querySelector('#account-out').hidden,
+      progress: !!panel.querySelector('a[href="#/progress"]'), inView: r.left >= 0 && r.right <= innerWidth,
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  });
+  expect(p.open && p.expanded === 'true', `[${width}px] the account menu opens`);
+  expect(p.sets && p.progress, `[${width}px] the menu holds Progress and the language, course and theme settings`);
+  expect(signed ? p.out : p.signIn && !p.out, `[${width}px] the menu offers ${signed ? 'Sign out' : 'Sign in'}`);
+  expect(p.inView && p.overflow <= 1, `[${width}px] the menu fits the screen without horizontal scroll`);
+  await page.click('#account-panel [data-set="theme"][data-value="dark"]');
+  expect(await page.evaluate(() => document.documentElement.dataset.theme === 'dark' && !document.querySelector('#account-panel').hidden), `[${width}px] the theme changes from the menu, which stays open`);
+  await page.keyboard.press('Escape');
+  expect(await page.evaluate(() => document.querySelector('#account-panel').hidden && document.activeElement.id === 'account-btn'), `[${width}px] Esc closes the menu and returns focus to the button`);
   await page.close();
 }
 await browser.close();

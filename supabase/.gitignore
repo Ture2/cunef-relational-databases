@@ -1,0 +1,11 @@
+# Supabase
+.branches
+.temp
+
+# dotenvx
+.env.keys
+.env.local
+.env.*.local
+
+# The SQLite engine shipped with the comp function: copied from tools/node_modules by tools/supabase-sync.mjs.
+functions/_shared/sql-wasm.wasm

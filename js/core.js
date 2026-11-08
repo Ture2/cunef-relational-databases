@@ -30,6 +30,8 @@ const SQL_QUIZ = langData('SQL_QUIZ');
 const SQL_SANDBOX = langData('SQL_SANDBOX');
 const SQL_CHALLENGES = langData('SQL_CHALLENGES');
 const SQL_CHALLENGES_LEVELS = langData('SQL_CHALLENGES_LEVELS');
+const GAME_TEXT = langData('GAME_TEXT');
+const GAME_TOUR = langData('GAME_TOUR');
 
 /* Storage key for work that depends on the language (tables built with translated names). */
 const langKey = (key) => (LANG === 'en' ? key : `${key}-${LANG}`);

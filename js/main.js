@@ -38,25 +38,26 @@
   function translateShell() {
     $('.skip').textContent = t('Skip to content');
     $('.brand-name').textContent = t('Databases practice');
-    $('.progress-label').textContent = t('Progress');
     $('#footer-course').textContent = t('Databases · Escuela Politécnica Superior');
     const meta = document.querySelector('meta[name="description"]');
     if (meta) meta.setAttribute('content', t('Interactive databases practice: theory, ER concepts, ER to logical model transformation with instant checking, normalization up to 5NF and SQL you can run in the browser.'));
-    $('#settings-label').textContent = t('Settings');
-    $('#settings-btn').title = t('Settings');
+    $('#account-title').textContent = t('Account and settings');
     $('#settings-title').textContent = t('Settings');
+    $('[data-account="logout"]').textContent = t('Sign out');
     $('#set-lang-h').textContent = t('Language');
     $('#set-course-h').textContent = t('Course');
     $('#set-theme-h').textContent = t('Theme');
     const labels = { relational: t('Relational databases'), nosql: t('Non-relational databases'), light: t('Light'), dark: t('Dark'), system: t('System') };
-    document.querySelectorAll('.settings-panel [data-set]').forEach((b) => { if (labels[b.dataset.value]) b.textContent = labels[b.dataset.value]; });
+    document.querySelectorAll('.account-panel [data-set]').forEach((b) => { if (labels[b.dataset.value]) b.textContent = labels[b.dataset.value]; });
   }
   translateShell();
 
-  /* ---- Settings menu: language, course and theme ------------------------------ */
+  /* ---- Account menu: the account, the progress and the settings (language, course, theme) ----
+     js/account.js draws the button and the account and progress blocks; the menu's opening,
+     closing and the settings are handled here. */
 
-  const settingsBtn = $('#settings-btn');
-  const panel = $('#settings-panel');
+  const settingsBtn = $('#account-btn');
+  const panel = $('#account-panel');
   let currentCourse = 'relational';
 
   function markSettings() {
@@ -67,7 +68,7 @@
     markSettings();
     panel.hidden = false;
     settingsBtn.setAttribute('aria-expanded', 'true');
-    (panel.querySelector('[aria-pressed="true"]') || panel.querySelector('button')).focus();
+    (panel.querySelector('a, button') || panel).focus();
   }
   function closeSettings(focusButton = true) {
     if (panel.hidden) return;
@@ -77,6 +78,7 @@
   }
   settingsBtn.addEventListener('click', () => (panel.hidden ? openSettings() : closeSettings()));
   panel.addEventListener('click', (e) => {
+    if (e.target.closest('a[href]')) { closeSettings(false); return; }   // a link leaves the menu (the route changes)
     const b = e.target.closest('[data-set]');
     if (!b) return;
     const v = b.dataset.value;
@@ -92,7 +94,7 @@
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) closeSettings(); });
   document.addEventListener('click', (e) => {
-    if (!panel.hidden && !e.target.closest('.settings')) closeSettings(false);
+    if (!panel.hidden && !e.target.closest('.account')) closeSettings(false);
   });
 
   function legacy(hash) {
@@ -107,13 +109,17 @@
   }
 
   /* Pages outside any section: they keep the relational tabs, with none marked as current. */
-  const PAGES = { '#/progress': ProgressPage, '#/': HomePage, '#': HomePage, '': HomePage };
+  const PAGES = { '#/progress': ProgressPage, '#/game': GamePage, '#/': HomePage, '#': HomePage, '': HomePage };
 
   function parse() {
     const hash = location.hash;
     const old = legacy(hash);
     if (old) { history.replaceState(null, '', old); return parse(); }
     if (PAGES[hash]) return { course: 'relational', section: null, rest: '', module: PAGES[hash] };
+    // The game: #/game/<mode> (study: select, insert, update, delete, ddl, mixed), #/game/comp/<mode> (competitive)
+    // and #/game/profesor (teacher mode); GamePage reads `rest` ('insert', 'comp/insert', 'profesor').
+    const g = hash.match(/^#\/game\/((?:comp\/)?[a-z]+)$/);
+    if (g) return { course: 'relational', section: null, rest: g[1], module: GamePage };
     let m = hash.match(/^#\/relational\/(theory|er|logical|normalization|sql)(?:\/(.*))?$/);
     if (m) return { course: 'relational', section: m[1], rest: m[2] || '' };
     m = hash.match(/^#\/nosql(?:\/(.*))?$/);
@@ -129,8 +135,12 @@
     const more = (s) => (s.module.tools && s.module.tools().length
       ? `<button type="button" class="mode-more" data-menu="${s.id}" aria-expanded="false" aria-controls="section-menu" aria-label="${esc(t('{section} tools', { section: s.label }))}"><svg viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></button>`
       : '');
+    // The game is a destination of its own, set apart after the course sections (styles.css .mode-arcade).
+    const arcade = route.course === 'relational'
+      ? `<a class="mode-arcade" href="#/game"${route.module === GamePage ? ' aria-current="page"' : ''}><span class="mode-arcade-icon" aria-hidden="true"></span>${esc(t('Arcade'))}</a>`
+      : '';
     $('#section-nav').innerHTML = course.sections.length > 1
-      ? home + course.sections.map((s) => `<span class="mode" data-mode="${s.id}"><a href="${s.href}"${s.id === route.section ? ' aria-current="page"' : ''}>${esc(s.label)}</a>${more(s)}</span>`).join('')
+      ? home + course.sections.map((s) => `<span class="mode" data-mode="${s.id}"><a href="${s.href}"${s.id === route.section ? ' aria-current="page"' : ''}>${esc(s.label)}</a>${more(s)}</span>`).join('') + arcade
       : '';
     $('#section-nav').hidden = course.sections.length < 2;
     $('#section-nav').setAttribute('aria-label', t('{course}: sections', { course: course.title }));
@@ -240,7 +250,6 @@
     current = route.module || COURSES[route.course].sections.find((s) => s.id === route.section).module;
     // Modules that draw a full-height rail on the left edge (ConceptSection) use the full width.
     $('#main').classList.toggle('is-wide', !!current.wide);
-    $('#progress-btn').toggleAttribute('aria-current', current === ProgressPage);
     const title = current.render(route.rest);
     document.title = `${title} · ${t('Databases practice')}`;
     ProgressPage.updateButton();
