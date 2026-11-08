@@ -15,6 +15,7 @@ The free, bilingual (English / Spanish) practice site of the CUNEF *Databases I*
 | **ER → Logical** | 21 exercises: turn an ER model into tables, with every mistake explained by the transformation rules |
 | **Normalization** | Normalize or diagnose schemas from 2NF to 5NF |
 | **SQL** | 60 cards in tabs by sub-language (DDL, DML, Advanced: DCL, TCL, PL/SQL), runnable Oracle examples, a 133-question quiz, 22 auto-checked challenges and a sandbox |
+| **Arcade** | *Query for a Million*: 15-question SQL ladders in six modes; the Competitive side (sign in with your @cunef.edu email) awards a badge per mode, and the account menu shows your attempts |
 
 ## Why it helps
 

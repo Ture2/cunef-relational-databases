@@ -1,1 +1,4 @@
 node_modules/
+
+# Competitive game bank: the plain-text solutions never leave this machine (only tools/comp/solutions.enc is committed).
+comp/private/

@@ -104,19 +104,19 @@ const SqlRunner = (() => {
     return db;
   };
 
-  /* A fresh database with the setup already run: from a cached image after the first time. */
+  /* A fresh database with the setup already run: from a cached image after the first time.
+     Both pragmas are per connection (an exported image does not keep them), so every copy sets them again:
+     foreign keys enforced, and LIKE case-sensitive as in Oracle ('sky%' does not find 'Sky Harbor'). */
+  const oracleLike = (db) => { db.run('PRAGMA foreign_keys = ON;'); db.run('PRAGMA case_sensitive_like = ON;'); return db; };
   function freshDb(SQL, setup) {
     if (setup && !images.has(setup)) {
-      const d = withFunctions(new SQL.Database());
-      d.run('PRAGMA foreign_keys = ON;');
+      const d = oracleLike(withFunctions(new SQL.Database()));
       try {
         OracleDialect.script(setup, { finish: true }).forEach((u) => u.sqls.forEach((q) => d.run(q)));
         images.set(setup, d.export());
       } finally { d.close(); }
     }
-    const db = withFunctions(setup ? new SQL.Database(images.get(setup)) : new SQL.Database());
-    db.run('PRAGMA foreign_keys = ON;');    // per connection: set it again on every copy
-    return db;
+    return oracleLike(withFunctions(setup ? new SQL.Database(images.get(setup)) : new SQL.Database()));
   }
 
   async function run(id) {
@@ -217,6 +217,20 @@ const SqlRunner = (() => {
     } finally { db.close(); }
   }
 
+  /* For the game's DML and DDL questions (docs/game-quiz.md §13.2): one fresh copy of `setup`, the Oracle `text`,
+     then each probe of `checks` inside SAVEPOINT … ROLLBACK TO (OracleDialect.runChecks).
+     Returns { error?: {code?, text}, changes, results: [{cols, rows} | {error: {code, text}}] }. */
+  async function executeChecks(setup, text, checks) {
+    let SQL;
+    try { SQL = await load(); } catch (e) { return { error: { text: t('The SQL engine could not load (are you offline?). You can still read and download the code.') }, changes: 0, results: [] }; }
+    const db = freshDb(SQL, setup);
+    try {
+      return OracleDialect.runChecks(db, text, checks || []);
+    } catch (e) {
+      return { error: { text: String(e && e.message !== undefined ? e.message : e) }, changes: 0, results: [] };
+    } finally { db.close(); }
+  }
+
   /* The script for FreeSQL: a clean slate, the setup and the editor text, all in Oracle. */
   function oracleScript(id) {
     const cfg = boxes[id];
@@ -274,5 +288,5 @@ const SqlRunner = (() => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); run(ed.dataset.sql); }
   }
 
-  return { html, sandboxHtml, onClick, onInput, onKeydown, execute, tableHtml };
+  return { html, sandboxHtml, onClick, onInput, onKeydown, execute, executeChecks, tableHtml, load };
 })();

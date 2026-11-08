@@ -1,0 +1,500 @@
+/* ==========================================================================
+   Query for a Million: the onboarding overlay (js/game-intro.js, global GameIntro).
+   Contract: docs/game-quiz.md §9, docs/game-visual.md "Onboarding" and "Round 3".
+   The overlay lives inside section.wr-game and reads its --wr-* tokens (game.css);
+   the fallbacks below are the contract's values, so it also works without them.
+   Classic arcade: flat fills, ink outlines, hard offset shadows, Silkscreen for
+   short display text, pixel step dots. No glow, gradient or scanline. The only
+   blur is the veil over the live game, as the contract asks. The loud element is
+   the prize ladder (the attract screen's climb, the example's mini ladder).
+   ========================================================================== */
+
+.gi {
+  --gi-bg: var(--wr-bg, #e8eefc);
+  --gi-panel: var(--wr-panel, #ffffff);
+  --gi-ink: var(--wr-ink, #1c1838);
+  --gi-edge: var(--wr-edge, #1c1838);
+  --gi-shadow: var(--wr-shadow, #1c1838);
+  --gi-muted: var(--wr-muted, #4f4a72);
+  --gi-p1: var(--wr-p1, #1660e8);
+  --gi-p2: var(--wr-p2, #d61f3a);
+  --gi-ok: var(--wr-ok, #127a43);
+  --gi-coin: var(--wr-coin, #ffc21a);
+  --gi-coin-text: var(--wr-coin-text, #8a5a00);
+  --gi-marquee: var(--wr-marquee, #ffcf1f);
+  --gi-start: var(--wr-start, #ff5700);
+  --gi-screen: var(--wr-screen, #f4f7ff);
+  --gi-control: var(--wr-control, #1c1838);
+  --gi-rule: var(--wr-rule, #c9cfe6);
+  --gi-hover: var(--wr-hover, #fff4c7);
+  --gi-cab: #1c1838;                             /* ink on yellow and orange */
+  --gi-ok-fill: #3ccf7a;                         /* the rung that lights up (ink text on it) */
+  --gi-font: var(--wr-display, "Silkscreen", "Arial Black", Arial, sans-serif);
+  --gi-veil: rgba(232, 238, 252, .58);
+  --gi-dither: rgba(28, 24, 56, .07);
+  --gi-dur: 280ms;
+
+  color-scheme: light;                           /* always light (round 4): never follows a dark site theme */
+  position: fixed; inset: 0; z-index: 1000;
+  color: var(--gi-ink);
+  font: .95rem/1.55 var(--sans, Arial, sans-serif);
+  text-align: left;
+}
+.gi *, .gi *::before, .gi *::after { box-sizing: border-box; }
+.gi [hidden] { display: none !important; }
+.gi :focus-visible { outline: 3px solid var(--gi-p1); outline-offset: 2px; }
+.gi h2, .gi h3, .gi p, .gi ol, .gi ul, .gi dl, .gi dd, .gi figure { margin: 0; }
+.gi code { font: 600 .88em var(--mono, monospace); }
+.gi-pix { width: 24px; height: 24px; fill: currentColor; flex: none; }
+.gi-pix.is-small { width: 16px; height: 16px; }
+
+/* ---- The veil: the live game, blurred, with a cut-out on screen 3 ----------------------- */
+
+.gi-veil {
+  position: absolute; inset: 0;
+  background-color: var(--gi-veil);
+  background-color: color-mix(in srgb, var(--gi-bg) 60%, transparent);
+  background-image: repeating-conic-gradient(var(--gi-dither) 0 25%, transparent 0 50%);
+  background-size: 4px 4px;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  transition: clip-path var(--gi-dur) ease;
+}
+/* The frame around the cut-out: a yellow band between two ink lines, with pixel corner brackets. */
+.gi-ring {
+  position: absolute; pointer-events: none;
+  border: 3px solid var(--gi-marquee);
+  box-shadow: 0 0 0 2px var(--gi-cab), inset 0 0 0 2px var(--gi-cab);
+  transition: left var(--gi-dur) ease, top var(--gi-dur) ease, width var(--gi-dur) ease, height var(--gi-dur) ease;
+}
+.gi-ring::before {
+  content: ""; position: absolute; inset: -9px;
+  background:
+    linear-gradient(var(--gi-cab), var(--gi-cab)) 0 0 / 16px 4px no-repeat,
+    linear-gradient(var(--gi-cab), var(--gi-cab)) 0 0 / 4px 16px no-repeat,
+    linear-gradient(var(--gi-cab), var(--gi-cab)) 100% 0 / 16px 4px no-repeat,
+    linear-gradient(var(--gi-cab), var(--gi-cab)) 100% 0 / 4px 16px no-repeat,
+    linear-gradient(var(--gi-cab), var(--gi-cab)) 0 100% / 16px 4px no-repeat,
+    linear-gradient(var(--gi-cab), var(--gi-cab)) 0 100% / 4px 16px no-repeat,
+    linear-gradient(var(--gi-cab), var(--gi-cab)) 100% 100% / 16px 4px no-repeat,
+    linear-gradient(var(--gi-cab), var(--gi-cab)) 100% 100% / 4px 16px no-repeat;
+}
+
+/* ---- Cards ------------------------------------------------------------------------------ */
+
+.gi-stage {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  padding: 16px;
+  overflow: auto;
+}
+.gi-card {
+  position: relative;
+  display: flex; flex-direction: column;
+  width: min(700px, 100%);
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  background: var(--gi-panel);
+  border: 3px solid var(--gi-edge);
+  box-shadow: 6px 6px 0 var(--gi-shadow);
+}
+.gi-card.is-in-next { animation: gi-in-next var(--gi-dur) ease-out both; }
+.gi-card.is-in-back { animation: gi-in-back var(--gi-dur) ease-out both; }
+@keyframes gi-in-next { from { opacity: 0; transform: translateX(28px); } }
+@keyframes gi-in-back { from { opacity: 0; transform: translateX(-28px); } }
+
+/* The yellow bar: step number, title, Skip */
+.gi-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px 10px 14px;
+  background: var(--gi-marquee); color: var(--gi-cab);
+  border-bottom: 3px solid var(--gi-edge);
+}
+.gi-num {
+  display: inline-grid; place-items: center; flex: none;
+  width: 34px; height: 34px;
+  background: var(--gi-cab); color: var(--gi-marquee);
+  font: 700 1.15rem/1 var(--gi-font);
+}
+/* .wr-game .gi-bar h2: beats game.css's heading colour. */
+.gi-bar h2, .wr-game .gi-bar h2 { flex: 1; min-width: 0; font: 700 1.3rem/1.15 var(--gi-font); letter-spacing: .01em; color: var(--gi-cab); }
+.gi-bar h2:focus { outline: none; }
+.gi-bar h2:focus-visible { outline: 3px solid var(--gi-cab); }
+.gi-bar :focus-visible { outline-color: var(--gi-cab); }
+
+.gi-body { flex: 1; min-height: 0; overflow: auto; padding: 18px 22px 20px; }
+.gi-lead { font-size: 1.02rem; margin-bottom: 16px !important; }
+.gi-aside { margin-top: 16px !important; padding-top: 12px; border-top: 2px dashed var(--gi-rule); color: var(--gi-muted); }
+.gi-body strong { font-weight: 700; }
+
+.gi-foot {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px;
+  padding: 12px 16px;
+  border-top: 2px solid var(--gi-edge);
+}
+.gi-progress { display: flex; align-items: center; gap: 12px; }
+.gi-count { font: 700 .82rem/1 var(--gi-font); color: var(--gi-muted); white-space: nowrap; }
+.gi-nav { display: flex; gap: 10px; margin-left: auto; }
+
+/* Pixel step dots */
+.gi-dots { display: flex; gap: 6px; padding: 0; list-style: none; }
+.gi-dots li { width: 12px; height: 12px; border: 2px solid var(--gi-control); background: transparent; }
+.gi-dots li.is-done { background: var(--gi-control); }
+.gi-dots li.is-on { background: var(--gi-marquee); border-color: var(--gi-control); transform: scale(1.25); }
+.gi-dots.is-mini li { width: 9px; height: 9px; }
+
+/* ---- Buttons (the page's pixel ring: four shadows make the stepped corners) -------------- */
+
+.gi-btn {
+  --o: var(--gi-control);
+  --s: var(--gi-shadow);
+  --ring: 0 -2px 0 0 var(--o), 0 2px 0 0 var(--o), -2px 0 0 0 var(--o), 2px 0 0 0 var(--o);
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 42px; margin: 2px; padding: 8px 16px;
+  border: 0; border-radius: 0;
+  background: var(--gi-panel); color: var(--gi-ink);
+  box-shadow: var(--ring);
+  font: 700 .86rem/1.15 var(--gi-font); letter-spacing: .01em;
+  cursor: pointer;
+}
+.gi-btn:hover { background: var(--gi-hover); }
+.gi-btn:active { transform: translate(1px, 1px); }
+.gi-btn.is-primary, .gi-btn.is-start {
+  --o: var(--gi-cab);
+  background: var(--gi-start); color: var(--gi-cab);
+  box-shadow: var(--ring), 3px 1px 0 0 var(--s), 3px 5px 0 0 var(--s), 1px 3px 0 0 var(--s), 5px 3px 0 0 var(--s);
+}
+.gi-btn.is-primary:hover, .gi-btn.is-start:hover { background: #ff7a33; }
+.gi-btn.is-primary:active, .gi-btn.is-start:active {
+  transform: translate(2px, 2px);
+  box-shadow: var(--ring), 1px -1px 0 0 var(--s), 1px 3px 0 0 var(--s), -1px 1px 0 0 var(--s), 3px 1px 0 0 var(--s);
+}
+.gi-btn.is-big { min-height: 50px; padding: 10px 22px; font-size: 1rem; }
+.gi-btn.is-ghost { --o: var(--gi-cab); background: transparent; color: var(--gi-cab); min-height: 36px; padding: 6px 12px; font-size: .78rem; }
+.gi-btn.is-ghost:hover { background: #ffe27a; }
+.gi-ico { width: 14px; height: 14px; fill: currentColor; flex: none; }
+
+/* Pictures of the page's buttons (not buttons): Run, Lock in, Walk away */
+.gi-fake {
+  --o: var(--gi-control);
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 40px; margin: 2px; padding: 8px 14px;
+  background: var(--gi-panel); color: var(--gi-ink);
+  box-shadow: 0 -2px 0 0 var(--o), 0 2px 0 0 var(--o), -2px 0 0 0 var(--o), 2px 0 0 0 var(--o), 3px 3px 0 0 var(--gi-shadow);
+  font: 700 .86rem/1.15 var(--gi-font);
+  white-space: nowrap;
+  transition: transform 90ms steps(1), box-shadow 90ms steps(1);
+}
+.gi-fake.is-lock { --o: var(--gi-cab); background: var(--gi-start); color: var(--gi-cab); box-shadow: 0 -2px 0 0 var(--o), 0 2px 0 0 var(--o), -2px 0 0 0 var(--o), 2px 0 0 0 var(--o), 4px 4px 0 0 var(--gi-shadow); }
+.gi-fake.is-small { min-height: 30px; padding: 5px 10px; font-size: .78rem; }
+.gi-fake.is-pressed { transform: translate(3px, 3px); box-shadow: 0 -2px 0 0 var(--o), 0 2px 0 0 var(--o), -2px 0 0 0 var(--o), 2px 0 0 0 var(--o), 0 0 0 0 var(--gi-shadow); }
+
+/* A rung tag: the rung number in a marquee square, then its prize */
+.gi-rungtag {
+  display: inline-flex; align-items: center; gap: 8px; flex: none;
+  padding-right: 8px;
+  border: 2px solid var(--gi-edge);
+  font: 700 .82rem/1 var(--gi-font);
+  white-space: nowrap;
+}
+.gi-rungtag b { display: grid; place-items: center; align-self: stretch; min-width: 26px; padding: 4px 6px; background: var(--gi-marquee); color: var(--gi-cab); border-right: 2px solid var(--gi-edge); }
+
+/* ---- Screen 0: the attract screen ------------------------------------------------------- */
+
+.gi.is-attract .gi-veil { background-color: var(--gi-veil); background-color: color-mix(in srgb, var(--gi-bg) 52%, transparent); }
+.gi-attract {
+  width: min(560px, 100%);
+  align-items: center; text-align: center;
+  padding: 26px 26px 22px;
+  gap: 16px;
+  overflow: auto;
+}
+.gi-kicker { font: 700 .82rem/1.2 var(--gi-font); color: var(--gi-muted); letter-spacing: .02em; }
+.gi-marquee-wrap {
+  /* drop-shadow follows the stepped corners of the clipped title */
+  filter: drop-shadow(0 -3px 0 var(--gi-cab)) drop-shadow(0 3px 0 var(--gi-cab)) drop-shadow(-3px 0 0 var(--gi-cab)) drop-shadow(3px 0 0 var(--gi-cab)) drop-shadow(5px 5px 0 var(--gi-shadow));
+  max-width: 100%;
+}
+/* .wr-game .gi-marquee: beats game.css's `.wr-game h2 { color: var(--wr-ink) }`. */
+.gi-marquee, .wr-game .gi-marquee {
+  padding: 16px 26px 14px;
+  background: var(--gi-marquee); color: var(--gi-cab);
+  font: 700 2rem/1.25 var(--gi-font); letter-spacing: .02em;
+  clip-path: polygon(0 8px, 4px 8px, 4px 4px, 8px 4px, 8px 0, calc(100% - 8px) 0, calc(100% - 8px) 4px, calc(100% - 4px) 4px, calc(100% - 4px) 8px, 100% 8px,
+    100% calc(100% - 8px), calc(100% - 4px) calc(100% - 8px), calc(100% - 4px) calc(100% - 4px), calc(100% - 8px) calc(100% - 4px), calc(100% - 8px) 100%,
+    8px 100%, 8px calc(100% - 4px), 4px calc(100% - 4px), 4px calc(100% - 8px), 0 calc(100% - 8px));
+}
+.gi-marquee:focus { outline: none; }
+.gi-tagline { font-size: 1.08rem; font-weight: 700; }
+.gi-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin-top: 4px; }
+.gi-note { color: var(--gi-muted); font-size: .88rem; }
+
+/* The climb: 15 steps rising to the top prize. Safe steps are marquee yellow with a double ink edge, the top
+   step is gold, and an orange pixel arrow stands on rung 1. On open the steps rise once, left to right. */
+.gi-climb { display: grid; gap: 6px; width: min(100%, 340px); }
+.gi-climb-steps {
+  display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); gap: 3px; align-items: end;
+  height: 112px; padding-top: 22px;
+  border-bottom: 3px solid var(--gi-edge);
+}
+.gi-climb-step {
+  position: relative;
+  height: calc(6px + var(--i) * 5.6px);
+  background: var(--gi-panel);
+  border: 2px solid var(--gi-edge); border-bottom: 0;
+  transform-origin: 50% 100%;
+  animation: gi-rise 240ms steps(4, end) both;
+  animation-delay: calc(120ms + var(--i) * 45ms);
+}
+.gi-climb-step.is-safe { background: var(--gi-marquee); border: 4px double var(--gi-cab); border-bottom: 0; }
+.gi-climb-step.is-top { background: var(--gi-coin); border-color: var(--gi-cab); }
+.gi-climb-step.is-here::before {      /* a pixel arrow pointing down at rung 1 */
+  content: ""; position: absolute; left: 50%; bottom: calc(100% + 4px); width: 14px; height: 12px; margin-left: -7px;
+  background: var(--gi-start);
+  clip-path: polygon(0 0, 14px 0, 14px 4px, 12px 4px, 12px 8px, 9px 8px, 9px 12px, 5px 12px, 5px 8px, 2px 8px, 2px 4px, 0 4px);
+}
+@keyframes gi-rise { from { transform: scaleY(0); } }
+.gi-climb-ends { display: flex; justify-content: space-between; font: 700 .78rem/1 var(--gi-font); color: var(--gi-muted); }
+.gi-climb-ends span:last-child { color: var(--gi-coin-text); }
+
+/* ---- Screen 1: the game ------------------------------------------------------------------ */
+
+.gi-bands { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px !important; padding: 0; list-style: none; }
+.gi-band { display: grid; gap: 4px; align-content: start; padding: 10px 12px 12px; border: 2px solid var(--gi-edge); }
+.gi-band strong { font: 700 1rem/1.2 var(--gi-font); }
+.gi-band-r { font-size: .82rem; color: var(--gi-muted); }
+.gi-band-t { font-size: .86rem; }
+.gi-pips { display: flex; gap: 3px; margin-bottom: 4px; }
+.gi-pips span { width: 12px; height: 12px; border: 2px solid var(--gi-control); background: var(--gi-control); }
+.gi-pips span.is-safe { background: var(--gi-marquee); border-color: var(--gi-cab); }
+.gi-band.is-easy .gi-pips span:not(.is-safe) { background: transparent; }
+.gi-band.is-medium .gi-pips span:not(.is-safe) { background: repeating-conic-gradient(var(--gi-control) 0 25%, transparent 0 50%) 0 0 / 4px 4px; }   /* half-filled: a 2 × 2 dither */
+.gi-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.gi-facts > div { padding: 10px 12px; border: 2px solid var(--gi-edge); }
+.gi-facts dt { font: 700 .9rem/1.2 var(--gi-font); margin-bottom: 4px; }
+.gi-facts .f-0 dt { color: var(--gi-coin-text); }
+.gi-facts .f-1 dt { color: var(--gi-ok); }
+.gi-facts .f-2 dt { color: var(--gi-p2); }
+.gi-facts .f-3 dt { color: var(--gi-p1); }
+
+/* ---- Screen 2: how you play -------------------------------------------------------------- */
+
+.gi-loop { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 26px; padding: 0; list-style: none; }
+.gi-step { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px 14px 16px; border: 2px solid var(--gi-edge); }
+.gi-step + .gi-step::before {   /* a pixel arrow between the steps */
+  content: ""; position: absolute; left: -22px; top: 26px; width: 16px; height: 16px;
+  background: var(--gi-ink);
+  clip-path: polygon(0 4px, 8px 4px, 8px 0, 16px 8px, 8px 16px, 8px 12px, 0 12px);
+}
+.gi-step-n { display: inline-grid; place-items: center; width: 30px; height: 30px; background: var(--gi-marquee); color: var(--gi-cab); border: 2px solid var(--gi-cab); font: 700 1rem/1 var(--gi-font); }
+.gi-step-name { font: 700 1.05rem/1.2 var(--gi-font); }
+.gi-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.gi-chip { padding: 3px 7px; background: var(--gi-screen); color: var(--gi-p1); border: 2px solid var(--gi-edge); font-size: .82rem !important; }
+.gi-step-text { font-size: .9rem; }
+.gi-step .gi-fake { max-width: 100%; white-space: normal; text-align: left; }   /* "Fijar respuesta" fits its column */
+
+/* ---- Screen 3: the spotlight caption ----------------------------------------------------- */
+
+.gi.is-spot .gi-stage { display: block; overflow: hidden; }
+.gi-card.is-caption {
+  position: absolute;
+  width: min(370px, calc(100vw - 24px));
+  transition: left var(--gi-dur) ease, top var(--gi-dur) ease;
+}
+.gi-card.is-caption.is-in-next, .gi-card.is-caption.is-in-back { animation: gi-fade-a var(--gi-dur) ease-out both; }
+.gi-card.is-caption.is-center { left: 50% !important; top: 50% !important; transform: translate(-50%, -50%); }
+.gi-card.is-caption .gi-bar h2 { font-size: 1rem; }
+.gi-card.is-caption .gi-num { width: 28px; height: 28px; font-size: .95rem; }
+.gi-card.is-caption .gi-body { padding: 14px 18px 16px; animation: gi-fade-a var(--gi-dur) ease-out; }
+.gi-card.is-caption.is-flip .gi-body { animation-name: gi-fade-b; }
+@keyframes gi-fade-a { from { opacity: 0; } }
+@keyframes gi-fade-b { from { opacity: 0; } }
+.gi-spot-k { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font: 700 .76rem/1 var(--gi-font); color: var(--gi-muted); }
+.gi-spot-h { font: 700 1.15rem/1.2 var(--gi-font); margin: 0 0 6px; color: var(--gi-p1); }
+.wr-game .gi-spot-h { color: var(--gi-p1); }
+.gi-card.is-caption .gi-foot { padding: 10px 12px; }
+.gi-card.is-caption .gi-nav { gap: 6px; }
+.gi-card.is-caption .gi-btn { min-height: 38px; padding: 6px 12px; }
+/* A pixel pointer from the caption to the cut-out */
+.gi-card.is-caption::before {
+  content: ""; position: absolute; width: 18px; height: 10px; background: var(--gi-edge);
+  clip-path: polygon(0 100%, 4px 100%, 4px 6px, 7px 6px, 7px 2px, 11px 2px, 11px 6px, 14px 6px, 14px 100%, 18px 100%);
+  display: none;
+}
+.gi-card.is-caption[data-side="below"]::before { display: block; top: -13px; left: calc(var(--gi-arrow, 50%) - 9px); }
+.gi-card.is-caption[data-side="above"]::before { display: block; bottom: -13px; left: calc(var(--gi-arrow, 50%) - 9px); transform: scaleY(-1); }
+.gi-card.is-caption[data-side="right"]::before { display: block; left: -17px; top: calc(var(--gi-arrow, 50%) - 5px); transform: rotate(-90deg); }
+.gi-card.is-caption[data-side="left"]::before { display: block; right: -17px; top: calc(var(--gi-arrow, 50%) - 5px); transform: rotate(90deg); }
+
+/* ---- Screen 4: lifelines and walking away ------------------------------------------------ */
+
+.gi-opts { display: grid; gap: 12px; padding: 0; list-style: none; }
+.gi-opts li { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 14px; align-items: start; }
+.gi-opts li + li { padding-top: 12px; border-top: 2px dashed var(--gi-rule); }
+.gi-life {                         /* the page's square lifeline key: a pixel icon in a pixel ring */
+  display: grid; place-items: center;
+  width: 52px; height: 52px; margin: 2px;
+  background: var(--gi-panel); color: var(--gi-ink);
+  box-shadow: 0 -2px 0 0 var(--gi-control), 0 2px 0 0 var(--gi-control), -2px 0 0 0 var(--gi-control), 2px 0 0 0 var(--gi-control), 3px 3px 0 0 var(--gi-shadow);
+}
+.gi-life .gi-pix { width: 28px; height: 28px; }
+.gi-opt-n { display: block; margin: 2px 0; font: 700 .95rem/1.2 var(--gi-font); }
+.gi-opt-t { font-size: .92rem; }
+
+/* Round 5: the modes screen. Each mode's keyword in its colour (the page's --wr-m-* tokens). */
+.gi-modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; padding: 0; margin: 0; list-style: none; }
+.gi-mode { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; align-items: start; }
+.gi-mode .gi-opt-n { font-size: .85rem; }
+.gi-mode .gi-opt-t { font-size: .86rem; line-height: 1.4; }
+.gi-kw {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 26px; padding: 4px 6px 3px;
+  background: var(--gi-m); color: #ffffff; font: 700 .74rem/1 var(--gi-font); letter-spacing: .02em;
+}
+.gi-kw .gi-pix { width: 12px; height: 12px; fill: currentColor; }
+.gi-mode.is-select { --gi-m: var(--wr-m-select, #1660e8); }
+.gi-mode.is-insert { --gi-m: var(--wr-m-insert, #127a43); }
+.gi-mode.is-update { --gi-m: var(--wr-m-update, #8a5a00); }
+.gi-mode.is-delete { --gi-m: var(--wr-m-delete, #d61f3a); }
+.gi-mode.is-ddl { --gi-m: var(--wr-m-ddl, #6b3fc9); }
+.gi-mode.is-mixed { --gi-m: var(--wr-m-mixed, #1c1838); }
+
+/* Round 6: study and competitive. The medal is the competitive side's badge. */
+.gi-comp { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 16px; align-items: start; }
+.gi-medal { width: 64px; height: 72px; }
+.gi-medal .r { fill: var(--wr-m-select, #1660e8); }
+.gi-medal .o { fill: var(--gi-cab); }
+.gi-medal .d { fill: var(--gi-coin); }
+.gi-comp-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.gi-comp-list li { position: relative; padding-left: 20px; font-size: .92rem; line-height: 1.45; }
+.gi-comp-list li::before { content: ""; position: absolute; left: 2px; top: .45em; width: 9px; height: 9px; background: var(--gi-start); box-shadow: 0 0 0 2px var(--gi-cab); }
+
+/* ---- Screen 5: the little example -------------------------------------------------------- */
+
+.gi-card.is-screen-5 { width: min(780px, 100%); }
+.gi-ex { display: grid; grid-template-columns: minmax(0, 1fr) 176px; gap: 20px; align-items: start; }
+.gi-term { display: grid; gap: 10px; min-width: 0; }
+.gi-q { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 2px solid var(--gi-edge); }
+.gi-q p { font-size: .95rem; }
+.gi-ex[data-phase="read"] .gi-q { background: var(--gi-hover); }
+.gi-screen {
+  display: grid; gap: 8px; align-content: start;
+  min-height: 196px;                             /* room for the end state, so the card does not grow */
+  padding: 12px 14px;
+  background: var(--gi-screen);
+  border: 2px solid var(--gi-edge);
+  font: .82rem/1.5 var(--mono, monospace);
+}
+.gi-line { display: block; white-space: pre-wrap; word-break: break-word; }
+.gi-prompt { color: var(--gi-muted); font-weight: 700; margin-right: 8px; }
+.gi-typed { font: 600 1em var(--mono, monospace) !important; color: var(--gi-ink); background: none !important; padding: 0 !important; border: 0 !important; }
+.gi-caret { display: none; width: .6em; height: 1.05em; margin-left: 1px; vertical-align: -.15em; background: var(--gi-p1); }
+.gi-line.is-typing .gi-caret { display: inline-block; }
+.gi-out { display: grid; gap: 4px; justify-items: start; min-width: 0; overflow-x: auto; }
+.gi-res { border-collapse: collapse; font: 600 .78rem/1.3 var(--mono, monospace); }
+.gi-res th, .gi-res td { padding: 3px 10px; border: 2px solid var(--gi-edge); text-align: left; }
+.gi-res th { background: var(--gi-panel); color: var(--gi-muted); font-weight: 700; }
+.gi-res td { color: var(--gi-ink); }
+.gi-res td.is-num { text-align: right; color: var(--gi-p1); font-weight: 700; }
+.gi-more, .gi-fallback { color: var(--gi-muted); font-family: var(--sans, Arial, sans-serif); font-size: .85rem; }
+.gi-ex-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.gi-host { padding: 7px 12px; background: var(--gi-marquee); color: var(--gi-cab); border: 2px solid var(--gi-cab); font-size: .92rem; }
+.gi-host b { font: 700 .9rem/1 var(--gi-font); margin-right: 4px; }
+.gi-ex-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+.gi-cap { min-height: 3.1em; font-size: .98rem; }
+.gi-cap strong:first-child { font-family: var(--gi-font); font-size: .95em; letter-spacing: .01em; }   /* the step label only */
+.gi-ex[data-phase="done"] ~ .gi-ex-foot .gi-cap { color: var(--gi-ok); font-weight: 700; }
+
+/* The mini ladder: five rungs, top first. Rung 1 is current, blinks while SQL-Bot asks the database, then
+   lights up green and the marker climbs to rung 2. */
+.gi-ml { display: grid; gap: 6px; padding: 0; list-style: none; }
+.gi-ml li {
+  display: grid; grid-template-columns: 26px minmax(0, 1fr) 16px; align-items: center; gap: 6px;
+  min-height: 34px; padding: 4px 8px;
+  border: 2px solid var(--gi-rule);
+  font: 700 .8rem/1 var(--gi-font);
+}
+.gi-ml-n { font-size: .9rem; }
+.gi-ml-p { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gi-ml-mark { display: grid; place-items: center; }
+.gi-ml .is-check { width: 14px; height: 14px; visibility: hidden; }
+.gi-ml li.is-safe { border: 4px double var(--gi-edge); }
+.gi-ex:not(.is-won) .gi-ml li[data-level="1"], .gi-ex.is-won .gi-ml li[data-level="2"] {
+  position: relative;
+  background: var(--gi-marquee); color: var(--gi-cab);
+  border: 2px solid var(--gi-cab);
+  box-shadow: 3px 3px 0 var(--gi-shadow);
+}
+.gi-ex:not(.is-won) .gi-ml li[data-level="1"]::before, .gi-ex.is-won .gi-ml li[data-level="2"]::before {
+  content: ""; position: absolute; left: -14px; top: 50%; width: 10px; height: 12px; margin-top: -6px;
+  background: var(--gi-start);
+  clip-path: polygon(0 0, 4px 0, 4px 2px, 6px 2px, 6px 4px, 8px 4px, 8px 6px, 10px 6px, 8px 6px, 8px 8px, 6px 8px, 6px 10px, 4px 10px, 4px 12px, 0 12px);
+}
+.gi-ex.is-asking .gi-ml li[data-level="1"] { animation: gi-blink 400ms steps(1, end) 3; }
+@keyframes gi-blink { 50% { background: var(--gi-panel); color: var(--gi-ink); } }
+.gi-ex.is-won .gi-ml li[data-level="1"] { border-color: var(--gi-ok); color: var(--gi-ok); animation: gi-light 700ms steps(1, end) both; }
+.gi-ex.is-won .gi-ml li[data-level="1"] .is-check { visibility: visible; }
+@keyframes gi-light { 0%, 70% { background: var(--gi-ok-fill); color: var(--gi-cab); border-color: var(--gi-cab); } }
+
+/* ---- Closing ----------------------------------------------------------------------------- */
+
+.gi.is-leaving { animation: gi-out 200ms ease-in both; pointer-events: none; }
+@keyframes gi-out { to { opacity: 0; } }
+
+/* ---- Phones ------------------------------------------------------------------------------ */
+
+@media (max-width: 640px) {
+  .gi-stage { padding: 12px; }
+  .gi-card { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); box-shadow: 4px 4px 0 var(--gi-shadow); }
+  .gi-attract { padding: 20px 16px 18px; gap: 14px; }
+  .gi-marquee, .wr-game .gi-marquee { font-size: 1.5rem; padding: 12px 16px 10px; }
+  .gi-climb-steps { height: 92px; }
+  .gi-climb-step { height: calc(4px + var(--i) * 4.4px); }
+  .gi-actions { flex-direction: column; align-items: stretch; width: 100%; }
+  .gi-bar h2, .wr-game .gi-bar h2 { font-size: 1.05rem; }
+  .gi-body { padding: 14px 16px 16px; }
+  .gi-lead { margin-bottom: 12px !important; }
+  .gi-bands { grid-template-columns: 1fr; gap: 6px; margin-bottom: 10px !important; }
+  .gi-band { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; padding: 7px 10px; }
+  .gi-band .gi-pips { display: none; }         /* the rung range says the same on a phone */
+  .gi-band-t { flex-basis: 100%; }
+  .gi-facts { grid-template-columns: 1fr; gap: 6px; }
+  .gi-facts > div { padding: 7px 10px; }
+  .gi-facts dt { display: inline; margin-right: 6px; }
+  .gi-facts dd { display: inline; }
+  .gi-loop { grid-template-columns: 1fr; gap: 20px; }
+  .gi-step { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px 10px; padding: 10px 12px; }
+  .gi-step-text { grid-column: 1 / -1; }
+  .gi-step + .gi-step::before { left: 20px; top: -18px; transform: rotate(90deg); }
+  .gi-aside { margin-top: 12px !important; padding-top: 10px; }
+  .gi-opts li { gap: 12px; }
+  .gi-modes { grid-template-columns: minmax(0, 1fr); }
+  .gi-ex { grid-template-columns: 1fr; gap: 12px; }
+  .gi-screen { min-height: 0; }
+  .gi-ex-actions { gap: 8px; flex-wrap: nowrap; }
+  .gi-ex-actions .gi-fake { min-height: 32px; padding: 5px 10px; font-size: .74rem; }
+  /* The mini ladder lies down: rung 1 on the left */
+  .gi-ml { grid-template-columns: repeat(5, minmax(0, 1fr)); direction: rtl; gap: 4px; }
+  .gi-ml li { direction: ltr; grid-template-columns: 1fr; justify-items: center; gap: 2px; min-height: 0; padding: 4px 2px; }
+  .gi-ml-p { font-size: .62rem; text-align: center; }
+  .gi-ml .is-check { width: 10px; height: 10px; }
+  .gi-ex:not(.is-won) .gi-ml li[data-level="1"]::before, .gi-ex.is-won .gi-ml li[data-level="2"]::before { display: none; }
+  .gi-ex-foot { margin-top: 10px; }
+  .gi-foot { padding: 10px 12px; }
+  .gi-nav .gi-btn { padding: 8px 12px; }
+}
+@media (max-width: 420px) {
+  .gi-foot { flex-wrap: nowrap; }
+  .gi-foot .gi-dots { display: none; }          /* the "2 of 5" counter stays; one row for the footer */
+  .gi-nav { gap: 6px; }
+  .gi-nav .gi-btn { padding: 8px 10px; }
+}
+@media (max-width: 640px) and (max-height: 760px) {
+  .gi-card.is-screen-5 .gi-lead { display: none; }
+}
+
+/* ---- Reduced motion: nothing moves -------------------------------------------------------- */
+
+.gi.is-still *, .gi.is-still *::before, .gi.is-still *::after, .gi.is-still .gi-veil, .gi.is-still { transition: none !important; animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .gi *, .gi *::before, .gi *::after, .gi .gi-veil, .gi { transition: none !important; animation: none !important; }
+}

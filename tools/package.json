@@ -2,11 +2,19 @@
   "name": "databases-practice-tools",
   "private": true,
   "type": "module",
-  "description": "Build tools for the static site: the summary PDF of each section.",
+  "description": "Build tools for the static site (summary PDFs, checks) and the competition server's tools (Supabase CLI, bank upload).",
   "scripts": {
-    "pdfs": "node build-pdfs.mjs"
+    "pdfs": "node build-pdfs.mjs",
+    "supabase": "supabase --workdir ..",
+    "comp:sync": "node supabase-sync.mjs",
+    "comp:build": "node comp-build.mjs",
+    "comp:check": "node check-comp-server.mjs",
+    "comp:e2e": "node check-comp-server.mjs --e2e",
+    "secrets": "node check-no-secrets.mjs"
   },
   "devDependencies": {
-    "playwright": "^1.56.0"
+    "playwright": "^1.56.0",
+    "sql.js": "1.14.2",
+    "supabase": "3.0.0"
   }
 }

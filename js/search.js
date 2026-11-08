@@ -74,6 +74,9 @@ const SearchIndex = (() => {
       });
     });
     add({ section: t('ER concepts'), kind: t('Tool'), href: '#/relational/er/practice/draw', title: t('Draw an ER diagram'), summary: t('Draw any ER model with the course notation and download it for diagrams.net or as an image.'), body: '' });
+    if (typeof GAME_TEXT !== 'undefined' && GAME_TEXT) {
+      add({ section: t('SQL'), kind: t('Game'), href: '#/game', title: plain(GAME_TEXT.title), summary: plain(GAME_TEXT.tagline), body: strings([GAME_TEXT.intro]).join(' · ') });
+    }
     docs.forEach((d) => { d.text = [d.summary, d.body].filter(Boolean).join(' · '); d.foldedTitle = fold(d.title); d.foldedText = fold(d.text); });
     avgLen = docs.reduce((s, d) => s + d.len, 0) / Math.max(docs.length, 1);
     terms = [...postings.keys()].sort();

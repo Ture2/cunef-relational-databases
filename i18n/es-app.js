@@ -1012,4 +1012,33 @@ Object.assign(UI.es, {
   "Perf.": "Rend.",
   "Adv.": "Avanz.",
   "DCL · TCL": "DCL · TCL",
+  // ---- Oracle translator: WITH TIES, TO_DATE formats, == ----
+  "FETCH FIRST … WITH TIES or PERCENT": "FETCH FIRST … WITH TIES o PERCENT",
+  "TO_DATE with this format (use DATE 'YYYY-MM-DD', or TO_DATE with 'YYYY-MM-DD' or 'DD-MON-YYYY')": "TO_DATE con este formato (usa DATE 'YYYY-MM-DD', o TO_DATE con 'YYYY-MM-DD' o 'DD-MON-YYYY')",
+  "Oracle has no == operator.": "Oracle no tiene el operador ==.",
+  "Compare with a single =.": "Compara con un solo =.",
+  "FETCH FIRST … WITH TIES and PERCENT are not simulated here.": "FETCH FIRST … WITH TIES y PERCENT no se simulan aquí.",
+  "Use FETCH FIRST n ROWS ONLY, or copy the query to FreeSQL.": "Usa FETCH FIRST n ROWS ONLY, o copia la consulta en FreeSQL.",
+  "INSERT ALL with conditions or a query (use one INSERT per row)": "INSERT ALL con condiciones o con una consulta (usa un INSERT por fila)",
+  "UPDATE or DELETE through an inline view (SELECT …)": "UPDATE o DELETE a través de una vista en línea (SELECT …)",
+  "CONNECT BY LEVEL above 200000 rows": "CONNECT BY LEVEL de más de 200000 filas",
+  // ---- The game as its own destination: the Arcade tab and the home marquee ----
+  "Arcade": "Arcade",
+  "Play now": "Jugar ahora",
+  "Continue playing": "Seguir jugando",
+
+  // ---- The account menu in the app bar (js/account.js): account, progress and settings ----
+  "Account and settings": "Cuenta y ajustes",
+  "Account and settings: {name}, progress {pct}%": "Cuenta y ajustes: {name}, progreso {pct} %",
+  "Account and settings: not signed in, progress {pct}%": "Cuenta y ajustes: sin iniciar sesión, progreso {pct} %",
+  "You are not signed in": "No has iniciado sesión",
+  "Sign in with your @cunef.edu email to play Competitive and keep your attempts.": "Entra con tu correo @cunef.edu para jugar en Competición y guardar tus intentos.",
+  "Attempts left today": "Intentos que te quedan hoy",
+  "{n} of {total} left": "{n} de {total}",
+  "Badge earned": "Insignia conseguida",
+  "Open the arcade to see today's attempts": "Abre el arcade para ver los intentos de hoy",
+  "My attempts": "Mis intentos",
+  "{pct}% of the course": "{pct} % del curso",
+  "See your progress": "Ver tu progreso",
+  "Signed out": "Sesión cerrada",
 });

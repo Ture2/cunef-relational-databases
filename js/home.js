@@ -71,6 +71,25 @@ const HomePage = (() => {
       </article>`;
   }
 
+  /* The game's marquee: its own destination (#/game), in the game's arcade look (always light, styles.css .home-arcade).
+     "Continue" when a run is in progress in any mode (game-quiz-v2, js/game.js). */
+  function arcadeHtml() {
+    if (typeof GAME_TEXT === 'undefined' || !GAME_TEXT) return '';
+    let playing = false;
+    try {
+      const v2 = JSON.parse(localStorage.getItem('game-quiz-v2') || 'null');
+      playing = !!(v2 && v2.runs && Object.values(v2.runs).some((r) => r && r.status === 'playing' && r.answers && r.answers.length));
+    } catch (e) { /* no storage, or an unreadable save: show Play */ }
+    const modes = ['select', 'insert', 'update', 'delete', 'ddl', 'mixed'];
+    const word = (m) => (GAME_TEXT.modes && GAME_TEXT.modes[m] && GAME_TEXT.modes[m].keyword) || m.toUpperCase();
+    return `<a class="home-arcade" href="#/game">
+        <span class="home-arcade-title">${esc(GAME_TEXT.title)}</span>
+        <span class="home-arcade-tag">${esc(GAME_TEXT.tagline)}</span>
+        <span class="home-arcade-modes" aria-hidden="true">${modes.map((m) => `<span class="is-${m}">${esc(word(m))}</span>`).join('')}</span>
+        <span class="home-arcade-go">${esc(playing ? t('Continue playing') : t('Play now'))}</span>
+      </a>`;
+  }
+
   function render() {
     const s = ProgressPage.summary();
     const r = resume(s);
@@ -87,6 +106,7 @@ const HomePage = (() => {
             </p>
           </div>
         </header>
+        ${arcadeHtml()}
         <div class="home-grid">${s.secs.map(card).join('')}</div>
         <h2 class="home-h2">${esc(t('Shortcuts'))}</h2>
         <ul class="home-quick">
