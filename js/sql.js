@@ -66,22 +66,38 @@ const SqlSection = (() => {
       ? `<p class="ss-label">${esc(t('Example you can run on the website'))}</p><pre class="concept-code"><code>${esc(card.sql.query)}</code></pre>`
       : '') + (card.video ? `<p class="meta">${esc(t('Watch the video on the website, in the SQL section.'))}</p>` : ''),
     groups: [
-      /* Four parts, each a heading in the rail. */
-      { key: 'oracle', label: 'Oracle and FreeSQL', icon: 'cloud', part: 'Querying data' },
-      { key: 'querying', label: 'Querying', icon: 'search', part: 'Querying data' },
-      { key: 'joins', label: 'Combining tables', icon: 'venn', part: 'Querying data' },
-      { key: 'aggregation', label: 'Aggregation', icon: 'sigma', part: 'Querying data' },
-      { key: 'subqueries', label: 'Subqueries & sets', icon: 'nested', part: 'Querying data' },
-      { key: 'functions', label: 'Functions', icon: 'fx', part: 'Querying data' },
-      { key: 'languages', label: 'SQL languages', icon: 'quad', part: 'Defining and changing data' },
-      { key: 'constraints', label: 'Constraints', icon: 'key', part: 'Defining and changing data' },
-      { key: 'objects', label: 'Views & schema objects', icon: 'view', part: 'Defining and changing data' },
-      { key: 'plsql', label: 'PL/SQL', icon: 'braces', part: 'Programming' },
+      /* Five parts, one tab each at the top of the rail, following the sub-languages of SQL: DDL and DML are
+         the core of the course; DCL, TCL and PL/SQL are the advanced part. A card joins the group its `hub`
+         names. The sub-languages come first: they explain the tabs themselves. */
+      { key: 'sublanguages', label: 'SQL sub-languages', icon: 'quad', part: 'Getting started' },
+      { key: 'oracle', label: 'Oracle and FreeSQL', icon: 'cloud', part: 'Getting started' },
+      { key: 'ddl-tables', label: 'Tables and types', icon: 'table', part: 'DDL · data definition' },
+      { key: 'ddl-change', label: 'Alter and drop', icon: 'lifecycle', part: 'DDL · data definition' },
+      { key: 'constraints', label: 'Constraints', icon: 'key', part: 'DDL · data definition' },
+      { key: 'objects', label: 'Schema objects', icon: 'view', part: 'DDL · data definition' },
+      { key: 'querying', label: 'Querying', icon: 'search', part: 'DML · data manipulation' },
+      { key: 'joins', label: 'Combining tables', icon: 'venn', part: 'DML · data manipulation' },
+      { key: 'aggregation', label: 'Aggregation', icon: 'sigma', part: 'DML · data manipulation' },
+      { key: 'subqueries', label: 'Subqueries & sets', icon: 'nested', part: 'DML · data manipulation' },
+      { key: 'functions', label: 'Functions', icon: 'fx', part: 'DML · data manipulation' },
+      { key: 'dml-change', label: 'Changing data', icon: 'rowedit', part: 'DML · data manipulation' },
+      { key: 'dcl', label: 'DCL: users and privileges', icon: 'user', part: 'Advanced' },
+      { key: 'tcl', label: 'TCL: transactions', icon: 'timeline', part: 'Advanced' },
+      { key: 'plsql', label: 'PL/SQL', icon: 'braces', part: 'Advanced' },
       { key: 'indexes', label: 'Indexes', icon: 'index', part: 'Performance' },
       { key: 'clustering', label: 'Clustering', icon: 'cluster', part: 'Performance' },
       { key: 'partitioning', label: 'Partitioning', icon: 'split', part: 'Performance' },
       { key: 'efficiency', label: 'Efficiency', icon: 'speed', part: 'Performance' },
     ],
+    /* The parts as tabs of the rail: a short name, the line under it, a level chip (Core: the minimum of
+       the course) for the overview, and the icon and name of the part when the rail is collapsed to icons. */
+    parts: {
+      'Getting started': { tab: 'Start', icon: 'quad' },
+      'DDL · data definition': { tab: 'DDL', tag: 'Core', icon: 'table' },
+      'DML · data manipulation': { tab: 'DML', tag: 'Core', icon: 'rowedit' },
+      Advanced: { tab: 'Advanced', short: 'Adv.', sub: 'DCL · TCL', icon: 'acid' },
+      Performance: { tab: 'Perf.', icon: 'speed' },
+    },
     concepts: SQL_CONCEPTS,
     videos: SQL_CONCEPTS.filter((c) => c.video && SQL_VIDEOS[c.video]).map((c) => courseVideo(c.video, SQL_VIDEOS[c.video].group || c.hub, SQL_VIDEOS[c.video])),
     quiz: SQL_QUIZ,

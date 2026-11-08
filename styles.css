@@ -712,9 +712,10 @@ main.is-wide { max-width: none; padding: 0; }
 .er-main { min-width: 0; padding: 28px 40px 0; }
 .er-aside { position: sticky; top: var(--appbar-h); z-index: 10; min-height: calc(100vh - var(--appbar-h)); }
 
+/* The rail is as tall as the window and scrolls on its own, so Practice, the quiz and Collapse stay reachable. */
 .rail {
-  display: flex; flex-direction: column; min-height: calc(100vh - var(--appbar-h));
-  background: var(--surface); border-right: 1px solid var(--rule);
+  display: flex; flex-direction: column; height: calc(100vh - var(--appbar-h)); overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-width: thin; background: var(--surface); border-right: 1px solid var(--rule);
 }
 .rail ul, .rail ol { list-style: none; margin: 0; padding: 0; }
 .rail-icon { flex: none; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; }
@@ -741,23 +742,34 @@ main.is-wide { max-width: none; padding: 0; }
 .rail-head:hover { background: var(--hover); }
 .rail-hub.is-active > .rail-head { background: var(--hover); font-weight: 700; box-shadow: inset 3px 0 0 var(--accent); }
 .rail-label { min-width: 0; }
-.rail-head .rail-count, .rail-head .rail-live { margin-left: auto; }
-.is-collapsed .rail-head .rail-count, .is-collapsed .rail-head .rail-live { display: none; }
+.rail-head .rail-count, .rail-head .rail-live, .rail-head .rail-prog { margin-left: auto; }
+.is-collapsed .rail-head .rail-count, .is-collapsed .rail-head .rail-live, .is-collapsed .rail-head .rail-prog { display: none; }
+/* Concepts read in a group: "2/4", ✓ when all are read; nothing before the first. */
+.rail-prog { flex: none; color: var(--muted); font-size: .72rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rail-prog.is-done { color: var(--ok); }
+.rail-prog.is-zero { display: none; }
 
 /* Parts: a heading over consecutive hubs (SQL). Only the open parts list their hubs; collapsed to icons,
    every hub shows and the headings go. */
 .rail-parts { padding: 4px 0; }
 .rail-part + .rail-part { border-top: 1px solid var(--rule); }
 .rail-part-head {
-  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 0 14px 0 22px;
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 8px 14px 8px 22px;
   border: 0; background: transparent; color: var(--muted); cursor: pointer; text-align: left;
-  font: 700 .76rem var(--sans); letter-spacing: .06em; text-transform: uppercase;
+  font: 700 .76rem/1.3 var(--sans); letter-spacing: .06em; text-transform: uppercase;
 }
 .rail-part-head:hover { background: var(--hover); color: var(--ink); }
 .rail-part-head:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
-.rail-part-head .rail-label { flex: 1; }
-.rail-part-n { padding: 0 6px; border-radius: 9px; background: var(--tint); font-size: .72rem; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.rail-part-head .rail-label { flex: 1; min-width: 0; }
+/* Reading progress of a closed part ("3/14", ✓ when every concept is read). */
+.rail-part-n { flex: none; padding: 0 6px; border-radius: 9px; background: var(--tint); font-size: .72rem; letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
+.rail-part-n.is-done { background: var(--ok-bg); color: var(--ok); }
 .rail-part.is-open .rail-part-n { display: none; }
+/* Level chip of a part (cfg.partTags), such as Core: the minimum of the course. */
+.rail-tag {
+  flex: none; padding: 1px 7px; border: 1px solid var(--rule-strong); border-radius: 9px;
+  background: var(--tint); color: var(--ink); font: 700 .66rem/1.4 var(--sans); letter-spacing: .04em; text-transform: uppercase;
+}
 .rail-part-chev { flex: none; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
 .rail-part.is-open .rail-part-chev { transform: rotate(180deg); }
 .rail-part-hubs { padding-bottom: 6px; }
@@ -777,14 +789,53 @@ main.is-wide { max-width: none; padding: 0; }
 .rail-pages a[aria-current] { font-weight: 700; box-shadow: inset 3px 0 0 var(--accent); background: var(--tint); }
 .rail-n { flex: none; width: 2.3em; color: var(--muted); font-size: .78rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .rail-text { flex: 1; min-width: 0; }
+.rail-check { display: none; flex: none; color: var(--ok); font-size: .8rem; font-weight: 700; }
+.rail a.is-read .rail-check { display: inline; }
+.rail a:not(.is-read) .rail-read { display: none; }
+
+/* Parts as tabs (SQL): a row of tabs that stays at the top while the rail scrolls, and under it every group
+   of the chosen part as a heading over all its concepts. Two levels, nothing hidden in a flyout. */
+.rail-tabs {
+  position: sticky; top: 0; z-index: 2; display: flex;
+  background: var(--surface); border-bottom: 1px solid var(--rule);
+}
+.rail-tab {   /* widths follow the names, so "Advanced" gets the room it needs */
+  flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; min-height: 52px; padding: 9px 4px 6px;
+  border: 0; border-bottom: 3px solid transparent; background: transparent; color: var(--muted); cursor: pointer;
+  font: 700 .8rem/1.2 var(--sans); text-align: center;
+}
+.rail-tab:hover { background: var(--hover); color: var(--ink); }
+.rail-tab:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
+.rail-tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.rail-tab-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail-tab-sub { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .66rem; font-weight: 400; }
+.rail-tabpanel { padding: 6px 0 10px; }
+.rail-sect + .rail-sect { margin-top: 4px; }
+.rail-sect-head {
+  display: flex; align-items: center; gap: 14px; min-height: 40px; padding: 6px 14px 4px 22px;
+  color: var(--ink); text-decoration: none; font-size: .9rem; font-weight: 700; line-height: 1.25;
+}
+.rail-sect-head:hover { background: var(--hover); }
+.rail-sect-head .rail-icon { color: var(--muted); }
+.rail-sect.is-active > .rail-sect-head .rail-icon { color: var(--ink); }
+.rail-sect ol { padding: 0 0 4px; }
+.rail-sect ol a {
+  display: flex; align-items: baseline; gap: 10px; min-height: 34px; padding: 7px 14px 7px 56px;
+  color: var(--ink); text-decoration: none; font-size: .86rem; line-height: 1.3;
+}
+.rail-sect ol a:hover { background: var(--hover); }
+.rail-sect ol a[aria-current] { font-weight: 700; box-shadow: inset 3px 0 0 var(--accent); background: var(--tint); }
 .rail-score, .rail-count { flex: none; padding: 0 6px; border-radius: 9px; font-size: .74rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .rail-score { background: var(--ok-bg); color: var(--ok); }
 .rail-count { color: var(--muted); }
 .rail-fly-title { display: none; margin: 0; padding: 10px 14px 6px; color: var(--muted); font-size: .76rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 
+/* Flyouts are fixed next to their group head (the rail scrolls, so an absolute one would be clipped);
+   the rail script sets --fly-x / --fly-y and keeps them inside the window. */
 .rail-hub:not(.is-active) > .rail-pages,
 .is-collapsed .rail-hub > .rail-pages {
-  display: none; position: absolute; left: 100%; top: 0; z-index: 30; width: 290px;
+  display: none; position: fixed; left: var(--fly-x, 272px); top: var(--fly-y, 0); z-index: 30; width: 290px;
+  max-height: var(--fly-max, calc(100vh - 16px)); overflow-y: auto; overscroll-behavior: contain;
   background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 3px;
   box-shadow: var(--shadow);
 }
@@ -794,6 +845,7 @@ main.is-wide { max-width: none; padding: 0; }
 .rail-hub:not(.is-active):focus-within > .rail-pages,
 .is-collapsed .rail-hub:hover > .rail-pages,
 .is-collapsed .rail-hub:focus-within > .rail-pages { display: block; }
+.rail-hub.fly-off > .rail-pages { display: none !important; }   /* closed with Escape or ← */
 .rail-hub:not(.is-active) .rail-fly-title,
 .is-collapsed .rail-fly-title { display: block; }
 
@@ -809,6 +861,20 @@ main.is-wide { max-width: none; padding: 0; }
 .is-collapsed .rail-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .is-collapsed .rail-top { justify-content: center; padding: 0; }
 .is-collapsed .rail-head, .is-collapsed .rail-toggle { justify-content: center; padding: 0; }
+
+/* Collapsed with tabs (SQL): one icon per part with its short name under it; the flyout holds the part's
+   groups (headings) and all their concepts, as in its tab. */
+.rail-abbr { display: none; }
+.is-collapsed .rail-tabhead { flex-direction: column; gap: 3px; min-height: 58px; }
+.is-collapsed .rail-tabhead .rail-abbr { display: block; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .66rem; font-weight: 700; color: var(--muted); }
+.is-collapsed .rail-hub.is-active > .rail-tabhead .rail-abbr { color: var(--ink); }
+.is-collapsed .rail-hub > .rail-pages .rail-sect-head {
+  align-items: center; gap: 10px; min-height: 36px; padding: 8px 14px 2px; font-weight: 700;
+  background: transparent; box-shadow: none;
+}
+.is-collapsed .rail-hub > .rail-pages .rail-sect-head:hover { background: var(--hover); }
+.is-collapsed .rail-hub > .rail-pages .rail-sect ol { padding: 0 0 4px; }
+.is-collapsed .rail-hub > .rail-pages .rail-sect ol a { padding-left: 44px; }
 
 /* Narrow screens: a dropdown replaces the rail. */
 .side-select { display: none; }
@@ -857,9 +923,15 @@ main.is-wide { max-width: none; padding: 0; }
 
 .ov-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 14px; margin: 0; padding: 0; list-style: none; }
 .ov-group { padding: 16px 18px 12px; background: var(--surface); border: 1px solid var(--rule); }
-.ov-group h2 { display: flex; align-items: baseline; gap: 10px; margin: 0 0 2px; font: 700 1.25rem/1.25 var(--serif); }
-.ov-group h2 a { color: var(--ink); text-decoration: none; }
-.ov-group h2 a:hover { text-decoration: underline; }
+.ov-group h2, .ov-group h3 { display: flex; align-items: baseline; gap: 10px; margin: 0 0 2px; font: 700 1.25rem/1.25 var(--serif); }
+.ov-group h2 a, .ov-group h3 a { color: var(--ink); text-decoration: none; }
+.ov-group h2 a:hover, .ov-group h3 a:hover { text-decoration: underline; }
+/* Sections with parts (SQL): a heading, with its level chip, over the groups of each part. */
+.ov-part + .ov-part { margin-top: 28px; }
+.ov-part-h {
+  display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--accent);
+  color: var(--ink); font: 700 .9rem var(--sans); letter-spacing: .06em; text-transform: uppercase;
+}
 .ov-n { flex: none; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: var(--on-ink); font: 700 .85rem var(--sans); }
 .ov-list { margin: 10px 0 0; padding: 0; list-style: none; }
 .ov-list li { padding: 8px 0; border-top: 1px solid var(--rule); }
@@ -1737,7 +1809,8 @@ body.erp-resizing { cursor: col-resize; user-select: none; -webkit-user-select: 
   .searchbar + .appbar-actions { margin-left: auto; }
   main.is-wide { padding: 0 24px; }
   .er-layout, .er-layout.is-collapsed { grid-template-columns: 1fr; }
-  .er-aside { position: static; min-height: 0; padding-top: 20px; }
+  /* The "Go to" menu stays at hand under the app bar while the page scrolls. */
+  .er-aside { position: sticky; top: var(--appbar-h); z-index: 20; min-height: 0; padding: 12px 0 10px; background: var(--paper); }
   .rail { display: none; }
   .side-select { display: block; }
   .er-main { padding: 16px 0 32px; }
@@ -1748,6 +1821,7 @@ body.erp-resizing { cursor: col-resize; user-select: none; -webkit-user-select: 
   .wrap, .appbar .wrap { padding: 0 16px; }
   main.is-wide { padding: 0 16px; }
   .appbar { position: static; }
+  .er-aside { top: 0; }   /* the app bar scrolls away on phones */
   .appbar-row { flex-wrap: wrap; gap: 0 16px; }
   .brand img { height: 28px; }
   .brand-name { display: none; }
