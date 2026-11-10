@@ -88,8 +88,8 @@ All commands run from `tools/` (the Supabase CLI is a dev dependency there): `cd
    $env:SUPABASE_URL='https://mbumfoxhmsrlytjwuypb.supabase.co'; $env:SUPABASE_SERVICE_ROLE_KEY='<key>'; node comp-upload.mjs
    ```
    Run the upload again after any change to the questions or texts (the function reloads within a minute).
-9. **The teacher role.** Sign in once on the site (`#/game` → Competitive) with `alberto.turegano@cunef.edu`,
-   then Dashboard → SQL Editor → paste `supabase/seed-teacher.sql` → Run (it must say `UPDATE 1`).
+9. **The teacher role.** Sign in once on the site (`#/game` → Competitive) with the teacher's @cunef.edu address
+   (the one written in `supabase/seed-teacher.sql`), then Dashboard → SQL Editor → paste `supabase/seed-teacher.sql` → Run (it must say `UPDATE 1`).
 10. **The site.** Dashboard → Project Settings → API Keys: copy the **anon public** key (Legacy API keys tab) or the
     **publishable** key (`sb_publishable_…`). Put it, with `supabaseUrl: 'https://mbumfoxhmsrlytjwuypb.supabase.co'`,
     into `data/game-comp-config.js`, then commit and push the site.
